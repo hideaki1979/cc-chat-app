@@ -1,0 +1,38 @@
+# .dockerignore (プロジェクトのルートに配置)
+
+# --- 全体共通 ---
+.git
+.gitignore
+.vscode/
+.idea/
+README.md
+
+# --- バックエンド (Go) 関連 ---
+# Goのビルド成果物
+apps/api/api
+apps/api/main
+
+# --- フロントエンド (Next.js) 関連 ---
+# 依存関係フォルダ (コンテナ内でインストールするため)
+node_modules
+apps/web/node_modules
+packages/ui/node_modules
+
+# Next.jsのビルドキャッシュと成果物
+.next/
+apps/web/.next/
+
+# --- その他 ---
+# ログファイル
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# ローカル環境変数ファイル
+.env
+.env.*
+!/.env.example
+
+# OS固有ファイル
+.DS_Store
+Thumbs.db
