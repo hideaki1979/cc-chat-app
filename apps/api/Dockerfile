@@ -12,5 +12,12 @@ RUN go mod download
 # ソースコードをコピー
 COPY . .
 
+# PORTを明示的に指定
+EXPOSE 8080
+
+# ヘルスチェックを追加
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
 # airを使ってサーバーを起動
 CMD ["air"]

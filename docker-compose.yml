@@ -11,9 +11,9 @@ services:
 
     # データベースの設定を環境変数で渡します
     environment:
-      POSTGRES_USER: user # データベースのユーザー名
-      POSTGRES_PASSWORD: password # データベースのパスワード
-      POSTGRES_DB: chat_app_db # 作成するデータベース名
+      POSTGRES_USER: ${POSTGRES_USER} # データベースのユーザー名
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} # データベースのパスワード
+      POSTGRES_DB: ${POSTGRES_DB} # 作成するデータベース名
 
     # ポートのマッピング設定
     # PC(ホスト)の5432番ポートへのアクセスを、コンテナの5432番ポートに転送します
@@ -23,7 +23,7 @@ services:
     # データの永続化設定
     # コンテナを削除してもデータが消えないように、PC上のフォルダにデータを保存します
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
 
   # --- バックエンド (Go) ---
   backend:
@@ -38,7 +38,7 @@ services:
     environment:
       # GoアプリからDBに接続するための情報
       # コンテナ間通信ではホスト名にサービス名'db'を指定します
-      DATABASE_URL: "postgresql://user:password@db:5432/chat_app_db?sslmode=disable"
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"
     # dbサービスが起動してからbackendを起動
     depends_on:
       - db
