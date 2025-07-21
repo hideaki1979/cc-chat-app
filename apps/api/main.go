@@ -27,7 +27,12 @@ func main() {
 	e := echo.New()
 
 	// ミドルウェアを設定
-	e.Use(middleware.Logger())
+	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Skipper: func(c echo.Context) bool {
+			return c.Request().URL.Path == "/health"
+		},
+	}))
+
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 
