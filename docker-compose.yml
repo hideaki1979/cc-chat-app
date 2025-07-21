@@ -1,0 +1,65 @@
+# docker-compose.yml
+
+services:
+  # サービス名を 'db' と定義します
+  db:
+    # Docker Hubにある公式のPostgreSQLイメージを指定します (バージョン16)
+    image: postgres:16
+
+    # コンテナが停止した場合や、PC再起動時に自動で再起動するように設定
+    restart: always
+
+    # データベースの設定を環境変数で渡します
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER} # データベースのユーザー名
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} # データベースのパスワード
+      POSTGRES_DB: ${POSTGRES_DB} # 作成するデータベース名
+
+    # ポートのマッピング設定
+    # PC(ホスト)の5432番ポートへのアクセスを、コンテナの5432番ポートに転送します
+    ports:
+      - "5433:5432"
+
+    # データの永続化設定
+    # コンテナを削除してもデータが消えないように、PC上のフォルダにデータを保存します
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  # --- バックエンド (Go) ---
+  backend:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      # ホストのソースコードをコンテナに同期させる（ホットリロードのため）
+      - ./apps/api:/app
+    environment:
+      # GoアプリからDBに接続するための情報
+      # コンテナ間通信ではホスト名にサービス名'db'を指定します
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"
+      PORT: "8080"
+    # dbサービスが起動してからbackendを起動
+    depends_on:
+      - db
+
+  # --- フロントエンド (Next.js) ---
+  frontend:
+    build:
+      context: .
+      dockerfile: ./apps/web/Dockerfile
+    ports:
+      - "3003:3003"
+    volumes:
+      # ホストのソースコードをコンテナに同期させる
+      - .:/app
+      # node_modulesはコンテナ内のものを使う（ホストと共有しない）
+      - /app/node_modules
+    # backendサービスが起動してからfrontendを起動
+    depends_on:
+      - backend
+
+# Dockerが管理するデータ領域を明示的に定義
+volumes:
+  postgres-data:

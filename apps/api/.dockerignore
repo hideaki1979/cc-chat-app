@@ -1,0 +1,21 @@
+# Git関連
+.git
+.gitignore
+
+# Goのビルド成果物 (コンテナ内でビルドするため不要)
+api
+main
+
+# ローカル環境変数ファイル
+.env
+
+# IDE/エディタ設定
+.vscode/
+.idea/
+
+# OS固有ファイル
+.DS_Store
+
+# ログファイル
+*.log
+build-errors.log
