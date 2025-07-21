@@ -29,7 +29,7 @@ func main() {
 	// ミドルウェアを設定
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Skipper: func(c echo.Context) bool {
-			return c.Request().URL.Path == "/health"
+			return c.Path() == "/health"
 		},
 	}))
 
