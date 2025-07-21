@@ -1,6 +1,6 @@
 # apps/web/Dockerfile
 # ベースとなるNode.jsのバージョンを指定
-FROM node:22-alpine as builder
+FROM node:22-alpine AS builder
 
 # コンテナ内の作業ディレクトリを設定
 WORKDIR /app
@@ -26,6 +26,23 @@ COPY . .
 
 # webアプリのディレクトリに移動
 WORKDIR /app/apps/web
+
+# 本番ビルド用のステージ
+FROM builder AS production
+RUN pnpm run build
+
+# 開発用のステージ
+FROM builder AS development
+
+# 非rootユーザーを作成
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nextjs -u 1001 -G nodejs
+
+RUN chown -R nextjs:nodejs /app
+USER nextjs
+
+# ポートを明示的に指定
+EXPOSE 3003
 
 # 開発サーバーを起動
 CMD ["pnpm", "run", "dev"]

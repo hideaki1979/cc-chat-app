@@ -39,6 +39,7 @@ services:
       # GoアプリからDBに接続するための情報
       # コンテナ間通信ではホスト名にサービス名'db'を指定します
       DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"
+      PORT: "8080"
     # dbサービスが起動してからbackendを起動
     depends_on:
       - db
