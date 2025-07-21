@@ -21,6 +21,8 @@ packages/ui/node_modules
 # Next.jsのビルドキャッシュと成果物
 .next/
 apps/web/.next/
+dist/
+build/
 
 # --- その他 ---
 # ログファイル
