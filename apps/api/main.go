@@ -11,6 +11,11 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
+const (
+	defaultPort = "8080"
+	portEnvKey  = "PORT"
+)
+
 // ヘルスチェック用のハンドラー
 func healthCheck(c echo.Context) error {
 	// HTTPステータス200 (OK) と、文字列 "OK" を返す
@@ -32,7 +37,12 @@ func main() {
 
 	// グレースフルシャットダウンの設定
 	go func() {
-		if err := e.Start(":8080"); err != nil && err != http.ErrServerClosed {
+		// PORT環境変数を取得、なければ8080をデフォルトにする
+		port := os.Getenv(portEnvKey)
+		if port == "" {
+			port = defaultPort
+		}
+		if err := e.Start(":" + port); err != nil && err != http.ErrServerClosed {
 			e.Logger.Fatal("shutting down the server")
 		}
 	}()
@@ -45,7 +55,7 @@ func main() {
 	// サーバーをシャットダウン
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err:= e.Shutdown(ctx); err != nil {
+	if err := e.Shutdown(ctx); err != nil {
 		e.Logger.Fatal(err)
 	}
 }
