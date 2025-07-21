@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	defaultPort = "8080"
-	portEnvKey  = "PORT"
+	defaultPort     = "8080"
+	portEnvKey      = "PORT"
+	healthCheckPath = "/health"
 )
 
 // ヘルスチェック用のハンドラー
@@ -29,7 +30,7 @@ func main() {
 	// ミドルウェアを設定
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Skipper: func(c echo.Context) bool {
-			return c.Path() == "/health"
+			return c.Path() == healthCheckPath
 		},
 	}))
 
@@ -38,7 +39,7 @@ func main() {
 
 	// ルーティングを設定
 	// GETリクエストで /health にアクセスがあったら healthCheck 関数を呼ぶ
-	e.GET("/health", healthCheck)
+	e.GET(healthCheckPath, healthCheck)
 
 	// グレースフルシャットダウンの設定
 	go func() {
