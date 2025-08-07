@@ -1,14 +1,12 @@
-version: "3.8"
-
 services:
   # 開発用データベース
   dev-db:
     image: postgres:16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: chatapp_user
-      POSTGRES_PASSWORD: chatapp_password
-      POSTGRES_DB: chatapp_db
+      POSTGRES_USER: ${POSTGRES_USER} # データベースのユーザー名
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} # データベースのパスワード
+      POSTGRES_DB: ${POSTGRES_DB} # 作成するデータベース名
     ports:
       - "5433:5432"
     volumes:
@@ -29,7 +27,7 @@ services:
     networks:
       - devcontainer-network
     environment:
-      - DATABASE_URL=postgresql://chatapp_user:chatapp_password@dev-db:5432/chatapp_db?sslmode=disable
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@dev-db:5432/${POSTGRES_DB}?sslmode=disable
       - NODE_ENV=development
     depends_on:
       - dev-db

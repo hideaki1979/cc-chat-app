@@ -42,7 +42,7 @@ func main() {
 	// データベース接続設定
 	dbURL := os.Getenv(databaseURLKey)
 	if dbURL == "" {
-		dbURL = defaultDatabaseURL
+		log.Fatal("DATABASE_URL environment variable must be set")
 	}
 
 	// sql.DBを直接作成してプール設定

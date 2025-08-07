@@ -48,7 +48,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 
 	// データベースクライアント取得
 	client := c.Get("db").(*ent.Client)
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// メールアドレスの重複チェック
 	existingUser, err := client.User.Query().
@@ -59,10 +59,10 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		if !ent.IsNotFound(err) {
 			return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 				Message: "Database Error",
-				Code: "DATABASE_ERROR",
+				Code:    "DATABASE_ERROR",
 			})
 		}
-	// NotFoundErrorの場合は続行（新規ユーザー）
+		// NotFoundErrorの場合は続行（新規ユーザー）
 	} else if existingUser != nil {
 		return c.JSON(http.StatusConflict, models.ErrorResponse{
 			Message: "Email already registered",
@@ -70,7 +70,6 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		})
 	}
 
-		
 	// パスワードハッシュ化
 	hashedPassword, err := auth.HashPassword(req.Password)
 	if err != nil {
@@ -147,22 +146,19 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	existingUser, err := client.User.Query().
 		Where(user.Email(req.Email)).
 		Only(ctx)
-		if err != nil {
-			// ent.NotFoundError以外のエラーの場合はサーバーエラーを返す
-			if !ent.IsNotFound(err) {
-				return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-					Message: "Database Error",
-					Code: "DATABASE_ERROR",
-				})
-			}
-		// NotFoundErrorの場合は続行（新規ユーザー）
-		} else if existingUser != nil {
-			return c.JSON(http.StatusConflict, models.ErrorResponse{
-				Message: "Email already registered",
-				Code:    "EMAIL_EXISTS",
+	if err != nil {
+		if !ent.IsNotFound(err) {
+			return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+				Message: "Database Error",
+				Code:    "DATABASE_ERROR",
 			})
 		}
-	
+		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+			Message: "Invalid email or password",
+			Code:    "INVALID_CREDENTIALS",
+		})
+	}
+
 	// パスワード検証
 	if err := auth.CheckPassword(req.Password, existingUser.PasswordHash); err != nil {
 		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
@@ -232,6 +228,12 @@ func (h *AuthHandler) Profile(c echo.Context) error {
 		Where(user.ID(userUUID)).
 		Only(ctx)
 	if err != nil {
+		if !ent.IsNotFound(err) {
+			return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+				Message: "Database Error",
+				Code:    "DATABASE_ERROR",
+			})
+		}
 		return c.JSON(http.StatusNotFound, models.ErrorResponse{
 			Message: "User not found",
 			Code:    "USER_NOT_FOUND",

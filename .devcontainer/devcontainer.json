@@ -32,7 +32,6 @@
         "mhutchie.git-graph",
 
         // その他便利な拡張機能
-        "ms-vscode.vscode-json",
         "redhat.vscode-yaml",
         "ms-vscode-remote.remote-containers",
         "ms-vscode.remote-explorer"
