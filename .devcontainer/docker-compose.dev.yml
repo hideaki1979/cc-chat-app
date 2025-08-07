@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  # 開発用データベース
+  dev-db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: chatapp_user
+      POSTGRES_PASSWORD: chatapp_password
+      POSTGRES_DB: chatapp_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - dev-postgres-data:/var/lib/postgresql/data
+      - ../docs/database:/docker-entrypoint-initdb.d:ro
+    networks:
+      - devcontainer-network
+
+  # DevContainer メインサービス
+  devcontainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/workspace:cached
+      - /var/run/docker.sock:/var/run/docker-host.sock
+    command: sleep infinity
+    networks:
+      - devcontainer-network
+    environment:
+      - DATABASE_URL=postgresql://chatapp_user:chatapp_password@dev-db:5432/chatapp_db?sslmode=disable
+      - NODE_ENV=development
+    depends_on:
+      - dev-db
+
+volumes:
+  dev-postgres-data:
+
+networks:
+  devcontainer-network:
+    driver: bridge
