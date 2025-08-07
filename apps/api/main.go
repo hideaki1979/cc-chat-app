@@ -2,11 +2,15 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
+
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
 
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/handlers"
@@ -18,11 +22,11 @@ import (
 )
 
 const (
-	defaultPort       = "8080"
-	portEnvKey        = "PORT"
-	healthCheckPath   = "/health"
-	defaultDatabaseURL = "postgres://user:password@localhost/chatapp?sslmode=disable"
-	databaseURLKey    = "DATABASE_URL"
+	defaultPort        = "8080"
+	portEnvKey         = "PORT"
+	healthCheckPath    = "/health"
+	defaultDatabaseURL = ""
+	databaseURLKey     = "DATABASE_URL"
 )
 
 // ヘルスチェック用のハンドラー
@@ -41,20 +45,30 @@ func main() {
 		dbURL = defaultDatabaseURL
 	}
 
-	// Entクライアントを直接作成（PostgreSQL用）
-	client, err := ent.Open("postgres", dbURL)
+	// sql.DBを直接作成してプール設定
+	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Fatalf("Failed to open database: %v", err)
 	}
+
+	// コネクションプール設定
+	db.SetMaxIdleConns(10)
+	db.SetMaxOpenConns(100)
+	db.SetConnMaxLifetime(time.Hour)
+
+	// EntクライアントをDriverオプションで作成
+	drv := entsql.OpenDB(dialect.Postgres, db)
+	client := ent.NewClient(ent.Driver(drv))
 	defer client.Close()
 
-	// マイグレーションを実行
-	ctx := context.Background()
-	if err := client.Schema.Create(ctx); err != nil {
-		log.Fatalf("Failed to create database schema: %v", err)
+	// マイグレーションを条件付きで実行（本番環境では無効化）
+	if os.Getenv("RUN_MIGRATIONS") == "true" {
+		ctx := context.Background()
+		if err := client.Schema.Create(ctx); err != nil {
+			log.Fatalf("Failed to create database schema: %v", err)
+		}
+		log.Println("Database schema created successfully")
 	}
-	log.Println("Database schema created successfully")
-
 	// Echoのインスタンスを作成
 	e := echo.New()
 

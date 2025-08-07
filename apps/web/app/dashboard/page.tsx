@@ -1,14 +1,16 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../stores/auth';
 import { Button } from '@repo/ui/button';
 
 export default function DashboardPage() {
+  const router = useRouter()
   const { user, logout } = useAuthStore();
 
   const handleLogout = () => {
     logout();
-    window.location.href = '/login';
+    router.push('/login');
   };
 
   if (!user) {

@@ -54,13 +54,23 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	existingUser, err := client.User.Query().
 		Where(user.Email(req.Email)).
 		Only(ctx)
-	if err == nil && existingUser != nil {
+	if err != nil {
+		// ent.NotFoundError以外のエラーの場合はサーバーエラーを返す
+		if !ent.IsNotFound(err) {
+			return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+				Message: "Database Error",
+				Code: "DATABASE_ERROR",
+			})
+		}
+	// NotFoundErrorの場合は続行（新規ユーザー）
+	} else if existingUser != nil {
 		return c.JSON(http.StatusConflict, models.ErrorResponse{
 			Message: "Email already registered",
 			Code:    "EMAIL_EXISTS",
 		})
 	}
 
+		
 	// パスワードハッシュ化
 	hashedPassword, err := auth.HashPassword(req.Password)
 	if err != nil {
@@ -102,8 +112,8 @@ func (h *AuthHandler) Register(c echo.Context) error {
 			Email:           newUser.Email,
 			ProfileImageURL: newUser.ProfileImageURL,
 			Bio:             newUser.Bio,
-			CreatedAt:       newUser.CreatedAt.Format("2006-01-02T15:04:05Z"),
-			UpdatedAt:       newUser.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+			CreatedAt:       newUser.CreatedAt,
+			UpdatedAt:       newUser.UpdatedAt,
 		},
 	}
 
@@ -137,13 +147,22 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	existingUser, err := client.User.Query().
 		Where(user.Email(req.Email)).
 		Only(ctx)
-	if err != nil {
-		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-			Message: "Invalid email or password",
-			Code:    "INVALID_CREDENTIALS",
-		})
-	}
-
+		if err != nil {
+			// ent.NotFoundError以外のエラーの場合はサーバーエラーを返す
+			if !ent.IsNotFound(err) {
+				return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+					Message: "Database Error",
+					Code: "DATABASE_ERROR",
+				})
+			}
+		// NotFoundErrorの場合は続行（新規ユーザー）
+		} else if existingUser != nil {
+			return c.JSON(http.StatusConflict, models.ErrorResponse{
+				Message: "Email already registered",
+				Code:    "EMAIL_EXISTS",
+			})
+		}
+	
 	// パスワード検証
 	if err := auth.CheckPassword(req.Password, existingUser.PasswordHash); err != nil {
 		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
@@ -170,8 +189,8 @@ func (h *AuthHandler) Login(c echo.Context) error {
 			Email:           existingUser.Email,
 			ProfileImageURL: existingUser.ProfileImageURL,
 			Bio:             existingUser.Bio,
-			CreatedAt:       existingUser.CreatedAt.Format("2006-01-02T15:04:05Z"),
-			UpdatedAt:       existingUser.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+			CreatedAt:       existingUser.CreatedAt,
+			UpdatedAt:       existingUser.UpdatedAt,
 		},
 	}
 
@@ -226,8 +245,8 @@ func (h *AuthHandler) Profile(c echo.Context) error {
 		Email:           existingUser.Email,
 		ProfileImageURL: existingUser.ProfileImageURL,
 		Bio:             existingUser.Bio,
-		CreatedAt:       existingUser.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt:       existingUser.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		CreatedAt:       existingUser.CreatedAt,
+		UpdatedAt:       existingUser.UpdatedAt,
 	}
 
 	return c.JSON(http.StatusOK, userInfo)

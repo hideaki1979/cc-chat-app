@@ -13,7 +13,7 @@ import (
 func getJWTSecret() []byte {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		secret = "your-secret-key-change-in-production"
+		panic("JWT_SECRETの環境変数を設定してください。")
 	}
 	return []byte(secret)
 }
@@ -45,7 +45,7 @@ func GenerateJWT(userID, email string) (string, error) {
 		UserID: userID,
 		Email:  email,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)), // 24時間有効
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)), // 1時間有効
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    "chat-app",
 		},

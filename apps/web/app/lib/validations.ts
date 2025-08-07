@@ -7,8 +7,11 @@ export const loginSchema = z.object({
     .min(1, 'メールアドレスは必須です'),
   password: z
     .string()
-    .min(6, 'パスワードは6文字以上である必要があります')
-    .min(1, 'パスワードは必須です'),
+    .min(8, 'パスワードは8文字以上である必要があります')
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      'パスワードは大文字、小文字、数字を含む必要があります'
+    ),
 });
 
 export const registerSchema = z

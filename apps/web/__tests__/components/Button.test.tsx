@@ -19,13 +19,13 @@ describe('Button Component', () => {
   test('applies variant classes correctly', () => {
     render(<Button variant="primary">Primary Button</Button>)
     const button = screen.getByRole('button')
-    expect(button).toHaveClass('bg-blue-600')
+    expect(button).toHaveClass('bg-gradient-to-r', 'from-blue-500', 'to-purple-600')
   })
 
   test('applies size classes correctly', () => {
     render(<Button size="lg">Large Button</Button>)
     const button = screen.getByRole('button')
-    expect(button).toHaveClass('px-6', 'py-3', 'text-lg')
+    expect(button).toHaveClass('px-8', 'py-6', 'text-lg')
   })
 
   test('displays loading state', () => {
@@ -47,13 +47,13 @@ describe('Button Component', () => {
   test('renders danger variant correctly', () => {
     render(<Button variant="danger">Danger Button</Button>)
     const button = screen.getByRole('button')
-    expect(button).toHaveClass('bg-red-600')
+    expect(button).toHaveClass('bg-gradient-to-r', 'from-red-500', 'to-pink-600')
   })
 
   test('renders secondary variant correctly', () => {
     render(<Button variant="secondary">Secondary Button</Button>)
     const button = screen.getByRole('button')
-    expect(button).toHaveClass('bg-gray-600')
+    expect(button).toHaveClass('bg-gray-100')
   })
 
   test('renders ghost variant correctly', () => {

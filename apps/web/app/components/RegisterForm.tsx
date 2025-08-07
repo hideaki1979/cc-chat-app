@@ -123,7 +123,15 @@ export const RegisterForm: React.FC = () => {
           </FormContainer>
 
           <FormFooter>
-            アカウントを作成することで、利用規約とプライバシーポリシーに同意したものとみなされます。
+            アカウントを作成することで、
+            <Link href="/terms" className="text-purple-600 hover:text-purple-500 underline">
+              利用規約
+            </Link>
+            と
+            <Link href="/privacy" className="text-purple-600 hover:text-purple-500 underline">
+              プライバシーポリシー
+            </Link>
+            に同意したものとみなされます。
           </FormFooter>
         </FormCard>
       </div>
