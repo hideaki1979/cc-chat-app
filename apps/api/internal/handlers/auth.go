@@ -64,9 +64,8 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		})
 	}
 
-	// 新しいユーザーを作成
+	// 新しいユーザーを作成（IDは自動生成）
 	newUser, err := client.User.Create().
-		SetID(uuid.New()).
 		SetName(req.Name).
 		SetEmail(req.Email).
 		SetPasswordHash(hashedPassword).
@@ -114,10 +113,10 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		Name:     "refresh_token",
 		Value:    refreshToken,
 		Path:     "/",
-		MaxAge:   7 * 24 * 60 * 60, // 7日間（秒単位）
-		HttpOnly: true,              // XSS攻撃を防ぐ
-		Secure:   os.Getenv("ENV") == "production", // 本番環境のみHTTPS必須
-		SameSite: http.SameSiteLaxMode, // 開発環境でのクロスサイト許可
+		MaxAge:   7 * 24 * 60 * 60,                    // 7日間（秒単位）
+		HttpOnly: true,                                // XSS攻撃を防ぐ
+		Secure:   os.Getenv("GO_ENV") == "production", // 本番環境のみHTTPS必須
+		SameSite: http.SameSiteLaxMode,                // 開発環境でのクロスサイト許可
 	}
 	c.SetCookie(cookie)
 
@@ -211,10 +210,10 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		Name:     "refresh_token",
 		Value:    refreshToken,
 		Path:     "/",
-		MaxAge:   7 * 24 * 60 * 60, // 7日間（秒単位）
-		HttpOnly: true,              // XSS攻撃を防ぐ
+		MaxAge:   7 * 24 * 60 * 60,                 // 7日間（秒単位）
+		HttpOnly: true,                             // XSS攻撃を防ぐ
 		Secure:   os.Getenv("ENV") == "production", // 本番環境のみHTTPS必須
-		SameSite: http.SameSiteLaxMode, // 開発環境でのクロスサイト許可
+		SameSite: http.SameSiteLaxMode,             // 開発環境でのクロスサイト許可
 	}
 	c.SetCookie(cookie)
 
@@ -237,8 +236,28 @@ func (h *AuthHandler) Login(c echo.Context) error {
 
 // Logout ユーザーログアウトハンドラー
 func (h *AuthHandler) Logout(c echo.Context) error {
+	// データベースクライアント取得
+	client := c.Get("db").(*ent.Client)
+	ctx := context.Background()
+
+	// Cookieからリフレッシュトークンを取得してDBから削除
+	cookie, err := c.Cookie("refresh_token")
+	if err == nil && cookie.Value != "" {
+		// リフレッシュトークンに基づいてユーザーを検索し、トークンをクリア
+		_, updateErr := client.User.Update().
+			Where(user.RefreshTokenEQ(cookie.Value)).
+			ClearRefreshToken().
+			ClearRefreshTokenExpiresAt().
+			Save(ctx)
+		if updateErr != nil {
+			// DBエラーがあってもクライアント側はクリアする
+			// サーバーエラーは内部ログのみ
+			// TODO: ログ出力追加
+		}
+	}
+
 	// リフレッシュトークンCookieを削除
-	cookie := &http.Cookie{
+	clearCookie := &http.Cookie{
 		Name:     "refresh_token",
 		Value:    "",
 		Path:     "/",
@@ -247,7 +266,7 @@ func (h *AuthHandler) Logout(c echo.Context) error {
 		Secure:   os.Getenv("GO_ENV") == "production",
 		SameSite: http.SameSiteLaxMode,
 	}
-	c.SetCookie(cookie)
+	c.SetCookie(clearCookie)
 
 	return c.JSON(http.StatusOK, map[string]string{
 		"message": "Logout successful",
@@ -318,7 +337,7 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 			Code:    "REFRESH_TOKEN_NOT_FOUND",
 		})
 	}
-	
+
 	refreshTokenValue := cookie.Value
 	if refreshTokenValue == "" {
 		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
@@ -350,6 +369,12 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 
 	// リフレッシュトークンの有効期限を確認
 	if existingUser.RefreshTokenExpiresAt == nil || time.Now().After(*existingUser.RefreshTokenExpiresAt) {
+		// 期限切れの場合、DBからトークンをクリア（セキュリティ強化）
+		_, _ = client.User.UpdateOne(existingUser).
+			ClearRefreshToken().
+			ClearRefreshTokenExpiresAt().
+			Save(ctx)
+
 		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Message: "Refresh token expired",
 			Code:    "REFRESH_TOKEN_EXPIRED",
@@ -392,10 +417,10 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 		Name:     "refresh_token",
 		Value:    newRefreshToken,
 		Path:     "/",
-		MaxAge:   7 * 24 * 60 * 60, // 7日間（秒単位）
-		HttpOnly: true,              // XSS攻撃を防ぐ
+		MaxAge:   7 * 24 * 60 * 60,                 // 7日間（秒単位）
+		HttpOnly: true,                             // XSS攻撃を防ぐ
 		Secure:   os.Getenv("ENV") == "production", // 本番環境のみHTTPS必須
-		SameSite: http.SameSiteLaxMode, // 開発環境でのクロスサイト許可
+		SameSite: http.SameSiteLaxMode,             // 開発環境でのクロスサイト許可
 	}
 	c.SetCookie(newCookie)
 

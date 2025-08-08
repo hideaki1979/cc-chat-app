@@ -7,6 +7,7 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000, // 10秒でタイムアウト
   withCredentials: true, // httpOnly Cookieの送信を有効化
 });
 
@@ -40,13 +41,25 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
+      const originalRequest = error.config as any;
+      // refresh自体の401はスキップ
+      if (originalRequest?.url?.includes('/auth/refresh')) {
+        return Promise.reject(error);
+      }
+
+      // 同一リクエストの多重リトライを抑止
+      if (originalRequest?._retry) {
+        return Promise.reject(error);
+      }
+      originalRequest._retry = true;
+
       try {
         // 認証ストアのrefreshAccessTokenを呼び出し（Cookieベース）
         const authState = (window as any).authStore?.getState?.();
         if (authState?.refreshAccessToken) {
           await authState.refreshAccessToken();
           // トークン更新成功、元のリクエストを再実行
-          return api.request(error.config);
+          return api.request(originalRequest);
         }
       } catch (refreshError) {
         // リフレッシュ失敗、ログイン画面へリダイレクト

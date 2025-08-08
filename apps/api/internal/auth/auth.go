@@ -17,6 +17,10 @@ func getJWTSecret() []byte {
 	if secret == "" {
 		panic("JWT_SECRETの環境変数を設定してください。")
 	}
+
+	if len(secret) < 32 {
+		panic("JWT_SECRETは32文字以上の十分に強度のある値を設定してください。")
+	}
 	return []byte(secret)
 }
 
@@ -66,7 +70,7 @@ func ValidateJWT(tokenString string) (*Claims, error) {
 			return nil, errors.New("unexpected signing method")
 		}
 		return getJWTSecret(), nil
-	})
+	}, jwt.WithIssuer("chat-app"), jwt.WithLeeway(30*time.Second))
 
 	if err != nil {
 		return nil, err

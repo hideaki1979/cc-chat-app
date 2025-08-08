@@ -1,6 +1,8 @@
 # DevContainer用のマルチ言語開発環境
 FROM mcr.microsoft.com/devcontainers/base:ubuntu
 
+ARG TARGETARCH
+
 # 環境変数（プロジェクトのpackage.jsonに合わせて設定）
 ENV NODE_VERSION=18
 ENV GO_VERSION=1.24.5
@@ -33,12 +35,18 @@ RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - \
 RUN npm install -g pnpm@${PNPM_VERSION}
 
 # Go のインストール
-RUN wget https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz \
-    && wget https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz.sha256 \
-    && sha256sum -c go${GO_VERSION}.linux-amd64.tar.gz.sha256 \
-    && tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz \
-    && rm go${GO_VERSION}.linux-amd64.tar.gz go${GO_VERSION}.linux-amd64.tar.gz.sha256
-
+RUN ARCH="${TARGETARCH:-amd64}" \
+    && case "$ARCH" in \
+    amd64) GO_TGZ="go${GO_VERSION}.linux-amd64.tar.gz" ;; \
+    arm64) GO_TGZ="go${GO_VERSION}.linux-arm64.tar.gz" ;; \
+    *) echo "Unsupported arch: $ARCH" && exit 1 ;; \
+    esac \
+    && wget "https://golang.org/dl/${GO_TGZ}" \
+    && wget "https://golang.org/dl/${GO_TGZ}.sha256" \
+    && sha256sum -c "${GO_TGZ}.sha256" \
+    && tar -C /usr/local -xzf "${GO_TGZ}" \
+    && rm "${GO_TGZ}" "${GO_TGZ}.sha256"
+    
 # Go 環境変数の設定
 ENV PATH=/usr/local/go/bin:$PATH
 ENV GOPATH=/go

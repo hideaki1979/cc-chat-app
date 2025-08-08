@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"net/http"
+	"strings"
+	"reflect"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
@@ -15,7 +17,16 @@ type CustomValidator struct {
 
 // NewValidator 新しいカスタムバリデーターを作成
 func NewValidator() *CustomValidator {
-	return &CustomValidator{validator: validator.New()}
+	v := validator.New()
+	// jsonタグ名をエラーフィールド名として使用
+	v.RegisterTagNameFunc(func(fld reflect.StructField) string {
+		name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
+		if name == "-" {
+			return ""
+		}
+		return name
+	})
+	return &CustomValidator{validator: }
 }
 
 // Validate バリデーション実行
