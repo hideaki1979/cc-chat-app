@@ -37,7 +37,7 @@ export default function DashboardPage() {
           <div className="space-y-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-700 mb-2">
-                ようこそ、{user.username}さん！
+                ようこそ、{user.name}さん！
               </h2>
               <p className="text-gray-600">
                 メールアドレス: {user.email}
@@ -46,7 +46,7 @@ export default function DashboardPage() {
                 ユーザーID: {user.id}
               </p>
               <p className="text-gray-600">
-                登録日: {new Date(user.createdAt).toLocaleDateString('ja-JP')}
+                登録日: {new Date(user.created_at).toLocaleDateString('ja-JP')}
               </p>
             </div>
 
