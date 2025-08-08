@@ -3,6 +3,7 @@ package schema
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"entgo.io/ent"
@@ -28,7 +29,7 @@ func (User) Fields() []ent.Field {
 		field.String("email").
 			Unique().
 			NotEmpty().
-			Comment("メールアドレス（ユニーク）"),
+			Comment("メールアドレス（正規化によりユニーク）"),
 		field.String("password_hash").
 			NotEmpty().
 			Sensitive().
@@ -112,6 +113,40 @@ func (User) Hooks() []ent.Hook {
 					// 有効期限が過去の時刻の場合はエラー
 					if hasExpiresAt && expiresAt.Before(time.Now()) {
 						return nil, fmt.Errorf("refresh token expiry must be in the future")
+					}
+				}
+				return next.Mutate(ctx, m)
+			})
+		},
+		// Email正規化フック
+		func(next ent.Mutator) ent.Mutator {
+			return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+				// UserMutationのEmailフィールドにアクセスするインターフェース定義
+				if um, ok := m.(interface {
+					Email() (string, bool)
+					SetEmail(string)
+				}); ok {
+					// Emailが設定されている場合、正規化を実行
+					if email, exists := um.Email(); exists {
+						// トリムと小文字変換による正規化
+						normalizedEmail := strings.ToLower(strings.TrimSpace(email))
+						if normalizedEmail != email {
+							um.SetEmail(normalizedEmail)
+						}
+					}
+				}
+				return next.Mutate(ctx, m)
+			})
+		},
+		// Create時にクライアント供給IDを拒否するフック
+		func(next ent.Mutator) ent.Mutator {
+			return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+				// UserMutationインターフェースを定義してID取得をチェック
+				if idMutation, ok := m.(interface{ ID() (uuid.UUID, bool) }); ok {
+					if m.Op().Is(ent.OpCreate) {
+						if _, exists := idMutation.ID(); exists {
+							return nil, fmt.Errorf("client-supplied ID is not allowed")
+						}
 					}
 				}
 				return next.Mutate(ctx, m)

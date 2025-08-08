@@ -36,9 +36,9 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	client := c.Get("db").(*ent.Client)
 	ctx := c.Request().Context()
 
-	// メールアドレスの重複チェック
+	// メールアドレスの重複チェック（大文字小文字を区別しない）
 	existingUser, err := client.User.Query().
-		Where(user.Email(req.Email)).
+		Where(user.EmailEqualFold(req.Email)).
 		Only(ctx)
 	if err != nil {
 		// ent.NotFoundError以外のエラーの場合はサーバーエラーを返す
@@ -141,9 +141,9 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	client := c.Get("db").(*ent.Client)
 	ctx := context.Background()
 
-	// ユーザーをメールアドレスで検索
+	// ユーザーをメールアドレスで検索（大文字小文字を区別しない）
 	existingUser, err := client.User.Query().
-		Where(user.Email(req.Email)).
+		Where(user.EmailEqualFold(req.Email)).
 		Only(ctx)
 	if err != nil {
 		if !ent.IsNotFound(err) {
