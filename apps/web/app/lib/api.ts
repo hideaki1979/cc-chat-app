@@ -17,7 +17,7 @@ export const api = axios.create({
     'Content-Type': 'application/json',
   },
   timeout: 10000, // 10秒でタイムアウト
-  withCredentials: false, // 一時的にfalse（CORS設定と整合させるため）
+  withCredentials: true, // httpOnly Cookieの送信を有効化
 });
 
 // Request interceptor to add auth token

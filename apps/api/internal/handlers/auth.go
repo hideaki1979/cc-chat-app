@@ -218,7 +218,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		Path:     "/",
 		MaxAge:   int(7 * 24 * time.Hour.Seconds()), // 7日間（秒単位）
 		HttpOnly: true,                              // XSS攻撃を防ぐ
-		Secure:   os.Getenv("ENV") == "production",  // 本番環境のみHTTPS必須
+		Secure:   os.Getenv("GO_ENV") == "production",  // 本番環境のみHTTPS必須
 		SameSite: http.SameSiteLaxMode,              // 開発環境でのクロスサイト許可
 	}
 	c.SetCookie(cookie)

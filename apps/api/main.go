@@ -85,10 +85,10 @@ func main() {
 
 	e.Use(echoMiddleware.Recover())
 	e.Use(echoMiddleware.CORSWithConfig(echoMiddleware.CORSConfig{
-		AllowOrigins:     []string{"*"}, // 一時的にすべてのオリジンを許可（デバッグ用）
-		AllowCredentials: false,         // ワイルドカード使用時はfalseにする必要がある
+		AllowOrigins:     []string{"http://localhost:3003"}, // 一時的にすべてのオリジンを許可（デバッグ用）
+		AllowCredentials: true,         // ワイルドカード使用時はfalseにする必要がある
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"*"}, // すべてのヘッダーを許可
+		AllowHeaders:     []string{"Content-Type", "Authorization"}, // すべてのヘッダーを許可
 	}))
 
 	// コンテキストにEntクライアントを設定

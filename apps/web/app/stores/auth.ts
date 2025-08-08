@@ -9,6 +9,7 @@ import type {
   RegisterCredentials,
   AuthResponse
 } from '../types/auth';
+import { isAxiosError } from 'axios';
 
 export const useAuthStore = create<AuthStore>()(
   devtools(
@@ -53,9 +54,9 @@ export const useAuthStore = create<AuthStore>()(
             error: null,
           });
         } catch (error: unknown) {
-          const errorMessage = error instanceof Error
-            ? error.message
-            : (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'ログインに失敗しました';
+          const errorMessage =
+            (isAxiosError(error) && error.response?.data.message) ||
+            (error instanceof Error ? error.message : "ログインに失敗しました")
           set({
             isLoading: false,
             error: errorMessage,
@@ -78,7 +79,7 @@ export const useAuthStore = create<AuthStore>()(
             name: credentials.username,  // usernameをnameに変換
             email: credentials.email,
             password: credentials.password
-          });
+          }, { withCredentials: true });
           const { user, token: accessToken } = response.data;
           // refresh_tokenはhttpOnly Cookieでバックエンドが自動設定
 

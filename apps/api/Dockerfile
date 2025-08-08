@@ -7,7 +7,7 @@ RUN addgroup -g 1001 -S golang && \
     adduser -S golang -u 1001 -G golang
 
 # ヘルスチェックに必要なツールを追加（root）
-RUN apk add --no-cache curl
+RUN apk add --no-cache curl git
 
 # GOPATHとGoモジュールキャッシュのディレクトリ権限を設定（root）
 RUN mkdir -p /go/pkg /go/bin && \
@@ -17,7 +17,9 @@ RUN mkdir -p /go/pkg /go/bin && \
 USER golang
 
 # ホットリロードツールairをインストール（非rootで実行してキャッシュ権限問題を回避）
-RUN go install github.com/air-verse/air@latest
+# 再現性のためにバージョン固定（必要に応じて更新）
+ARG AIR_VERSION=v1.52.0
+RUN go install github.com/air-verse/air@${AIR_VERSION}
 
 # Goの依存関係を先にインストール
 COPY --chown=golang:golang go.mod go.sum ./
