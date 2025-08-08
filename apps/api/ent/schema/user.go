@@ -50,6 +50,7 @@ func (User) Fields() []ent.Field {
 		field.String("refresh_token").
 			Optional().
 			Nillable().
+			Unique().
 			Sensitive().
 			Comment("リフレッシュトークン"),
 		field.Time("refresh_token_expires_at").

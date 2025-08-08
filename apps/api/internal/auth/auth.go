@@ -2,7 +2,9 @@ package auth
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"os"
 	"time"
@@ -90,6 +92,12 @@ func GenerateRefreshToken() (string, error) {
 		return "", err
 	}
 	return base64.URLEncoding.EncodeToString(bytes), nil
+}
+
+// リフレッシュトークンをハッシュ化する（DBに保存する前に使用）
+func HashRefreshToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
 }
 
 // リフレッシュトークンの有効期限を取得（7日間）

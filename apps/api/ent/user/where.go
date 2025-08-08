@@ -270,30 +270,12 @@ func PasswordHashLTE(v string) predicate.User {
 	return predicate.User(sql.FieldLTE(FieldPasswordHash, v))
 }
 
-// PasswordHashContains applies the Contains predicate on the "password_hash" field.
-func PasswordHashContains(v string) predicate.User {
-	return predicate.User(sql.FieldContains(FieldPasswordHash, v))
-}
-
-// PasswordHashHasPrefix applies the HasPrefix predicate on the "password_hash" field.
-func PasswordHashHasPrefix(v string) predicate.User {
-	return predicate.User(sql.FieldHasPrefix(FieldPasswordHash, v))
-}
-
-// PasswordHashHasSuffix applies the HasSuffix predicate on the "password_hash" field.
-func PasswordHashHasSuffix(v string) predicate.User {
-	return predicate.User(sql.FieldHasSuffix(FieldPasswordHash, v))
-}
 
 // PasswordHashEqualFold applies the EqualFold predicate on the "password_hash" field.
 func PasswordHashEqualFold(v string) predicate.User {
 	return predicate.User(sql.FieldEqualFold(FieldPasswordHash, v))
 }
 
-// PasswordHashContainsFold applies the ContainsFold predicate on the "password_hash" field.
-func PasswordHashContainsFold(v string) predicate.User {
-	return predicate.User(sql.FieldContainsFold(FieldPasswordHash, v))
-}
 
 // ProfileImageURLEQ applies the EQ predicate on the "profile_image_url" field.
 func ProfileImageURLEQ(v string) predicate.User {
@@ -565,20 +547,6 @@ func RefreshTokenLTE(v string) predicate.User {
 	return predicate.User(sql.FieldLTE(FieldRefreshToken, v))
 }
 
-// RefreshTokenContains applies the Contains predicate on the "refresh_token" field.
-func RefreshTokenContains(v string) predicate.User {
-	return predicate.User(sql.FieldContains(FieldRefreshToken, v))
-}
-
-// RefreshTokenHasPrefix applies the HasPrefix predicate on the "refresh_token" field.
-func RefreshTokenHasPrefix(v string) predicate.User {
-	return predicate.User(sql.FieldHasPrefix(FieldRefreshToken, v))
-}
-
-// RefreshTokenHasSuffix applies the HasSuffix predicate on the "refresh_token" field.
-func RefreshTokenHasSuffix(v string) predicate.User {
-	return predicate.User(sql.FieldHasSuffix(FieldRefreshToken, v))
-}
 
 // RefreshTokenIsNil applies the IsNil predicate on the "refresh_token" field.
 func RefreshTokenIsNil() predicate.User {
@@ -595,10 +563,6 @@ func RefreshTokenEqualFold(v string) predicate.User {
 	return predicate.User(sql.FieldEqualFold(FieldRefreshToken, v))
 }
 
-// RefreshTokenContainsFold applies the ContainsFold predicate on the "refresh_token" field.
-func RefreshTokenContainsFold(v string) predicate.User {
-	return predicate.User(sql.FieldContainsFold(FieldRefreshToken, v))
-}
 
 // RefreshTokenExpiresAtEQ applies the EQ predicate on the "refresh_token_expires_at" field.
 func RefreshTokenExpiresAtEQ(v time.Time) predicate.User {

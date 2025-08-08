@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -43,14 +44,14 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		// ent.NotFoundError以外のエラーの場合はサーバーエラーを返す
 		if !ent.IsNotFound(err) {
 			return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-				Message: "Database Error",
+				Message: "DBエラーが発生しました",
 				Code:    "DATABASE_ERROR",
 			})
 		}
 		// NotFoundErrorの場合は続行（新規ユーザー）
 	} else if existingUser != nil {
 		return c.JSON(http.StatusConflict, models.ErrorResponse{
-			Message: "Email already registered",
+			Message: "このメールアドレスは既に使用されています",
 			Code:    "EMAIL_EXISTS",
 		})
 	}
@@ -59,20 +60,35 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	hashedPassword, err := auth.HashPassword(req.Password)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Message: "Failed to process password",
+			Message: "パスワードの処理中にエラーが発生しました",
 			Code:    "HASH_ERROR",
 		})
 	}
+
+	// リフレッシュトークン生成
+	refreshToken, err := auth.GenerateRefreshToken()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "リフレッシュトークンの生成中にエラーが発生しました",
+			Code:    "REFRESH_TOKEN_ERROR",
+		})
+	}
+
+	// リフレッシュトークンをハッシュ化してDB保存用に準備
+	hashedRefreshToken := auth.HashRefreshToken(refreshToken)
+	refreshTokenExpiry := auth.GetRefreshTokenExpiry()
 
 	// 新しいユーザーを作成（IDは自動生成）
 	newUser, err := client.User.Create().
 		SetName(req.Name).
 		SetEmail(req.Email).
 		SetPasswordHash(hashedPassword).
+		SetRefreshToken(hashedRefreshToken).
+		SetRefreshTokenExpiresAt(refreshTokenExpiry).
 		Save(ctx)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Message: "Failed to create user",
+			Message: "ユーザーの作成中にエラーが発生しました",
 			Code:    "CREATE_USER_ERROR",
 		})
 	}
@@ -81,34 +97,12 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	token, err := auth.GenerateJWT(newUser.ID.String(), newUser.Email)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Message: "Failed to generate token",
-			Code:    "TOKEN_ERROR",
+			Message: "JWTトークンの生成中にエラーが発生しました",
+			Code:    "JWT_TOKEN_ERROR",
 		})
 	}
 
-	// リフレッシュトークン生成
-	refreshToken, err := auth.GenerateRefreshToken()
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Message: "Failed to generate refresh token",
-			Code:    "REFRESH_TOKEN_ERROR",
-		})
-	}
-
-	// データベースにリフレッシュトークンを保存
-	refreshTokenExpiry := auth.GetRefreshTokenExpiry()
-	newUser, err = client.User.UpdateOne(newUser).
-		SetNillableRefreshToken(&refreshToken).
-		SetNillableRefreshTokenExpiresAt(&refreshTokenExpiry).
-		Save(ctx)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Message: "Failed to save refresh token",
-			Code:    "REFRESH_TOKEN_SAVE_ERROR",
-		})
-	}
-
-	// リフレッシュトークンをhttpOnly Cookieに設定
+	// リフレッシュトークンをhttpOnly Cookieに設定(平文のtokenを使用)
 	cookie := &http.Cookie{
 		Name:     "refresh_token",
 		Value:    refreshToken,
@@ -121,7 +115,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	c.SetCookie(cookie)
 
 	// レスポンス作成（refresh_tokenはCookieに保存されるのでレスポンスに含めない）
-	response := models.AuthResponse{
+	return c.JSON(http.StatusCreated, models.AuthResponse{
 		Token: token, // access_tokenのみレスポンスに含める
 		User: models.UserInfo{
 			ID:              newUser.ID.String(),
@@ -132,9 +126,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 			CreatedAt:       newUser.CreatedAt,
 			UpdatedAt:       newUser.UpdatedAt,
 		},
-	}
-
-	return c.JSON(http.StatusCreated, response)
+	})
 }
 
 // Login ユーザーログインハンドラー
@@ -156,12 +148,12 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	if err != nil {
 		if !ent.IsNotFound(err) {
 			return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-				Message: "Database Error",
+				Message: "DBエラーが発生しました",
 				Code:    "DATABASE_ERROR",
 			})
 		}
 		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-			Message: "Invalid email or password",
+			Message: "メールアドレスまたはパスワードに誤りがあります",
 			Code:    "INVALID_CREDENTIALS",
 		})
 	}
@@ -169,7 +161,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	// パスワード検証
 	if err := auth.CheckPassword(req.Password, existingUser.PasswordHash); err != nil {
 		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-			Message: "Invalid email or password",
+			Message: "メールアドレスまたはパスワードに誤りがあります",
 			Code:    "INVALID_CREDENTIALS",
 		})
 	}
@@ -178,7 +170,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	token, err := auth.GenerateJWT(existingUser.ID.String(), existingUser.Email)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Message: "Failed to generate token",
+			Message: "JWTトークンの生成中にエラーが発生しました",
 			Code:    "TOKEN_ERROR",
 		})
 	}
@@ -187,20 +179,22 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	refreshToken, err := auth.GenerateRefreshToken()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Message: "Failed to generate refresh token",
+			Message: "リフレッシュトークンの生成中にエラーが発生しました",
 			Code:    "REFRESH_TOKEN_ERROR",
 		})
 	}
 
 	// データベースにリフレッシュトークンを保存
+	// リフレッシュトークンをハッシュ化してDB更新
+	hashedRefreshToken := auth.HashRefreshToken(refreshToken)
 	refreshTokenExpiry := auth.GetRefreshTokenExpiry()
-	existingUser, err = client.User.UpdateOne(existingUser).
-		SetNillableRefreshToken(&refreshToken).
-		SetNillableRefreshTokenExpiresAt(&refreshTokenExpiry).
+	_, err = client.User.Update().
+		SetRefreshToken(hashedRefreshToken).
+		SetRefreshTokenExpiresAt(refreshTokenExpiry).
 		Save(ctx)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Message: "Failed to save refresh token",
+			Message: "リフレッシュトークンの保存に失敗しました",
 			Code:    "REFRESH_TOKEN_SAVE_ERROR",
 		})
 	}
@@ -210,7 +204,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		Name:     "refresh_token",
 		Value:    refreshToken,
 		Path:     "/",
-		MaxAge:   7 * 24 * 60 * 60,                 // 7日間（秒単位）
+		MaxAge:   int(7 * 24 * time.Hour.Seconds()),     // 7日間（秒単位）
 		HttpOnly: true,                             // XSS攻撃を防ぐ
 		Secure:   os.Getenv("ENV") == "production", // 本番環境のみHTTPS必須
 		SameSite: http.SameSiteLaxMode,             // 開発環境でのクロスサイト許可
@@ -218,7 +212,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	c.SetCookie(cookie)
 
 	// レスポンス作成（refresh_tokenはCookieに保存されるのでレスポンスに含めない）
-	response := models.AuthResponse{
+	return c.JSON(http.StatusOK, models.AuthResponse{
 		Token: token, // access_tokenのみレスポンスに含める
 		User: models.UserInfo{
 			ID:              existingUser.ID.String(),
@@ -229,9 +223,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 			CreatedAt:       existingUser.CreatedAt,
 			UpdatedAt:       existingUser.UpdatedAt,
 		},
-	}
-
-	return c.JSON(http.StatusOK, response)
+	})
 }
 
 // Logout ユーザーログアウトハンドラー
@@ -269,7 +261,7 @@ func (h *AuthHandler) Logout(c echo.Context) error {
 	c.SetCookie(clearCookie)
 
 	return c.JSON(http.StatusOK, map[string]string{
-		"message": "Logout successful",
+		"message": "ログアウトしました",
 	})
 }
 
@@ -279,7 +271,7 @@ func (h *AuthHandler) Profile(c echo.Context) error {
 	userID, ok := c.Get("user_id").(string)
 	if !ok {
 		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-			Message: "User not authenticated",
+			Message: "認証が必要です",
 			Code:    "NOT_AUTHENTICATED",
 		})
 	}
@@ -292,7 +284,7 @@ func (h *AuthHandler) Profile(c echo.Context) error {
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Message: "Invalid user ID",
+			Message: "無効なユーザーIDです",
 			Code:    "INVALID_USER_ID",
 		})
 	}
@@ -303,12 +295,12 @@ func (h *AuthHandler) Profile(c echo.Context) error {
 	if err != nil {
 		if !ent.IsNotFound(err) {
 			return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-				Message: "Database Error",
+				Message: "DBエラーが発生しました",
 				Code:    "DATABASE_ERROR",
 			})
 		}
 		return c.JSON(http.StatusNotFound, models.ErrorResponse{
-			Message: "User not found",
+			Message: "ユーザーが見つかりません",
 			Code:    "USER_NOT_FOUND",
 		})
 	}
@@ -329,22 +321,25 @@ func (h *AuthHandler) Profile(c echo.Context) error {
 
 // RefreshToken リフレッシュトークンを使ってアクセストークンを更新
 func (h *AuthHandler) RefreshToken(c echo.Context) error {
-	// Cookieからリフレッシュトークンを取得
+	// Cookieからリフレッシュトークンを取得（平文）
 	cookie, err := c.Cookie("refresh_token")
 	if err != nil {
 		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-			Message: "Refresh token not found",
+			Message: "リフレッシュトークンが見つかりません",
 			Code:    "REFRESH_TOKEN_NOT_FOUND",
 		})
 	}
 
-	refreshTokenValue := cookie.Value
+	refreshTokenValue := strings.TrimSpace(cookie.Value)
 	if refreshTokenValue == "" {
 		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-			Message: "Invalid refresh token",
+			Message: "リフレッシュトークンが無効です",
 			Code:    "INVALID_REFRESH_TOKEN",
 		})
 	}
+
+	// リフレッシュトークンをハッシュ化
+	hashedRefreshToken := auth.HashRefreshToken((refreshTokenValue))
 
 	// データベースクライアント取得
 	client := c.Get("db").(*ent.Client)
@@ -352,17 +347,17 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 
 	// リフレッシュトークンでユーザーを検索
 	existingUser, err := client.User.Query().
-		Where(user.RefreshTokenEQ(refreshTokenValue)).
+		Where(user.RefreshTokenEQ(hashedRefreshToken)).
 		Only(ctx)
 	if err != nil {
 		if !ent.IsNotFound(err) {
 			return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-				Message: "Database Error",
+				Message: "DBエラーが発生しました",
 				Code:    "DATABASE_ERROR",
 			})
 		}
 		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-			Message: "Invalid refresh token",
+			Message: "リフレッシュトークンが無効です",
 			Code:    "INVALID_REFRESH_TOKEN",
 		})
 	}
@@ -376,7 +371,7 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 			Save(ctx)
 
 		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-			Message: "Refresh token expired",
+			Message: "リフレッシュトークンが期限切れです",
 			Code:    "REFRESH_TOKEN_EXPIRED",
 		})
 	}
@@ -385,7 +380,7 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 	newAccessToken, err := auth.GenerateJWT(existingUser.ID.String(), existingUser.Email)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Message: "Failed to generate access token",
+			Message: "新しいJWTトークンの生成中にエラーが発生しました",
 			Code:    "TOKEN_ERROR",
 		})
 	}
@@ -394,16 +389,18 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 	newRefreshToken, err := auth.GenerateRefreshToken()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Message: "Failed to generate refresh token",
+			Message: "リフレッシュトークンの生成中にエラーが発生しました",
 			Code:    "REFRESH_TOKEN_ERROR",
 		})
 	}
 
 	// データベースのリフレッシュトークンを更新
+	// 新しいリフレッシュトークンをハッシュ化
+	newHashedRefreshToken := auth.HashRefreshToken(newRefreshToken)
 	refreshTokenExpiry := auth.GetRefreshTokenExpiry()
 	_, err = client.User.UpdateOne(existingUser).
-		SetNillableRefreshToken(&newRefreshToken).
-		SetNillableRefreshTokenExpiresAt(&refreshTokenExpiry).
+		SetRefreshToken(newHashedRefreshToken).
+		SetRefreshTokenExpiresAt(refreshTokenExpiry).
 		Save(ctx)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
@@ -412,7 +409,7 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 		})
 	}
 
-	// 新しいリフレッシュトークンをhttpOnly Cookieに設定
+	// 新しいリフレッシュトークンをhttpOnly Cookieに設定(平文を使用)
 	newCookie := &http.Cookie{
 		Name:     "refresh_token",
 		Value:    newRefreshToken,
