@@ -1,0 +1,94 @@
+{
+  "name": "CC Chat App",
+  "dockerComposeFile": "docker-compose.dev.yml",
+  "service": "devcontainer",
+  "workspaceFolder": "/workspace",
+
+  // VS Code設定
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // TypeScript/JavaScript
+        "bradlc.vscode-tailwindcss",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "ms-vscode.vscode-typescript-next",
+
+        // Go
+        "golang.go",
+
+        // Database
+        "ms-vscode.vscode-json",
+        "mtxr.sqltools",
+        "mtxr.sqltools-driver-pg",
+
+        // Docker & Container
+        "ms-azuretools.vscode-docker",
+
+        // Turborepo
+        "vercel.turbo-vscode",
+
+        // Git
+        "mhutchie.git-graph",
+
+        // その他便利な拡張機能
+        "redhat.vscode-yaml",
+        "ms-vscode-remote.remote-containers",
+        "ms-vscode.remote-explorer"
+      ],
+      "settings": {
+        "typescript.preferences.preferTypeOnlyAutoImports": true,
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "explicit"
+        },
+        "go.toolsManagement.autoUpdate": true,
+        "go.useLanguageServer": true,
+        "go.gopath": "/go",
+        "go.goroot": "/usr/local/go",
+        "[go]": {
+          "editor.formatOnSave": true,
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+          }
+        }
+      }
+    }
+  },
+
+  // ポートフォワーディング
+  "forwardPorts": [3003, 8080, 5433],
+  "portsAttributes": {
+    "3003": {
+      "label": "Frontend (Next.js)",
+      "onAutoForward": "notify"
+    },
+    "8080": {
+      "label": "Backend (Go API)",
+      "onAutoForward": "notify"
+    },
+    "5433": {
+      "label": "PostgreSQL Database",
+      "onAutoForward": "silent"
+    }
+  },
+
+  // コンテナ起動後の実行コマンド
+  "postCreateCommand": "pnpm install",
+  "postStartCommand": "echo 'DevContainer started successfully!'",
+
+  // 環境変数（開発用）
+  "containerEnv": {
+    "NODE_ENV": "development"
+  },
+
+  // コンテナ内でのユーザー設定
+  "remoteUser": "vscode",
+
+  // Features（追加の開発ツール）
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  }
+}

@@ -18,7 +18,7 @@ COPY packages/ ./packages/
 # apps/webのpackage.jsonをコピー
 COPY apps/web/package.json ./apps/web/
 
-# 依存関係をインストール
+# 依存関係をインストール（プロジェクトルートで実行）
 RUN pnpm install
 
 # ソースコードをコピー
