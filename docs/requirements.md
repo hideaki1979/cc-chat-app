@@ -95,9 +95,33 @@
 ## 3. 非機能要件
 
 ### 3.1 パフォーマンス要件
-- メッセージ送信から受信まで1秒以内
-- 同時接続ユーザー数：100人以上
-- ページ読み込み時間：3秒以内
+
+#### 3.1.1 レスポンス時間要件
+- **メッセージ配信遅延**
+  - P95 < 500ms / P99 < 1s
+  - 平均 < 200ms
+- **ページ初回ロード時間**
+  - P95 < 2s / P99 < 3s
+  - 平均 < 1.5s
+- **API応答時間**
+  - P95 < 300ms / P99 < 500ms
+  - 平均 < 150ms
+
+#### 3.1.2 スケーラビリティ要件
+- **同時接続ユーザー数**: 100人以上（目標値）
+- **同時アクティブユーザー数**: 50人以上
+- **メッセージスループット**: 100msg/s以上
+
+#### 3.1.3 計測・監視要件
+- **計測方法**
+  - RUM（Real User Monitoring）による実ユーザー体験計測
+  - 合成監視による継続的パフォーマンス監視
+  - APM（Application Performance Monitoring）による詳細分析
+- **負荷試験条件**
+  - 段階的負荷増加：10→50→100ユーザー（各5分間）
+  - メッセージ送信頻度：1ユーザーあたり10msg/min
+  - テスト環境：本番環境と同等スペック
+  - 監視項目：CPU/メモリ使用率、DB接続数、WebSocket接続数
 
 ### 3.2 セキュリティ要件
 
@@ -152,7 +176,11 @@
 - **バックエンド**: Go + Echo + WebSocket
 - **データベース**: PostgreSQL
 - **ORM**: Ent
-- **認証**: JWT（Go Echo backend + Zustand state管理）※将来Auth.js導入予定
+- **認証**: JWT（Go Echo backend + Zustand state管理）
+  - トークン保管：Access（Memory）、Refresh（HttpOnly Cookie）
+  - リフレッシュローテーション：即時失効による窃取対策
+  - XSS対策：HttpOnly/Secure/SameSite=Strict
+  - ※将来Auth.js導入予定
 - **ファイルストレージ**: AWS S3 / Cloudflare R2
 - **デプロイ**: Vercel (Frontend) + Render (Backend)
 
@@ -161,6 +189,7 @@
 - **パッケージ管理**: pnpm
 - **コード品質**: ESLint + Prettier + golangci-lint
 - **テスト**: Jest (Frontend) + Go testing (Backend)
+- **Go**: 1.24.5（ローカル/Dockerで統一）
 
 ## 5. データ要件
 

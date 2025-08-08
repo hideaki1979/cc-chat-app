@@ -26,7 +26,7 @@ func NewValidator() *CustomValidator {
 		}
 		return name
 	})
-	return &CustomValidator{validator: }
+	return &CustomValidator{validator: v}
 }
 
 // Validate バリデーション実行

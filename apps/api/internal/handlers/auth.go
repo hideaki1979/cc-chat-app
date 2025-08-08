@@ -107,7 +107,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		Name:     "refresh_token",
 		Value:    refreshToken,
 		Path:     "/",
-		MaxAge:   7 * 24 * 60 * 60,                    // 7日間（秒単位）
+		MaxAge:   int(7 * 24 * time.Hour.Seconds()),    // 7日間（秒単位）
 		HttpOnly: true,                                // XSS攻撃を防ぐ
 		Secure:   os.Getenv("GO_ENV") == "production", // 本番環境のみHTTPS必須
 		SameSite: http.SameSiteLaxMode,                // 開発環境でのクロスサイト許可
