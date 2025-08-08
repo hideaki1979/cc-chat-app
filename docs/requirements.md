@@ -122,7 +122,7 @@
 - **バックエンド**: Go + Echo + WebSocket
 - **データベース**: PostgreSQL
 - **ORM**: Ent
-- **認証**: JWT + NextAuth.js
+- **認証**: JWT（Go Echo backend + Zustand state管理）※将来Auth.js導入予定
 - **ファイルストレージ**: AWS S3 / Cloudflare R2
 - **デプロイ**: Vercel (Frontend) + Render (Backend)
 

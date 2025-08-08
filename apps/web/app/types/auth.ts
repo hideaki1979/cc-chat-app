@@ -1,10 +1,11 @@
 export interface User {
   id: string;
   email: string;
-  username: string;
-  avatar?: string;
-  createdAt: string;
-  updatedAt: string;
+  name: string;  // バックエンドではnameフィールド
+  profile_image_url?: string;  // バックエンドではprofile_image_url
+  bio?: string;
+  created_at: string;  // バックエンドではcreated_at
+  updated_at: string;  // バックエンドではupdated_at
 }
 
 export interface LoginCredentials {
@@ -14,21 +15,20 @@ export interface LoginCredentials {
 
 export interface RegisterCredentials {
   email: string;
-  username: string;
+  username: string;  // フォームではusername、APIにはnameで送信
   password: string;
   confirmPassword: string;
 }
 
 export interface AuthResponse {
   user: User;
-  accessToken: string;
-  refreshToken: string;
+  token: string;  // access_tokenのみ、refresh_tokenはhttpOnly Cookieで管理
 }
 
 export interface AuthState {
   user: User | null;
-  accessToken: string | null;
-  refreshToken: string | null;
+  accessToken: string | null;  // メモリ内のみ保存
+  // refreshTokenは削除（httpOnly Cookieで管理）
   isLoading: boolean;
   error: string | null;
 }

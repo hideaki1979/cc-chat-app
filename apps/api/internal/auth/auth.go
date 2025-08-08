@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"os"
 	"time"
@@ -75,4 +77,18 @@ func ValidateJWT(tokenString string) (*Claims, error) {
 	}
 
 	return claims, nil
+}
+
+// リフレッシュトークンを生成する（ランダムな64バイト文字列）
+func GenerateRefreshToken() (string, error) {
+	bytes := make([]byte, 64)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(bytes), nil
+}
+
+// リフレッシュトークンの有効期限を取得（7日間）
+func GetRefreshTokenExpiry() time.Time {
+	return time.Now().Add(7 * 24 * time.Hour)
 }

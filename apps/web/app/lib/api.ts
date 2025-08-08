@@ -7,15 +7,25 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // httpOnly Cookieの送信を有効化
 });
 
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
+    // メモリ内のaccess_tokenを認証ストアから取得
+    // useAuthStoreをdynamic importで取得（SSRエラー回避）
     if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('accessToken');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+      try {
+        // Zustandストアから直接取得
+        const authState = (window as any).authStore?.getState?.();
+        const token = authState?.accessToken;
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      } catch (error) {
+        // ストアが初期化されていない場合はスキップ
+        console.debug('Auth store not yet initialized');
       }
     }
     return config;
@@ -25,33 +35,22 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle token refresh
+// Response interceptor to handle unauthorized requests and token refresh
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
-      // Token expired, try to refresh
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (refreshToken) {
-        try {
-          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-            refreshToken,
-          });
-          const { accessToken } = response.data;
-          localStorage.setItem('accessToken', accessToken);
-          
-          // Retry original request
-          error.config.headers.Authorization = `Bearer ${accessToken}`;
+      try {
+        // 認証ストアのrefreshAccessTokenを呼び出し（Cookieベース）
+        const authState = (window as any).authStore?.getState?.();
+        if (authState?.refreshAccessToken) {
+          await authState.refreshAccessToken();
+          // トークン更新成功、元のリクエストを再実行
           return api.request(error.config);
-        } catch (refreshError) {
-          // Refresh failed, redirect to login
-          console.error('Token refresh failed:', refreshError);
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          window.location.href = '/login';
         }
-      } else {
-        // No refresh token, redirect to login
+      } catch (refreshError) {
+        // リフレッシュ失敗、ログイン画面へリダイレクト
+        console.error('Token refresh failed:', refreshError);
         window.location.href = '/login';
       }
     }

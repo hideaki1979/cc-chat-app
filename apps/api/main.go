@@ -72,6 +72,9 @@ func main() {
 	// Echoのインスタンスを作成
 	e := echo.New()
 
+	// カスタムバリデーターを設定
+	e.Validator = middleware.NewValidator()
+
 	// ミドルウェアを設定
 	e.Use(echoMiddleware.LoggerWithConfig(echoMiddleware.LoggerConfig{
 		Skipper: func(c echo.Context) bool {
@@ -80,7 +83,12 @@ func main() {
 	}))
 
 	e.Use(echoMiddleware.Recover())
-	e.Use(echoMiddleware.CORS())
+	e.Use(echoMiddleware.CORSWithConfig(echoMiddleware.CORSConfig{
+		AllowOrigins:     []string{"http://localhost:3003"}, // フロントエンドのURL
+		AllowCredentials: true,                               // Cookieの送信を許可
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
+	}))
 
 	// コンテキストにEntクライアントを設定
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -102,6 +110,7 @@ func main() {
 	authGroup.POST("/register", authHandler.Register)
 	authGroup.POST("/login", authHandler.Login)
 	authGroup.POST("/logout", authHandler.Logout)
+	authGroup.POST("/refresh", authHandler.RefreshToken)
 
 	// 認証が必要なエンドポイント
 	protectedGroup := e.Group("/api")

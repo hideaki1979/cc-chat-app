@@ -1,10 +1,16 @@
 # DevContainer用のマルチ言語開発環境
 FROM mcr.microsoft.com/devcontainers/base:ubuntu
 
-# 環境変数
+# 環境変数（プロジェクトのpackage.jsonに合わせて設定）
 ENV NODE_VERSION=18
-ENV GO_VERSION=1.21
+ENV GO_VERSION=1.24.5
 ENV PNPM_VERSION=9.0.0
+
+# ツールのバージョン（再現性確保のため固定）
+ENV GOPLS_VERSION=v0.17.1
+ENV DELVE_VERSION=v1.24.0
+ENV STATICCHECK_VERSION=2024.1.1
+ENV AIR_VERSION=v1.61.5
 
 # システムパッケージのアップデートとインストール
 RUN apt-get update && apt-get install -y \
@@ -38,25 +44,32 @@ ENV PATH=/usr/local/go/bin:$PATH
 ENV GOPATH=/go
 ENV GOPROXY=https://proxy.golang.org,direct
 
-# Go ツールのインストール
-RUN go install golang.org/x/tools/gopls@latest \
-    && go install github.com/go-delve/delve/cmd/dlv@latest \
-    && go install honnef.co/go/tools/cmd/staticcheck@latest
+# Go 開発ツールのインストール（バージョン固定で再現性確保）
+RUN go install golang.org/x/tools/gopls@${GOPLS_VERSION} \
+    && go install github.com/go-delve/delve/cmd/dlv@${DELVE_VERSION} \
+    && go install honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION} \
+    && go install github.com/cosmtrek/air@${AIR_VERSION}
 
-# Air（Go ホットリロード）のインストール
-RUN go install github.com/cosmtrek/air@latest
+# Ent（ORM）開発ツール - プロジェクトで使用中
+RUN go install entgo.io/ent/cmd/ent@v0.14.4
 
-# sqlc のインストール（Go用のSQL生成ツール）
-RUN go install github.com/kyleconroy/sqlc/cmd/sqlc@latest
+# その他の開発支援ツール
+RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.59.1
 
 # 作業ディレクトリの設定
 WORKDIR /workspace
 
-# bashrc に便利なエイリアスを追加
+# 開発環境用の便利なエイリアスとヘルパー
 RUN echo 'alias ll="ls -la"' >> /home/vscode/.bashrc \
     && echo 'alias la="ls -la"' >> /home/vscode/.bashrc \
     && echo 'alias ..="cd .."' >> /home/vscode/.bashrc \
-    && echo 'export PATH=$PATH:/go/bin' >> /home/vscode/.bashrc
+    && echo 'export PATH=$PATH:/go/bin' >> /home/vscode/.bashrc \
+    && echo 'alias go-build="go build"' >> /home/vscode/.bashrc \
+    && echo 'alias go-test="go test ./..."' >> /home/vscode/.bashrc \
+    && echo 'alias go-lint="golangci-lint run"' >> /home/vscode/.bashrc \
+    && echo 'alias ent-gen="go generate ./ent"' >> /home/vscode/.bashrc \
+    && echo 'alias pnpm-dev="pnpm dev"' >> /home/vscode/.bashrc \
+    && echo 'alias pnpm-build="pnpm build"' >> /home/vscode/.bashrc
 
 # ユーザーディレクトリの所有権を設定
 RUN chown -R vscode:vscode /home/vscode 

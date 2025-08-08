@@ -95,6 +95,34 @@ func (uc *UserCreate) SetNillableUpdatedAt(t *time.Time) *UserCreate {
 	return uc
 }
 
+// SetRefreshToken sets the "refresh_token" field.
+func (uc *UserCreate) SetRefreshToken(s string) *UserCreate {
+	uc.mutation.SetRefreshToken(s)
+	return uc
+}
+
+// SetNillableRefreshToken sets the "refresh_token" field if the given value is not nil.
+func (uc *UserCreate) SetNillableRefreshToken(s *string) *UserCreate {
+	if s != nil {
+		uc.SetRefreshToken(*s)
+	}
+	return uc
+}
+
+// SetRefreshTokenExpiresAt sets the "refresh_token_expires_at" field.
+func (uc *UserCreate) SetRefreshTokenExpiresAt(t time.Time) *UserCreate {
+	uc.mutation.SetRefreshTokenExpiresAt(t)
+	return uc
+}
+
+// SetNillableRefreshTokenExpiresAt sets the "refresh_token_expires_at" field if the given value is not nil.
+func (uc *UserCreate) SetNillableRefreshTokenExpiresAt(t *time.Time) *UserCreate {
+	if t != nil {
+		uc.SetRefreshTokenExpiresAt(*t)
+	}
+	return uc
+}
+
 // SetID sets the "id" field.
 func (uc *UserCreate) SetID(u uuid.UUID) *UserCreate {
 	uc.mutation.SetID(u)
@@ -252,6 +280,14 @@ func (uc *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := uc.mutation.UpdatedAt(); ok {
 		_spec.SetField(user.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if value, ok := uc.mutation.RefreshToken(); ok {
+		_spec.SetField(user.FieldRefreshToken, field.TypeString, value)
+		_node.RefreshToken = &value
+	}
+	if value, ok := uc.mutation.RefreshTokenExpiresAt(); ok {
+		_spec.SetField(user.FieldRefreshTokenExpiresAt, field.TypeTime, value)
+		_node.RefreshTokenExpiresAt = &value
 	}
 	return _node, _spec
 }

@@ -31,8 +31,12 @@ type User struct {
 	// 作成日時
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// 更新日時
-	UpdatedAt    time.Time `json:"updated_at,omitempty"`
-	selectValues sql.SelectValues
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// リフレッシュトークン
+	RefreshToken *string `json:"-"`
+	// リフレッシュトークン有効期限
+	RefreshTokenExpiresAt *time.Time `json:"refresh_token_expires_at,omitempty"`
+	selectValues          sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -40,9 +44,9 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldName, user.FieldEmail, user.FieldPasswordHash, user.FieldProfileImageURL, user.FieldBio:
+		case user.FieldName, user.FieldEmail, user.FieldPasswordHash, user.FieldProfileImageURL, user.FieldBio, user.FieldRefreshToken:
 			values[i] = new(sql.NullString)
-		case user.FieldCreatedAt, user.FieldUpdatedAt:
+		case user.FieldCreatedAt, user.FieldUpdatedAt, user.FieldRefreshTokenExpiresAt:
 			values[i] = new(sql.NullTime)
 		case user.FieldID:
 			values[i] = new(uuid.UUID)
@@ -109,6 +113,20 @@ func (u *User) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				u.UpdatedAt = value.Time
 			}
+		case user.FieldRefreshToken:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field refresh_token", values[i])
+			} else if value.Valid {
+				u.RefreshToken = new(string)
+				*u.RefreshToken = value.String
+			}
+		case user.FieldRefreshTokenExpiresAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field refresh_token_expires_at", values[i])
+			} else if value.Valid {
+				u.RefreshTokenExpiresAt = new(time.Time)
+				*u.RefreshTokenExpiresAt = value.Time
+			}
 		default:
 			u.selectValues.Set(columns[i], values[i])
 		}
@@ -164,6 +182,13 @@ func (u *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(u.UpdatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("refresh_token=<sensitive>")
+	builder.WriteString(", ")
+	if v := u.RefreshTokenExpiresAt; v != nil {
+		builder.WriteString("refresh_token_expires_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

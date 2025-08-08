@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { devtools, persist } from 'zustand/middleware';
+import { devtools } from 'zustand/middleware';
 import { api } from '../lib/api';
 import type { 
   AuthStore, 
@@ -12,14 +12,14 @@ import type {
 
 export const useAuthStore = create<AuthStore>()(
   devtools(
-    persist(
-      (set, get) => ({
-        // State
-        user: null,
-        accessToken: null,
-        refreshToken: null,
-        isLoading: false,
-        error: null,
+    // persist機能を削除してメモリ内のみに変更（セキュリティ向上）
+    (set, get) => ({
+      // State（メモリ内のみ保存）
+      user: null,
+      accessToken: null,
+      // refreshToken削除（httpOnly Cookieで管理）
+      isLoading: false,
+      error: null,
 
         // Actions
         setLoading: (loading: boolean) => {
@@ -42,18 +42,13 @@ export const useAuthStore = create<AuthStore>()(
             setError(null);
 
             const response = await api.post<AuthResponse>('/auth/login', credentials);
-            const { user, accessToken, refreshToken } = response.data;
+            const { user, token: accessToken } = response.data;
+            // refresh_tokenはhttpOnly Cookieでバックエンドが自動設定
 
-            // Store tokens in localStorage for persistence
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('accessToken', accessToken);
-              localStorage.setItem('refreshToken', refreshToken);
-            }
-
+            // access_tokenはメモリ内のみ保存（セキュリティ向上）
             set({
               user,
               accessToken,
-              refreshToken,
               isLoading: false,
               error: null,
             });
@@ -66,14 +61,8 @@ export const useAuthStore = create<AuthStore>()(
               error: errorMessage,
               user: null,
               accessToken: null,
-              refreshToken: null,
             });
-            
-            // Clear tokens from localStorage
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('accessToken');
-              localStorage.removeItem('refreshToken');
-            }
+            // Cookieは自動的にクリアされる（バックエンドのエラー処理で）
             throw error;
           }
         },
@@ -85,19 +74,18 @@ export const useAuthStore = create<AuthStore>()(
             setLoading(true);
             setError(null);
 
-            const response = await api.post<AuthResponse>('/auth/register', credentials);
-            const { user, accessToken, refreshToken } = response.data;
+            const response = await api.post<AuthResponse>('/auth/register', {
+              name: credentials.username,  // usernameをnameに変換
+              email: credentials.email,
+              password: credentials.password
+            });
+            const { user, token: accessToken } = response.data;
+            // refresh_tokenはhttpOnly Cookieでバックエンドが自動設定
 
-            // Store tokens in localStorage for persistence
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('accessToken', accessToken);
-              localStorage.setItem('refreshToken', refreshToken);
-            }
-
+            // access_tokenはメモリ内のみ保存（セキュリティ向上）
             set({
               user,
               accessToken,
-              refreshToken,
               isLoading: false,
               error: null,
             });
@@ -110,73 +98,54 @@ export const useAuthStore = create<AuthStore>()(
               error: errorMessage,
               user: null,
               accessToken: null,
-              refreshToken: null,
             });
-            
-            // Clear tokens from localStorage
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('accessToken');
-              localStorage.removeItem('refreshToken');
-            }
+            // Cookieは自動的にクリアされる（バックエンドのエラー処理で）
             throw error;
           }
         },
 
-        logout: () => {
-          // Clear tokens from localStorage
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
+        logout: async () => {
+          try {
+            // バックエンドのlogoutエンドポイントを呼び出してCookieをクリア
+            await api.post('/auth/logout');
+          } catch (error) {
+            // ログアウトAPIが失敗してもクライアントステートはクリア
+            console.error('Logout API failed:', error);
           }
 
+          // メモリ内のaccess_tokenをクリア
           set({
             user: null,
             accessToken: null,
-            refreshToken: null,
             isLoading: false,
             error: null,
           });
         },
 
         refreshAccessToken: async () => {
-          const state = get();
-          const refreshTokenValue = state.refreshToken;
-          
-          if (!refreshTokenValue) {
-            throw new Error('No refresh token available');
-          }
-
           try {
-            const response = await api.post<{ accessToken: string }>('/auth/refresh', {
-              refreshToken: refreshTokenValue,
-            });
-            
-            const { accessToken } = response.data;
+            // Cookieからrefresh_tokenを自動送信してアクセストークンを更新
+            const response = await api.post<{ token: string }>('/auth/refresh');
+            const { token: accessToken } = response.data;
+            // 新しいrefresh_tokenもhttpOnly Cookieで自動設定済み
 
-            // Store new token in localStorage
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('accessToken', accessToken);
-            }
-
+            // 新しいaccess_tokenをメモリに保存
             set({ accessToken });
           } catch (error) {
             // Refresh failed, logout user
+            const state = get();
             state.logout();
             throw error;
           }
         },
       }),
-      {
-        name: 'auth-storage',
-        partialize: (state) => ({
-          user: state.user,
-          accessToken: state.accessToken,
-          refreshToken: state.refreshToken,
-        }),
-      }
-    ),
     {
       name: 'auth-store',
     }
   )
 );
+
+// axiosインターセプターからアクセスできるようにwindowオブジェクトに登録
+if (typeof window !== 'undefined') {
+  (window as any).authStore = useAuthStore;
+}

@@ -3,11 +3,14 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/user"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/auth"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/middleware"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
 	"github.com/labstack/echo/v4"
 )
@@ -22,28 +25,10 @@ func NewAuthHandler() *AuthHandler {
 
 // Register ユーザー登録ハンドラー
 func (h *AuthHandler) Register(c echo.Context) error {
-	// リクエストボディをパース
+	// リクエストのバリデーション
 	var req models.RegisterRequest
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Message: "Invalid request format",
-			Code:    "INVALID_REQUEST",
-		})
-	}
-
-	// バリデーション（簡易版）
-	if req.Name == "" || req.Email == "" || req.Password == "" {
-		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Message: "Name, email, and password are required",
-			Code:    "MISSING_FIELDS",
-		})
-	}
-
-	if len(req.Password) < 8 {
-		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Message: "Password must be at least 8 characters",
-			Code:    "WEAK_PASSWORD",
-		})
+	if err := middleware.ValidateRequest(c, &req); err != nil {
+		return err // エラーレスポンスは既にValidateRequest内で送信済み
 	}
 
 	// データベースクライアント取得
@@ -102,9 +87,43 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		})
 	}
 
-	// レスポンス作成
+	// リフレッシュトークン生成
+	refreshToken, err := auth.GenerateRefreshToken()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "Failed to generate refresh token",
+			Code:    "REFRESH_TOKEN_ERROR",
+		})
+	}
+
+	// データベースにリフレッシュトークンを保存
+	refreshTokenExpiry := auth.GetRefreshTokenExpiry()
+	newUser, err = client.User.UpdateOne(newUser).
+		SetNillableRefreshToken(&refreshToken).
+		SetNillableRefreshTokenExpiresAt(&refreshTokenExpiry).
+		Save(ctx)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "Failed to save refresh token",
+			Code:    "REFRESH_TOKEN_SAVE_ERROR",
+		})
+	}
+
+	// リフレッシュトークンをhttpOnly Cookieに設定
+	cookie := &http.Cookie{
+		Name:     "refresh_token",
+		Value:    refreshToken,
+		Path:     "/",
+		MaxAge:   7 * 24 * 60 * 60, // 7日間（秒単位）
+		HttpOnly: true,              // XSS攻撃を防ぐ
+		Secure:   os.Getenv("ENV") == "production", // 本番環境のみHTTPS必須
+		SameSite: http.SameSiteLaxMode, // 開発環境でのクロスサイト許可
+	}
+	c.SetCookie(cookie)
+
+	// レスポンス作成（refresh_tokenはCookieに保存されるのでレスポンスに含めない）
 	response := models.AuthResponse{
-		Token: token,
+		Token: token, // access_tokenのみレスポンスに含める
 		User: models.UserInfo{
 			ID:              newUser.ID.String(),
 			Name:            newUser.Name,
@@ -121,21 +140,10 @@ func (h *AuthHandler) Register(c echo.Context) error {
 
 // Login ユーザーログインハンドラー
 func (h *AuthHandler) Login(c echo.Context) error {
-	// リクエストボディをパース
+	// リクエストのバリデーション
 	var req models.LoginRequest
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Message: "Invalid request format",
-			Code:    "INVALID_REQUEST",
-		})
-	}
-
-	// バリデーション
-	if req.Email == "" || req.Password == "" {
-		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Message: "Email and password are required",
-			Code:    "MISSING_FIELDS",
-		})
+	if err := middleware.ValidateRequest(c, &req); err != nil {
+		return err // エラーレスポンスは既にValidateRequest内で送信済み
 	}
 
 	// データベースクライアント取得
@@ -176,9 +184,43 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		})
 	}
 
-	// レスポンス作成
+	// リフレッシュトークン生成
+	refreshToken, err := auth.GenerateRefreshToken()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "Failed to generate refresh token",
+			Code:    "REFRESH_TOKEN_ERROR",
+		})
+	}
+
+	// データベースにリフレッシュトークンを保存
+	refreshTokenExpiry := auth.GetRefreshTokenExpiry()
+	existingUser, err = client.User.UpdateOne(existingUser).
+		SetNillableRefreshToken(&refreshToken).
+		SetNillableRefreshTokenExpiresAt(&refreshTokenExpiry).
+		Save(ctx)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "Failed to save refresh token",
+			Code:    "REFRESH_TOKEN_SAVE_ERROR",
+		})
+	}
+
+	// リフレッシュトークンをhttpOnly Cookieに設定
+	cookie := &http.Cookie{
+		Name:     "refresh_token",
+		Value:    refreshToken,
+		Path:     "/",
+		MaxAge:   7 * 24 * 60 * 60, // 7日間（秒単位）
+		HttpOnly: true,              // XSS攻撃を防ぐ
+		Secure:   os.Getenv("ENV") == "production", // 本番環境のみHTTPS必須
+		SameSite: http.SameSiteLaxMode, // 開発環境でのクロスサイト許可
+	}
+	c.SetCookie(cookie)
+
+	// レスポンス作成（refresh_tokenはCookieに保存されるのでレスポンスに含めない）
 	response := models.AuthResponse{
-		Token: token,
+		Token: token, // access_tokenのみレスポンスに含める
 		User: models.UserInfo{
 			ID:              existingUser.ID.String(),
 			Name:            existingUser.Name,
@@ -193,8 +235,20 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
-// Logout ユーザーログアウトハンドラー（JWTの場合は主にクライアント側でトークンを削除）
+// Logout ユーザーログアウトハンドラー
 func (h *AuthHandler) Logout(c echo.Context) error {
+	// リフレッシュトークンCookieを削除
+	cookie := &http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1, // 即座に削除
+		HttpOnly: true,
+		Secure:   os.Getenv("GO_ENV") == "production",
+		SameSite: http.SameSiteLaxMode,
+	}
+	c.SetCookie(cookie)
+
 	return c.JSON(http.StatusOK, map[string]string{
 		"message": "Logout successful",
 	})
@@ -252,4 +306,103 @@ func (h *AuthHandler) Profile(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, userInfo)
+}
+
+// RefreshToken リフレッシュトークンを使ってアクセストークンを更新
+func (h *AuthHandler) RefreshToken(c echo.Context) error {
+	// Cookieからリフレッシュトークンを取得
+	cookie, err := c.Cookie("refresh_token")
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+			Message: "Refresh token not found",
+			Code:    "REFRESH_TOKEN_NOT_FOUND",
+		})
+	}
+	
+	refreshTokenValue := cookie.Value
+	if refreshTokenValue == "" {
+		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+			Message: "Invalid refresh token",
+			Code:    "INVALID_REFRESH_TOKEN",
+		})
+	}
+
+	// データベースクライアント取得
+	client := c.Get("db").(*ent.Client)
+	ctx := context.Background()
+
+	// リフレッシュトークンでユーザーを検索
+	existingUser, err := client.User.Query().
+		Where(user.RefreshTokenEQ(refreshTokenValue)).
+		Only(ctx)
+	if err != nil {
+		if !ent.IsNotFound(err) {
+			return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+				Message: "Database Error",
+				Code:    "DATABASE_ERROR",
+			})
+		}
+		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+			Message: "Invalid refresh token",
+			Code:    "INVALID_REFRESH_TOKEN",
+		})
+	}
+
+	// リフレッシュトークンの有効期限を確認
+	if existingUser.RefreshTokenExpiresAt == nil || time.Now().After(*existingUser.RefreshTokenExpiresAt) {
+		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+			Message: "Refresh token expired",
+			Code:    "REFRESH_TOKEN_EXPIRED",
+		})
+	}
+
+	// 新しいアクセストークンを生成
+	newAccessToken, err := auth.GenerateJWT(existingUser.ID.String(), existingUser.Email)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "Failed to generate access token",
+			Code:    "TOKEN_ERROR",
+		})
+	}
+
+	// 新しいリフレッシュトークンを生成（トークンローテーション）
+	newRefreshToken, err := auth.GenerateRefreshToken()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "Failed to generate refresh token",
+			Code:    "REFRESH_TOKEN_ERROR",
+		})
+	}
+
+	// データベースのリフレッシュトークンを更新
+	refreshTokenExpiry := auth.GetRefreshTokenExpiry()
+	_, err = client.User.UpdateOne(existingUser).
+		SetNillableRefreshToken(&newRefreshToken).
+		SetNillableRefreshTokenExpiresAt(&refreshTokenExpiry).
+		Save(ctx)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "Failed to update refresh token",
+			Code:    "UPDATE_ERROR",
+		})
+	}
+
+	// 新しいリフレッシュトークンをhttpOnly Cookieに設定
+	newCookie := &http.Cookie{
+		Name:     "refresh_token",
+		Value:    newRefreshToken,
+		Path:     "/",
+		MaxAge:   7 * 24 * 60 * 60, // 7日間（秒単位）
+		HttpOnly: true,              // XSS攻撃を防ぐ
+		Secure:   os.Getenv("ENV") == "production", // 本番環境のみHTTPS必須
+		SameSite: http.SameSiteLaxMode, // 開発環境でのクロスサイト許可
+	}
+	c.SetCookie(newCookie)
+
+	// レスポンス作成（access_tokenのみ、refresh_tokenはCookieに保存）
+	response := models.RefreshTokenResponse{
+		Token: newAccessToken, // access_tokenのみレスポンスに含める
+	}
+
+	return c.JSON(http.StatusOK, response)
 }

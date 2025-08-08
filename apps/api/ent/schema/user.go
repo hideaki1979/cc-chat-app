@@ -5,7 +5,6 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/schema/field"
-	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
 )
 
@@ -45,6 +44,15 @@ func (User) Fields() []ent.Field {
 			Default(time.Now).
 			UpdateDefault(time.Now).
 			Comment("更新日時"),
+		field.String("refresh_token").
+			Optional().
+			Nillable().
+			Sensitive().
+			Comment("リフレッシュトークン"),
+		field.Time("refresh_token_expires_at").
+			Optional().
+			Nillable().
+			Comment("リフレッシュトークン有効期限"),
 	}
 }
 
@@ -55,8 +63,5 @@ func (User) Edges() []ent.Edge {
 
 // Indexes of the User.
 func (User) Indexes() []ent.Index {
-	return []ent.Index{
-		// emailフィールドにインデックス追加（ユニーク制約もあるが検索高速化のため）
-		index.Fields("email").Unique(),
-	}
+	return nil
 }
