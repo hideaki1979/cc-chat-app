@@ -13,6 +13,7 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent"
+	_ "github.com/hideaki1979/cc-chat-app/apps/api/ent/runtime"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/handlers"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/middleware"
 	"github.com/joho/godotenv"
@@ -84,10 +85,10 @@ func main() {
 
 	e.Use(echoMiddleware.Recover())
 	e.Use(echoMiddleware.CORSWithConfig(echoMiddleware.CORSConfig{
-		AllowOrigins:     []string{"http://localhost:3003"}, // フロントエンドのURL
-		AllowCredentials: true,                               // Cookieの送信を許可
+		AllowOrigins:     []string{"*"}, // 一時的にすべてのオリジンを許可（デバッグ用）
+		AllowCredentials: false,         // ワイルドカード使用時はfalseにする必要がある
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowHeaders:     []string{"*"}, // すべてのヘッダーを許可
 	}))
 
 	// コンテキストにEntクライアントを設定
@@ -106,7 +107,7 @@ func main() {
 	e.GET(healthCheckPath, healthCheck)
 
 	// 認証関連のエンドポイント（JWT認証不要）
-	authGroup := e.Group("/api/auth")
+	authGroup := e.Group("/auth")
 	authGroup.POST("/register", authHandler.Register)
 	authGroup.POST("/login", authHandler.Login)
 	authGroup.POST("/logout", authHandler.Logout)

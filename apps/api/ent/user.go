@@ -20,7 +20,7 @@ type User struct {
 	ID uuid.UUID `json:"id,omitempty"`
 	// ユーザー名
 	Name string `json:"name,omitempty"`
-	// メールアドレス（ユニーク）
+	// メールアドレス（正規化によりユニーク）
 	Email string `json:"email,omitempty"`
 	// パスワードハッシュ
 	PasswordHash string `json:"-"`

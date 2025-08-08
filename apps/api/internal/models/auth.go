@@ -4,9 +4,9 @@ import "time"
 
 // ユーザー登録用のリクエスト構造体
 type RegisterRequest struct {
-	Name     string `json:"name" validate:"required,min=2,max=30,regexp=^[a-zA-Z0-9_-]+$"`
+	Name     string `json:"name" validate:"required,min=2,max=30,username"`
 	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=8,regexp=^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).+$"`
+	Password string `json:"password" validate:"required,min=8,password_complex"`
 }
 
 // ユーザーログイン用のリクエスト構造体

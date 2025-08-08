@@ -40,6 +40,8 @@ services:
       # コンテナ間通信ではホスト名にサービス名'db'を指定します
       DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"
       PORT: "8080"
+      RUN_MIGRATIONS: "true"
+      JWT_SECRET: ${JWT_SECRET}
     # dbサービスが起動してからbackendを起動
     depends_on:
       - db
@@ -60,6 +62,21 @@ services:
     depends_on:
       - backend
 
+  # --- pgAdmin (PostgreSQL GUI) ---
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+    depends_on:
+      - db
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+
 # Dockerが管理するデータ領域を明示的に定義
 volumes:
   postgres-data:
+  pgadmin-data:

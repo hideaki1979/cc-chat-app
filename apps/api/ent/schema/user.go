@@ -99,17 +99,17 @@ func (User) Hooks() []ent.Hook {
 					// === 設定操作の整合性チェック ===
 					refreshToken, hasRefreshToken := um.RefreshToken()
 					expiresAt, hasExpiresAt := um.RefreshTokenExpiresAt()
-					
+
 					// リフレッシュトークンが設定されているが、有効期限が設定されていない場合はエラー
 					if hasRefreshToken && refreshToken != "" && !hasExpiresAt {
 						return nil, fmt.Errorf("refresh token requires expiry time")
 					}
-					
+
 					// 有効期限が設定されているが、リフレッシュトークンが設定されていない場合はエラー
 					if hasExpiresAt && !hasRefreshToken {
 						return nil, fmt.Errorf("refresh token expiry requires refresh token")
 					}
-					
+
 					// 有効期限が過去の時刻の場合はエラー
 					if hasExpiresAt && expiresAt.Before(time.Now()) {
 						return nil, fmt.Errorf("refresh token expiry must be in the future")
@@ -132,20 +132,6 @@ func (User) Hooks() []ent.Hook {
 						normalizedEmail := strings.ToLower(strings.TrimSpace(email))
 						if normalizedEmail != email {
 							um.SetEmail(normalizedEmail)
-						}
-					}
-				}
-				return next.Mutate(ctx, m)
-			})
-		},
-		// Create時にクライアント供給IDを拒否するフック
-		func(next ent.Mutator) ent.Mutator {
-			return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-				// UserMutationインターフェースを定義してID取得をチェック
-				if idMutation, ok := m.(interface{ ID() (uuid.UUID, bool) }); ok {
-					if m.Op().Is(ent.OpCreate) {
-						if _, exists := idMutation.ID(); exists {
-							return nil, fmt.Errorf("client-supplied ID is not allowed")
 						}
 					}
 				}

@@ -1,4 +1,13 @@
 import axios from 'axios';
+import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import type { UseBoundStore, StoreApi } from 'zustand';
+import type { AuthStore } from '../types/auth';
+
+declare global {
+  interface Window {
+    authStore?: UseBoundStore<StoreApi<AuthStore>>;
+  }
+}
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -8,25 +17,28 @@ export const api = axios.create({
     'Content-Type': 'application/json',
   },
   timeout: 10000, // 10秒でタイムアウト
-  withCredentials: true, // httpOnly Cookieの送信を有効化
+  withCredentials: false, // 一時的にfalse（CORS設定と整合させるため）
 });
 
 // Request interceptor to add auth token
 api.interceptors.request.use(
-  (config) => {
+  (config: InternalAxiosRequestConfig) => {
     // メモリ内のaccess_tokenを認証ストアから取得
     // useAuthStoreをdynamic importで取得（SSRエラー回避）
     if (typeof window !== 'undefined') {
       try {
         // Zustandストアから直接取得
-        const authState = (window as any).authStore?.getState?.();
+        const authState = window.authStore?.getState?.();
         const token = authState?.accessToken;
         if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
+          config.headers = {
+            ...(config.headers || {}),
+            Authorization: `Bearer ${token}`,
+          } as typeof config.headers;
         }
       } catch (error) {
         // ストアが初期化されていない場合はスキップ
-        console.debug('Auth store not yet initialized');
+        console.error('Auth store not yet initialized:', error);
       }
     }
     return config;
@@ -39,9 +51,9 @@ api.interceptors.request.use(
 // Response interceptor to handle unauthorized requests and token refresh
 api.interceptors.response.use(
   (response) => response,
-  async (error) => {
+  async (error: AxiosError) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
-      const originalRequest = error.config as any;
+      const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
       // refresh自体の401はスキップ
       if (originalRequest?.url?.includes('/auth/refresh')) {
         return Promise.reject(error);
@@ -55,7 +67,7 @@ api.interceptors.response.use(
 
       try {
         // 認証ストアのrefreshAccessTokenを呼び出し（Cookieベース）
-        const authState = (window as any).authStore?.getState?.();
+        const authState = window.authStore?.getState?.();
         if (authState?.refreshAccessToken) {
           await authState.refreshAccessToken();
           // トークン更新成功、元のリクエストを再実行

@@ -29,6 +29,10 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	// リクエストのバリデーション
 	var req models.RegisterRequest
 	if err := middleware.ValidateRequest(c, &req); err != nil {
+		c.Logger().Errorf("validation error: %v", err)
+		if c.Response().Committed {
+			return nil
+		}
 		return err // エラーレスポンスは既にValidateRequest内で送信済み
 	}
 
@@ -43,6 +47,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	if err != nil {
 		// ent.NotFoundError以外のエラーの場合はサーバーエラーを返す
 		if !ent.IsNotFound(err) {
+			c.Logger().Errorf("query user error: %v", err)
 			return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 				Message: "DBエラーが発生しました",
 				Code:    "DATABASE_ERROR",
@@ -59,6 +64,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	// パスワードハッシュ化
 	hashedPassword, err := auth.HashPassword(req.Password)
 	if err != nil {
+		c.Logger().Errorf("hash password error: %v", err)
 		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Message: "パスワードの処理中にエラーが発生しました",
 			Code:    "HASH_ERROR",
@@ -68,6 +74,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	// リフレッシュトークン生成
 	refreshToken, err := auth.GenerateRefreshToken()
 	if err != nil {
+		c.Logger().Errorf("generate refresh token error: %v", err)
 		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Message: "リフレッシュトークンの生成中にエラーが発生しました",
 			Code:    "REFRESH_TOKEN_ERROR",
@@ -87,6 +94,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		SetRefreshTokenExpiresAt(refreshTokenExpiry).
 		Save(ctx)
 	if err != nil {
+		c.Logger().Errorf("create user error: %v", err)
 		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Message: "ユーザーの作成中にエラーが発生しました",
 			Code:    "CREATE_USER_ERROR",
@@ -96,6 +104,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	// JWTトークン生成
 	token, err := auth.GenerateJWT(newUser.ID.String(), newUser.Email)
 	if err != nil {
+		c.Logger().Errorf("generate jwt error: %v", err)
 		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Message: "JWTトークンの生成中にエラーが発生しました",
 			Code:    "JWT_TOKEN_ERROR",
@@ -107,7 +116,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		Name:     "refresh_token",
 		Value:    refreshToken,
 		Path:     "/",
-		MaxAge:   int(7 * 24 * time.Hour.Seconds()),    // 7日間（秒単位）
+		MaxAge:   int(7 * 24 * time.Hour.Seconds()),   // 7日間（秒単位）
 		HttpOnly: true,                                // XSS攻撃を防ぐ
 		Secure:   os.Getenv("GO_ENV") == "production", // 本番環境のみHTTPS必須
 		SameSite: http.SameSiteLaxMode,                // 開発環境でのクロスサイト許可
@@ -134,6 +143,9 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	// リクエストのバリデーション
 	var req models.LoginRequest
 	if err := middleware.ValidateRequest(c, &req); err != nil {
+		if c.Response().Committed {
+			return nil
+		}
 		return err // エラーレスポンスは既にValidateRequest内で送信済み
 	}
 
@@ -204,10 +216,10 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		Name:     "refresh_token",
 		Value:    refreshToken,
 		Path:     "/",
-		MaxAge:   int(7 * 24 * time.Hour.Seconds()),     // 7日間（秒単位）
-		HttpOnly: true,                             // XSS攻撃を防ぐ
-		Secure:   os.Getenv("ENV") == "production", // 本番環境のみHTTPS必須
-		SameSite: http.SameSiteLaxMode,             // 開発環境でのクロスサイト許可
+		MaxAge:   int(7 * 24 * time.Hour.Seconds()), // 7日間（秒単位）
+		HttpOnly: true,                              // XSS攻撃を防ぐ
+		Secure:   os.Getenv("ENV") == "production",  // 本番環境のみHTTPS必須
+		SameSite: http.SameSiteLaxMode,              // 開発環境でのクロスサイト許可
 	}
 	c.SetCookie(cookie)
 
