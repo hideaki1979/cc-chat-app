@@ -42,7 +42,7 @@ export const useAuthStore = create<AuthStore>()(
           setLoading(true);
           setError(null);
 
-          const response = await api.post<AuthResponse>('/auth/login', credentials);
+          const response = await api.post<AuthResponse>('/auth/login', credentials, { withCredentials: true });
           const { user, token: accessToken } = response.data;
           // refresh_tokenはhttpOnly Cookieでバックエンドが自動設定
 
@@ -108,7 +108,7 @@ export const useAuthStore = create<AuthStore>()(
       logout: async () => {
         try {
           // バックエンドのlogoutエンドポイントを呼び出してCookieをクリア
-          await api.post('/auth/logout');
+          await api.post('/auth/logout', null, { withCredentials: true });
         } catch (error) {
           // ログアウトAPIが失敗してもクライアントステートはクリア
           console.error('Logout API failed:', error);
@@ -126,7 +126,7 @@ export const useAuthStore = create<AuthStore>()(
       refreshAccessToken: async () => {
         try {
           // Cookieからrefresh_tokenを自動送信してアクセストークンを更新
-          const response = await api.post<{ token: string }>('/auth/refresh');
+          const response = await api.post<{ token: string }>('/auth/refresh', null, { withCredentials: true });
           const { token: accessToken } = response.data;
           // 新しいrefresh_tokenもhttpOnly Cookieで自動設定済み
 

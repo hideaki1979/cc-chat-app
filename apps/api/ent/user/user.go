@@ -29,8 +29,8 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
-	// FieldRefreshToken holds the string denoting the refresh_token field in the database.
-	FieldRefreshToken = "refresh_token"
+	// FieldRefreshTokenHash holds the string denoting the refresh_token_hash field in the database.
+	FieldRefreshTokenHash = "refresh_token_hash"
 	// FieldRefreshTokenExpiresAt holds the string denoting the refresh_token_expires_at field in the database.
 	FieldRefreshTokenExpiresAt = "refresh_token_expires_at"
 	// Table holds the table name of the user in the database.
@@ -47,7 +47,7 @@ var Columns = []string{
 	FieldBio,
 	FieldCreatedAt,
 	FieldUpdatedAt,
-	FieldRefreshToken,
+	FieldRefreshTokenHash,
 	FieldRefreshTokenExpiresAt,
 }
 
@@ -73,7 +73,7 @@ var (
 	// EmailValidator is a validator for the "email" field. It is called by the builders before save.
 	EmailValidator func(string) error
 	// PasswordHashValidator is a validator for the "password_hash" field. It is called by the builders before save.
-	PasswordHashValidator func(string) error
+	PasswordHashValidator func([]byte) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -102,11 +102,6 @@ func ByEmail(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEmail, opts...).ToFunc()
 }
 
-// ByPasswordHash orders the results by the password_hash field.
-func ByPasswordHash(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPasswordHash, opts...).ToFunc()
-}
-
 // ByProfileImageURL orders the results by the profile_image_url field.
 func ByProfileImageURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProfileImageURL, opts...).ToFunc()
@@ -125,11 +120,6 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
-}
-
-// ByRefreshToken orders the results by the refresh_token field.
-func ByRefreshToken(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldRefreshToken, opts...).ToFunc()
 }
 
 // ByRefreshTokenExpiresAt orders the results by the refresh_token_expires_at field.

@@ -30,7 +30,7 @@ func (User) Fields() []ent.Field {
 			Unique().
 			NotEmpty().
 			Comment("メールアドレス（正規化によりユニーク）"),
-		field.String("password_hash").
+		field.Bytes("password_hash").
 			NotEmpty().
 			Sensitive().
 			Comment("パスワードハッシュ"),
@@ -48,12 +48,12 @@ func (User) Fields() []ent.Field {
 			Default(time.Now).
 			UpdateDefault(time.Now).
 			Comment("更新日時"),
-		field.String("refresh_token").
+		field.Bytes("refresh_token_hash").
 			Optional().
 			Nillable().
 			Unique().
 			Sensitive().
-			Comment("リフレッシュトークン"),
+			Comment("リフレッシュトークンハッシュ"),
 		field.Time("refresh_token_expires_at").
 			Optional().
 			Nillable().
@@ -78,35 +78,35 @@ func (User) Hooks() []ent.Hook {
 		func(next ent.Mutator) ent.Mutator {
 			return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
 				um, ok := m.(interface {
-					RefreshToken() (string, bool)
+					RefreshTokenHash() ([]byte, bool)
 					RefreshTokenExpiresAt() (time.Time, bool)
-					RefreshTokenCleared() bool
+					RefreshTokenHashCleared() bool
 					RefreshTokenExpiresAtCleared() bool
-					ClearRefreshToken()
+					ClearRefreshTokenHash()
 					ClearRefreshTokenExpiresAt()
 				})
 				if ok {
 					// === クリア操作の整合性チェック ===
 					// リフレッシュトークンがクリアされる場合、有効期限もクリア
-					if um.RefreshTokenCleared() && !um.RefreshTokenExpiresAtCleared() {
+					if um.RefreshTokenHashCleared() && !um.RefreshTokenExpiresAtCleared() {
 						um.ClearRefreshTokenExpiresAt()
 					}
 					// 有効期限がクリアされる場合、リフレッシュトークンもクリア
-					if um.RefreshTokenExpiresAtCleared() && !um.RefreshTokenCleared() {
-						um.ClearRefreshToken()
+					if um.RefreshTokenExpiresAtCleared() && !um.RefreshTokenHashCleared() {
+						um.ClearRefreshTokenHash()
 					}
 
 					// === 設定操作の整合性チェック ===
-					refreshToken, hasRefreshToken := um.RefreshToken()
+					refreshTokenHash, hasRefreshTokenHash := um.RefreshTokenHash()
 					expiresAt, hasExpiresAt := um.RefreshTokenExpiresAt()
 
 					// リフレッシュトークンが設定されているが、有効期限が設定されていない場合はエラー
-					if hasRefreshToken && refreshToken != "" && !hasExpiresAt {
+					if hasRefreshTokenHash && len(refreshTokenHash) > 0 && !hasExpiresAt {
 						return nil, fmt.Errorf("refresh token requires expiry time")
 					}
 
 					// 有効期限が設定されているが、リフレッシュトークンが設定されていない場合はエラー
-					if hasExpiresAt && !hasRefreshToken {
+					if hasExpiresAt && !hasRefreshTokenHash {
 						return nil, fmt.Errorf("refresh token expiry requires refresh token")
 					}
 

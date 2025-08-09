@@ -57,16 +57,8 @@ func (uu *UserUpdate) SetNillableEmail(s *string) *UserUpdate {
 }
 
 // SetPasswordHash sets the "password_hash" field.
-func (uu *UserUpdate) SetPasswordHash(s string) *UserUpdate {
-	uu.mutation.SetPasswordHash(s)
-	return uu
-}
-
-// SetNillablePasswordHash sets the "password_hash" field if the given value is not nil.
-func (uu *UserUpdate) SetNillablePasswordHash(s *string) *UserUpdate {
-	if s != nil {
-		uu.SetPasswordHash(*s)
-	}
+func (uu *UserUpdate) SetPasswordHash(b []byte) *UserUpdate {
+	uu.mutation.SetPasswordHash(b)
 	return uu
 }
 
@@ -116,23 +108,15 @@ func (uu *UserUpdate) SetUpdatedAt(t time.Time) *UserUpdate {
 	return uu
 }
 
-// SetRefreshToken sets the "refresh_token" field.
-func (uu *UserUpdate) SetRefreshToken(s string) *UserUpdate {
-	uu.mutation.SetRefreshToken(s)
+// SetRefreshTokenHash sets the "refresh_token_hash" field.
+func (uu *UserUpdate) SetRefreshTokenHash(b []byte) *UserUpdate {
+	uu.mutation.SetRefreshTokenHash(b)
 	return uu
 }
 
-// SetNillableRefreshToken sets the "refresh_token" field if the given value is not nil.
-func (uu *UserUpdate) SetNillableRefreshToken(s *string) *UserUpdate {
-	if s != nil {
-		uu.SetRefreshToken(*s)
-	}
-	return uu
-}
-
-// ClearRefreshToken clears the value of the "refresh_token" field.
-func (uu *UserUpdate) ClearRefreshToken() *UserUpdate {
-	uu.mutation.ClearRefreshToken()
+// ClearRefreshTokenHash clears the value of the "refresh_token_hash" field.
+func (uu *UserUpdate) ClearRefreshTokenHash() *UserUpdate {
+	uu.mutation.ClearRefreshTokenHash()
 	return uu
 }
 
@@ -242,7 +226,7 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		_spec.SetField(user.FieldEmail, field.TypeString, value)
 	}
 	if value, ok := uu.mutation.PasswordHash(); ok {
-		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
+		_spec.SetField(user.FieldPasswordHash, field.TypeBytes, value)
 	}
 	if value, ok := uu.mutation.ProfileImageURL(); ok {
 		_spec.SetField(user.FieldProfileImageURL, field.TypeString, value)
@@ -259,11 +243,11 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if value, ok := uu.mutation.UpdatedAt(); ok {
 		_spec.SetField(user.FieldUpdatedAt, field.TypeTime, value)
 	}
-	if value, ok := uu.mutation.RefreshToken(); ok {
-		_spec.SetField(user.FieldRefreshToken, field.TypeString, value)
+	if value, ok := uu.mutation.RefreshTokenHash(); ok {
+		_spec.SetField(user.FieldRefreshTokenHash, field.TypeBytes, value)
 	}
-	if uu.mutation.RefreshTokenCleared() {
-		_spec.ClearField(user.FieldRefreshToken, field.TypeString)
+	if uu.mutation.RefreshTokenHashCleared() {
+		_spec.ClearField(user.FieldRefreshTokenHash, field.TypeBytes)
 	}
 	if value, ok := uu.mutation.RefreshTokenExpiresAt(); ok {
 		_spec.SetField(user.FieldRefreshTokenExpiresAt, field.TypeTime, value)
@@ -320,16 +304,8 @@ func (uuo *UserUpdateOne) SetNillableEmail(s *string) *UserUpdateOne {
 }
 
 // SetPasswordHash sets the "password_hash" field.
-func (uuo *UserUpdateOne) SetPasswordHash(s string) *UserUpdateOne {
-	uuo.mutation.SetPasswordHash(s)
-	return uuo
-}
-
-// SetNillablePasswordHash sets the "password_hash" field if the given value is not nil.
-func (uuo *UserUpdateOne) SetNillablePasswordHash(s *string) *UserUpdateOne {
-	if s != nil {
-		uuo.SetPasswordHash(*s)
-	}
+func (uuo *UserUpdateOne) SetPasswordHash(b []byte) *UserUpdateOne {
+	uuo.mutation.SetPasswordHash(b)
 	return uuo
 }
 
@@ -379,23 +355,15 @@ func (uuo *UserUpdateOne) SetUpdatedAt(t time.Time) *UserUpdateOne {
 	return uuo
 }
 
-// SetRefreshToken sets the "refresh_token" field.
-func (uuo *UserUpdateOne) SetRefreshToken(s string) *UserUpdateOne {
-	uuo.mutation.SetRefreshToken(s)
+// SetRefreshTokenHash sets the "refresh_token_hash" field.
+func (uuo *UserUpdateOne) SetRefreshTokenHash(b []byte) *UserUpdateOne {
+	uuo.mutation.SetRefreshTokenHash(b)
 	return uuo
 }
 
-// SetNillableRefreshToken sets the "refresh_token" field if the given value is not nil.
-func (uuo *UserUpdateOne) SetNillableRefreshToken(s *string) *UserUpdateOne {
-	if s != nil {
-		uuo.SetRefreshToken(*s)
-	}
-	return uuo
-}
-
-// ClearRefreshToken clears the value of the "refresh_token" field.
-func (uuo *UserUpdateOne) ClearRefreshToken() *UserUpdateOne {
-	uuo.mutation.ClearRefreshToken()
+// ClearRefreshTokenHash clears the value of the "refresh_token_hash" field.
+func (uuo *UserUpdateOne) ClearRefreshTokenHash() *UserUpdateOne {
+	uuo.mutation.ClearRefreshTokenHash()
 	return uuo
 }
 
@@ -535,7 +503,7 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 		_spec.SetField(user.FieldEmail, field.TypeString, value)
 	}
 	if value, ok := uuo.mutation.PasswordHash(); ok {
-		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
+		_spec.SetField(user.FieldPasswordHash, field.TypeBytes, value)
 	}
 	if value, ok := uuo.mutation.ProfileImageURL(); ok {
 		_spec.SetField(user.FieldProfileImageURL, field.TypeString, value)
@@ -552,11 +520,11 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 	if value, ok := uuo.mutation.UpdatedAt(); ok {
 		_spec.SetField(user.FieldUpdatedAt, field.TypeTime, value)
 	}
-	if value, ok := uuo.mutation.RefreshToken(); ok {
-		_spec.SetField(user.FieldRefreshToken, field.TypeString, value)
+	if value, ok := uuo.mutation.RefreshTokenHash(); ok {
+		_spec.SetField(user.FieldRefreshTokenHash, field.TypeBytes, value)
 	}
-	if uuo.mutation.RefreshTokenCleared() {
-		_spec.ClearField(user.FieldRefreshToken, field.TypeString)
+	if uuo.mutation.RefreshTokenHashCleared() {
+		_spec.ClearField(user.FieldRefreshTokenHash, field.TypeBytes)
 	}
 	if value, ok := uuo.mutation.RefreshTokenExpiresAt(); ok {
 		_spec.SetField(user.FieldRefreshTokenExpiresAt, field.TypeTime, value)

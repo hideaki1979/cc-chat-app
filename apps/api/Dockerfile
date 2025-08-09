@@ -18,7 +18,7 @@ USER golang
 
 # ホットリロードツールairをインストール（非rootで実行してキャッシュ権限問題を回避）
 # 再現性のためにバージョン固定（必要に応じて更新）
-ARG AIR_VERSION=v1.52.0
+ARG AIR_VERSION=latest
 RUN go install github.com/air-verse/air@${AIR_VERSION}
 
 # Goの依存関係を先にインストール

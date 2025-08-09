@@ -36,12 +36,12 @@ type UserMutation struct {
 	id                       *uuid.UUID
 	name                     *string
 	email                    *string
-	password_hash            *string
+	password_hash            *[]byte
 	profile_image_url        *string
 	bio                      *string
 	created_at               *time.Time
 	updated_at               *time.Time
-	refresh_token            *string
+	refresh_token_hash       *[]byte
 	refresh_token_expires_at *time.Time
 	clearedFields            map[string]struct{}
 	done                     bool
@@ -226,12 +226,12 @@ func (m *UserMutation) ResetEmail() {
 }
 
 // SetPasswordHash sets the "password_hash" field.
-func (m *UserMutation) SetPasswordHash(s string) {
-	m.password_hash = &s
+func (m *UserMutation) SetPasswordHash(b []byte) {
+	m.password_hash = &b
 }
 
 // PasswordHash returns the value of the "password_hash" field in the mutation.
-func (m *UserMutation) PasswordHash() (r string, exists bool) {
+func (m *UserMutation) PasswordHash() (r []byte, exists bool) {
 	v := m.password_hash
 	if v == nil {
 		return
@@ -242,7 +242,7 @@ func (m *UserMutation) PasswordHash() (r string, exists bool) {
 // OldPasswordHash returns the old "password_hash" field's value of the User entity.
 // If the User object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *UserMutation) OldPasswordHash(ctx context.Context) (v string, err error) {
+func (m *UserMutation) OldPasswordHash(ctx context.Context) (v []byte, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldPasswordHash is only allowed on UpdateOne operations")
 	}
@@ -431,53 +431,53 @@ func (m *UserMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
-// SetRefreshToken sets the "refresh_token" field.
-func (m *UserMutation) SetRefreshToken(s string) {
-	m.refresh_token = &s
+// SetRefreshTokenHash sets the "refresh_token_hash" field.
+func (m *UserMutation) SetRefreshTokenHash(b []byte) {
+	m.refresh_token_hash = &b
 }
 
-// RefreshToken returns the value of the "refresh_token" field in the mutation.
-func (m *UserMutation) RefreshToken() (r string, exists bool) {
-	v := m.refresh_token
+// RefreshTokenHash returns the value of the "refresh_token_hash" field in the mutation.
+func (m *UserMutation) RefreshTokenHash() (r []byte, exists bool) {
+	v := m.refresh_token_hash
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldRefreshToken returns the old "refresh_token" field's value of the User entity.
+// OldRefreshTokenHash returns the old "refresh_token_hash" field's value of the User entity.
 // If the User object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *UserMutation) OldRefreshToken(ctx context.Context) (v *string, err error) {
+func (m *UserMutation) OldRefreshTokenHash(ctx context.Context) (v *[]byte, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldRefreshToken is only allowed on UpdateOne operations")
+		return v, errors.New("OldRefreshTokenHash is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldRefreshToken requires an ID field in the mutation")
+		return v, errors.New("OldRefreshTokenHash requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldRefreshToken: %w", err)
+		return v, fmt.Errorf("querying old value for OldRefreshTokenHash: %w", err)
 	}
-	return oldValue.RefreshToken, nil
+	return oldValue.RefreshTokenHash, nil
 }
 
-// ClearRefreshToken clears the value of the "refresh_token" field.
-func (m *UserMutation) ClearRefreshToken() {
-	m.refresh_token = nil
-	m.clearedFields[user.FieldRefreshToken] = struct{}{}
+// ClearRefreshTokenHash clears the value of the "refresh_token_hash" field.
+func (m *UserMutation) ClearRefreshTokenHash() {
+	m.refresh_token_hash = nil
+	m.clearedFields[user.FieldRefreshTokenHash] = struct{}{}
 }
 
-// RefreshTokenCleared returns if the "refresh_token" field was cleared in this mutation.
-func (m *UserMutation) RefreshTokenCleared() bool {
-	_, ok := m.clearedFields[user.FieldRefreshToken]
+// RefreshTokenHashCleared returns if the "refresh_token_hash" field was cleared in this mutation.
+func (m *UserMutation) RefreshTokenHashCleared() bool {
+	_, ok := m.clearedFields[user.FieldRefreshTokenHash]
 	return ok
 }
 
-// ResetRefreshToken resets all changes to the "refresh_token" field.
-func (m *UserMutation) ResetRefreshToken() {
-	m.refresh_token = nil
-	delete(m.clearedFields, user.FieldRefreshToken)
+// ResetRefreshTokenHash resets all changes to the "refresh_token_hash" field.
+func (m *UserMutation) ResetRefreshTokenHash() {
+	m.refresh_token_hash = nil
+	delete(m.clearedFields, user.FieldRefreshTokenHash)
 }
 
 // SetRefreshTokenExpiresAt sets the "refresh_token_expires_at" field.
@@ -585,8 +585,8 @@ func (m *UserMutation) Fields() []string {
 	if m.updated_at != nil {
 		fields = append(fields, user.FieldUpdatedAt)
 	}
-	if m.refresh_token != nil {
-		fields = append(fields, user.FieldRefreshToken)
+	if m.refresh_token_hash != nil {
+		fields = append(fields, user.FieldRefreshTokenHash)
 	}
 	if m.refresh_token_expires_at != nil {
 		fields = append(fields, user.FieldRefreshTokenExpiresAt)
@@ -613,8 +613,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.CreatedAt()
 	case user.FieldUpdatedAt:
 		return m.UpdatedAt()
-	case user.FieldRefreshToken:
-		return m.RefreshToken()
+	case user.FieldRefreshTokenHash:
+		return m.RefreshTokenHash()
 	case user.FieldRefreshTokenExpiresAt:
 		return m.RefreshTokenExpiresAt()
 	}
@@ -640,8 +640,8 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldCreatedAt(ctx)
 	case user.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
-	case user.FieldRefreshToken:
-		return m.OldRefreshToken(ctx)
+	case user.FieldRefreshTokenHash:
+		return m.OldRefreshTokenHash(ctx)
 	case user.FieldRefreshTokenExpiresAt:
 		return m.OldRefreshTokenExpiresAt(ctx)
 	}
@@ -668,7 +668,7 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 		m.SetEmail(v)
 		return nil
 	case user.FieldPasswordHash:
-		v, ok := value.(string)
+		v, ok := value.([]byte)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -702,12 +702,12 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetUpdatedAt(v)
 		return nil
-	case user.FieldRefreshToken:
-		v, ok := value.(string)
+	case user.FieldRefreshTokenHash:
+		v, ok := value.([]byte)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetRefreshToken(v)
+		m.SetRefreshTokenHash(v)
 		return nil
 	case user.FieldRefreshTokenExpiresAt:
 		v, ok := value.(time.Time)
@@ -752,8 +752,8 @@ func (m *UserMutation) ClearedFields() []string {
 	if m.FieldCleared(user.FieldBio) {
 		fields = append(fields, user.FieldBio)
 	}
-	if m.FieldCleared(user.FieldRefreshToken) {
-		fields = append(fields, user.FieldRefreshToken)
+	if m.FieldCleared(user.FieldRefreshTokenHash) {
+		fields = append(fields, user.FieldRefreshTokenHash)
 	}
 	if m.FieldCleared(user.FieldRefreshTokenExpiresAt) {
 		fields = append(fields, user.FieldRefreshTokenExpiresAt)
@@ -778,8 +778,8 @@ func (m *UserMutation) ClearField(name string) error {
 	case user.FieldBio:
 		m.ClearBio()
 		return nil
-	case user.FieldRefreshToken:
-		m.ClearRefreshToken()
+	case user.FieldRefreshTokenHash:
+		m.ClearRefreshTokenHash()
 		return nil
 	case user.FieldRefreshTokenExpiresAt:
 		m.ClearRefreshTokenExpiresAt()
@@ -813,8 +813,8 @@ func (m *UserMutation) ResetField(name string) error {
 	case user.FieldUpdatedAt:
 		m.ResetUpdatedAt()
 		return nil
-	case user.FieldRefreshToken:
-		m.ResetRefreshToken()
+	case user.FieldRefreshTokenHash:
+		m.ResetRefreshTokenHash()
 		return nil
 	case user.FieldRefreshTokenExpiresAt:
 		m.ResetRefreshTokenExpiresAt()

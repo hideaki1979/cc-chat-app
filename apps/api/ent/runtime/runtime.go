@@ -15,11 +15,8 @@ import (
 // to their package variables.
 func init() {
 	userHooks := schema.User{}.Hooks()
-	// Hooks数に合わせて安全に代入
-	// runtimeのHooks配列サイズと一致する範囲のみコピー
-	for i := 0; i < len(userHooks) && i < len(user.Hooks); i++ {
-		user.Hooks[i] = userHooks[i]
-	}
+	user.Hooks[0] = userHooks[0]
+	user.Hooks[1] = userHooks[1]
 	userFields := schema.User{}.Fields()
 	_ = userFields
 	// userDescName is the schema descriptor for name field.
@@ -33,7 +30,7 @@ func init() {
 	// userDescPasswordHash is the schema descriptor for password_hash field.
 	userDescPasswordHash := userFields[3].Descriptor()
 	// user.PasswordHashValidator is a validator for the "password_hash" field. It is called by the builders before save.
-	user.PasswordHashValidator = userDescPasswordHash.Validators[0].(func(string) error)
+	user.PasswordHashValidator = userDescPasswordHash.Validators[0].(func([]byte) error)
 	// userDescCreatedAt is the schema descriptor for created_at field.
 	userDescCreatedAt := userFields[6].Descriptor()
 	// user.DefaultCreatedAt holds the default value on creation for the created_at field.

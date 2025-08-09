@@ -90,7 +90,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		SetName(req.Name).
 		SetEmail(req.Email).
 		SetPasswordHash(hashedPassword).
-		SetRefreshToken(hashedRefreshToken).
+		SetRefreshTokenHash(hashedRefreshToken).
 		SetRefreshTokenExpiresAt(refreshTokenExpiry).
 		Save(ctx)
 	if err != nil {
@@ -171,7 +171,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	}
 
 	// パスワード検証
-	if err := auth.CheckPassword(req.Password, existingUser.PasswordHash); err != nil {
+	if !auth.CheckPasswordHash(req.Password, existingUser.PasswordHash) {
 		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Message: "メールアドレスまたはパスワードに誤りがあります",
 			Code:    "INVALID_CREDENTIALS",
@@ -201,7 +201,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	hashedRefreshToken := auth.HashRefreshToken(refreshToken)
 	refreshTokenExpiry := auth.GetRefreshTokenExpiry()
 	_, err = client.User.Update().
-		SetRefreshToken(hashedRefreshToken).
+		SetRefreshTokenHash(hashedRefreshToken).
 		SetRefreshTokenExpiresAt(refreshTokenExpiry).
 		Save(ctx)
 	if err != nil {
@@ -248,9 +248,10 @@ func (h *AuthHandler) Logout(c echo.Context) error {
 	cookie, err := c.Cookie("refresh_token")
 	if err == nil && cookie.Value != "" {
 		// リフレッシュトークンに基づいてユーザーを検索し、トークンをクリア
+		hashedToken := auth.HashRefreshToken(cookie.Value)
 		_, updateErr := client.User.Update().
-			Where(user.RefreshTokenEQ(cookie.Value)).
-			ClearRefreshToken().
+			Where(user.RefreshTokenHashEQ(hashedToken)).
+			ClearRefreshTokenHash().
 			ClearRefreshTokenExpiresAt().
 			Save(ctx)
 		if updateErr != nil {
@@ -359,7 +360,7 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 
 	// リフレッシュトークンでユーザーを検索
 	existingUser, err := client.User.Query().
-		Where(user.RefreshTokenEQ(hashedRefreshToken)).
+		Where(user.RefreshTokenHashEQ(hashedRefreshToken)).
 		Only(ctx)
 	if err != nil {
 		if !ent.IsNotFound(err) {
@@ -378,7 +379,7 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 	if existingUser.RefreshTokenExpiresAt == nil || time.Now().After(*existingUser.RefreshTokenExpiresAt) {
 		// 期限切れの場合、DBからトークンをクリア（セキュリティ強化）
 		_, _ = client.User.UpdateOne(existingUser).
-			ClearRefreshToken().
+			ClearRefreshTokenHash().
 			ClearRefreshTokenExpiresAt().
 			Save(ctx)
 
@@ -411,7 +412,7 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 	newHashedRefreshToken := auth.HashRefreshToken(newRefreshToken)
 	refreshTokenExpiry := auth.GetRefreshTokenExpiry()
 	_, err = client.User.UpdateOne(existingUser).
-		SetRefreshToken(newHashedRefreshToken).
+		SetRefreshTokenHash(newHashedRefreshToken).
 		SetRefreshTokenExpiresAt(refreshTokenExpiry).
 		Save(ctx)
 	if err != nil {

@@ -27,8 +27,8 @@ func NewValidator() *CustomValidator {
 		}
 		return name
 	})
-	// カスタムバリデーション: ユーザー名（英数字・アンダースコア・ハイフンのみ）
-	usernamePattern := regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+	// カスタムバリデーション: ユーザー名（英数字・アンダースコア・ハイフン・スペースを許可）
+	usernamePattern := regexp.MustCompile(`^[a-zA-Z0-9_\- ]+$`)
 	_ = v.RegisterValidation("username", func(fl validator.FieldLevel) bool {
 		value := fl.Field().String()
 		return usernamePattern.MatchString(value)
@@ -118,7 +118,7 @@ func formatValidationError(errs validator.ValidationErrors) string {
 				return err.Field() + "は" + err.Param() + "文字以下で入力してください"
 			}
 		case "username":
-			return "名前は英数字、アンダースコア、ハイフンのみ使用できます"
+			return "名前は英数字、アンダースコア、ハイフン、スペースのみ使用できます"
 		case "password_complex":
 			return "パスワードは大文字・小文字・数字を各1つ以上含む必要があります"
 		default:

@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"os"
 	"time"
@@ -34,17 +33,23 @@ type Claims struct {
 }
 
 // パスワードをハッシュ化する
-func HashPassword(password string) (string, error) {
+func HashPassword(password string) ([]byte, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return string(hashedPassword), nil
+	return hashedPassword, nil
 }
 
-// パスワードを検証する
+// パスワードを検証する（ハンドラー用）
 func CheckPassword(password, hashedPassword string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+}
+
+// パスワードを検証する（[]byte版）
+func CheckPasswordHash(password string, hashedPassword []byte) bool {
+	err := bcrypt.CompareHashAndPassword(hashedPassword, []byte(password))
+	return err == nil
 }
 
 // JWTトークンを生成する
@@ -95,9 +100,9 @@ func GenerateRefreshToken() (string, error) {
 }
 
 // リフレッシュトークンをハッシュ化する（DBに保存する前に使用）
-func HashRefreshToken(token string) string {
+func HashRefreshToken(token string) []byte {
 	sum := sha256.Sum256([]byte(token))
-	return hex.EncodeToString(sum[:])
+	return sum[:]
 }
 
 // リフレッシュトークンの有効期限を取得（7日間）
