@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
@@ -15,6 +15,12 @@ export const RegisterForm: React.FC = () => {
   const router = useRouter();
   const { register: registerUser, isLoading, error, clearError } = useAuthStore();
 
+  // 画面遷移後の古いエラーを初期化
+  useEffect(() => {
+    clearError();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const {
     register,
     handleSubmit,
@@ -26,8 +32,17 @@ export const RegisterForm: React.FC = () => {
   const onSubmit = async (data: RegisterFormData) => {
     try {
       clearError();
-      await registerUser(data);
-      router.push('/dashboard'); // ダッシュボードページにリダイレクト
+      const result = await registerUser(data);
+      if (result.ok) {
+        router.push('/dashboard');
+        return;
+      }
+      if (!result.ok && result.status === 409) {
+        // 409: 3秒後にログインへリダイレクト
+        setTimeout(() => {
+          router.push('/login');
+        }, 3000);
+      }
     } catch (err) {
       // エラーはstoreで処理済みだが、必要に応じて追加の処理を行う
       console.error('Registration failed:', err);

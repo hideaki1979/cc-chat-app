@@ -25,6 +25,10 @@ export interface AuthResponse {
   token: string;  // access_tokenのみ、refresh_tokenはhttpOnly Cookieで管理
 }
 
+export type RegisterResult =
+  | { ok: true }
+  | { ok: false; status?: number; code?: string };
+
 export interface AuthState {
   user: User | null;
   accessToken: string | null;  // メモリ内のみ保存
@@ -34,13 +38,15 @@ export interface AuthState {
 }
 
 export interface AuthActions {
-  login: (credentials: LoginCredentials) => Promise<void>;
-  register: (credentials: RegisterCredentials) => Promise<void>;
+  login: (credentials: LoginCredentials) => Promise<boolean>;
+  register: (credentials: RegisterCredentials) => Promise<RegisterResult>;
   logout: () => void;
   refreshAccessToken: () => Promise<void>;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
+  setUser: (user: User | null) => void;
+  loadCurrentUser: () => Promise<void>;
 }
 
 export type AuthStore = AuthState & AuthActions;

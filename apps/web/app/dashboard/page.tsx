@@ -1,19 +1,38 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../stores/auth';
 import { Button } from '@repo/ui/button';
 
 export default function DashboardPage() {
-  const router = useRouter()
-  const { user, logout } = useAuthStore();
+  const router = useRouter();
+  const { user, isLoading, logout, loadCurrentUser } = useAuthStore();
+  const didLoadRef = useRef(false);
+
+  // 初回マウント時にユーザー取得（React StrictModeの二重実行を防止）
+  useEffect(() => {
+    if (didLoadRef.current) return;
+    didLoadRef.current = true;
+    if (!user) {
+      loadCurrentUser().catch(() => { });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 未ログインならログインページへ遷移
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace('/login');
+    }
+  }, [isLoading, user]);
 
   const handleLogout = () => {
     logout();
     router.push('/login');
   };
 
-  if (!user) {
+  if (isLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>ユーザー情報を読み込み中...</p>
@@ -33,7 +52,7 @@ export default function DashboardPage() {
               ログアウト
             </Button>
           </div>
-          
+
           <div className="space-y-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-700 mb-2">
