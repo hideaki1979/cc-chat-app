@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
@@ -15,6 +15,12 @@ export const LoginForm: React.FC = () => {
   const router = useRouter();
   const { login, isLoading, error, clearError } = useAuthStore();
 
+  // 画面遷移後の古いエラーを初期化
+  useEffect(() => {
+    clearError();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const {
     register,
     handleSubmit,
@@ -24,14 +30,10 @@ export const LoginForm: React.FC = () => {
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    try {
-      clearError();
-      await login(data);
-      router.push('/dashboard'); // ダッシュボードページにリダイレクト
-    } catch (err) {
-      // エラーはstoreで処理済みだが、必要に応じて追加の処理を行う
-      console.error('Login failed:', err);
-      // 必要に応じてここでトースト通知やログ送信などを行う
+    clearError();
+    const ok = await login(data);
+    if (ok) {
+      router.push('/dashboard');
     }
   };
 
