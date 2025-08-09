@@ -41,11 +41,6 @@ func HashPassword(password string) ([]byte, error) {
 	return hashedPassword, nil
 }
 
-// パスワードを検証する（ハンドラー用）
-func CheckPassword(password, hashedPassword string) error {
-	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
-}
-
 // パスワードを検証する（[]byte版）
 func CheckPasswordHash(password string, hashedPassword []byte) bool {
 	err := bcrypt.CompareHashAndPassword(hashedPassword, []byte(password))

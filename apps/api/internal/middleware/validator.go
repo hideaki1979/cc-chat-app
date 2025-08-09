@@ -16,6 +16,14 @@ type CustomValidator struct {
 	validator *validator.Validate
 }
 
+var (
+	// ハイフンはクラス末尾に置くとエスケープ不要
+	usernamePattern  = regexp.MustCompile(`^[a-zA-Z0-9_ -]+$`)
+	passwordHasLower = regexp.MustCompile(`[a-z]`)
+	passwordHasUpper = regexp.MustCompile(`[A-Z]`)
+	passwordHasDigit = regexp.MustCompile(`\d`)
+)
+
 // NewValidator 新しいカスタムバリデーターを作成
 func NewValidator() *CustomValidator {
 	v := validator.New()
@@ -28,7 +36,6 @@ func NewValidator() *CustomValidator {
 		return name
 	})
 	// カスタムバリデーション: ユーザー名（英数字・アンダースコア・ハイフン・スペースを許可）
-	usernamePattern := regexp.MustCompile(`^[a-zA-Z0-9_\- ]+$`)
 	_ = v.RegisterValidation("username", func(fl validator.FieldLevel) bool {
 		value := fl.Field().String()
 		return usernamePattern.MatchString(value)
@@ -37,9 +44,9 @@ func NewValidator() *CustomValidator {
 	// カスタムバリデーション: パスワード複雑性（小文字・大文字・数字を各1つ以上含む）
 	_ = v.RegisterValidation("password_complex", func(fl validator.FieldLevel) bool {
 		s := fl.Field().String()
-		hasLower := regexp.MustCompile(`[a-z]`).MatchString(s)
-		hasUpper := regexp.MustCompile(`[A-Z]`).MatchString(s)
-		hasDigit := regexp.MustCompile(`\d`).MatchString(s)
+		hasLower := passwordHasLower.MatchString(s)
+		hasUpper := passwordHasUpper.MatchString(s)
+		hasDigit := passwordHasDigit.MatchString(s)
 		return hasLower && hasUpper && hasDigit
 	})
 	return &CustomValidator{validator: v}
