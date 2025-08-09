@@ -95,7 +95,7 @@ export const LoginForm: React.FC = () => {
                 type="submit"
                 isLoading={isLoading}
                 className="w-full"
-                size="sm"
+                size="md"
               >
                 ログイン
               </Button>

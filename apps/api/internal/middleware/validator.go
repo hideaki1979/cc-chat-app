@@ -2,8 +2,9 @@ package middleware
 
 import (
 	"net/http"
-	"strings"
 	"reflect"
+	"regexp"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
@@ -15,6 +16,14 @@ type CustomValidator struct {
 	validator *validator.Validate
 }
 
+var (
+	// ハイフンはクラス末尾に置くとエスケープ不要
+	usernamePattern  = regexp.MustCompile(`^[a-zA-Z0-9_ -]+$`)
+	passwordHasLower = regexp.MustCompile(`[a-z]`)
+	passwordHasUpper = regexp.MustCompile(`[A-Z]`)
+	passwordHasDigit = regexp.MustCompile(`\d`)
+)
+
 // NewValidator 新しいカスタムバリデーターを作成
 func NewValidator() *CustomValidator {
 	v := validator.New()
@@ -25,6 +34,20 @@ func NewValidator() *CustomValidator {
 			return ""
 		}
 		return name
+	})
+	// カスタムバリデーション: ユーザー名（英数字・アンダースコア・ハイフン・スペースを許可）
+	_ = v.RegisterValidation("username", func(fl validator.FieldLevel) bool {
+		value := fl.Field().String()
+		return usernamePattern.MatchString(value)
+	})
+
+	// カスタムバリデーション: パスワード複雑性（小文字・大文字・数字を各1つ以上含む）
+	_ = v.RegisterValidation("password_complex", func(fl validator.FieldLevel) bool {
+		s := fl.Field().String()
+		hasLower := passwordHasLower.MatchString(s)
+		hasUpper := passwordHasUpper.MatchString(s)
+		hasDigit := passwordHasDigit.MatchString(s)
+		return hasLower && hasUpper && hasDigit
 	})
 	return &CustomValidator{validator: v}
 }
@@ -101,15 +124,10 @@ func formatValidationError(errs validator.ValidationErrors) string {
 			default:
 				return err.Field() + "は" + err.Param() + "文字以下で入力してください"
 			}
-		case "regexp":
-			switch err.Field() {
-			case "Name":
-				return "名前は英数字、アンダースコア、ハイフンのみ使用できます"
-			case "Password":
-				return "パスワードは大文字・小文字・数字を含む必要があります"
-			default:
-				return err.Field() + "の形式が正しくありません"
-			}
+		case "username":
+			return "名前は英数字、アンダースコア、ハイフン、スペースのみ使用できます"
+		case "password_complex":
+			return "パスワードは大文字・小文字・数字を各1つ以上含む必要があります"
 		default:
 			return err.Field() + "の値が正しくありません"
 		}

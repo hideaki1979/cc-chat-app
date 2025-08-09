@@ -66,7 +66,7 @@ func Email(v string) predicate.User {
 }
 
 // PasswordHash applies equality check predicate on the "password_hash" field. It's identical to PasswordHashEQ.
-func PasswordHash(v string) predicate.User {
+func PasswordHash(v []byte) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldPasswordHash, v))
 }
 
@@ -90,9 +90,9 @@ func UpdatedAt(v time.Time) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldUpdatedAt, v))
 }
 
-// RefreshToken applies equality check predicate on the "refresh_token" field. It's identical to RefreshTokenEQ.
-func RefreshToken(v string) predicate.User {
-	return predicate.User(sql.FieldEQ(FieldRefreshToken, v))
+// RefreshTokenHash applies equality check predicate on the "refresh_token_hash" field. It's identical to RefreshTokenHashEQ.
+func RefreshTokenHash(v []byte) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldRefreshTokenHash, v))
 }
 
 // RefreshTokenExpiresAt applies equality check predicate on the "refresh_token_expires_at" field. It's identical to RefreshTokenExpiresAtEQ.
@@ -231,51 +231,44 @@ func EmailContainsFold(v string) predicate.User {
 }
 
 // PasswordHashEQ applies the EQ predicate on the "password_hash" field.
-func PasswordHashEQ(v string) predicate.User {
+func PasswordHashEQ(v []byte) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldPasswordHash, v))
 }
 
 // PasswordHashNEQ applies the NEQ predicate on the "password_hash" field.
-func PasswordHashNEQ(v string) predicate.User {
+func PasswordHashNEQ(v []byte) predicate.User {
 	return predicate.User(sql.FieldNEQ(FieldPasswordHash, v))
 }
 
 // PasswordHashIn applies the In predicate on the "password_hash" field.
-func PasswordHashIn(vs ...string) predicate.User {
+func PasswordHashIn(vs ...[]byte) predicate.User {
 	return predicate.User(sql.FieldIn(FieldPasswordHash, vs...))
 }
 
 // PasswordHashNotIn applies the NotIn predicate on the "password_hash" field.
-func PasswordHashNotIn(vs ...string) predicate.User {
+func PasswordHashNotIn(vs ...[]byte) predicate.User {
 	return predicate.User(sql.FieldNotIn(FieldPasswordHash, vs...))
 }
 
 // PasswordHashGT applies the GT predicate on the "password_hash" field.
-func PasswordHashGT(v string) predicate.User {
+func PasswordHashGT(v []byte) predicate.User {
 	return predicate.User(sql.FieldGT(FieldPasswordHash, v))
 }
 
 // PasswordHashGTE applies the GTE predicate on the "password_hash" field.
-func PasswordHashGTE(v string) predicate.User {
+func PasswordHashGTE(v []byte) predicate.User {
 	return predicate.User(sql.FieldGTE(FieldPasswordHash, v))
 }
 
 // PasswordHashLT applies the LT predicate on the "password_hash" field.
-func PasswordHashLT(v string) predicate.User {
+func PasswordHashLT(v []byte) predicate.User {
 	return predicate.User(sql.FieldLT(FieldPasswordHash, v))
 }
 
 // PasswordHashLTE applies the LTE predicate on the "password_hash" field.
-func PasswordHashLTE(v string) predicate.User {
+func PasswordHashLTE(v []byte) predicate.User {
 	return predicate.User(sql.FieldLTE(FieldPasswordHash, v))
 }
-
-
-// PasswordHashEqualFold applies the EqualFold predicate on the "password_hash" field.
-func PasswordHashEqualFold(v string) predicate.User {
-	return predicate.User(sql.FieldEqualFold(FieldPasswordHash, v))
-}
-
 
 // ProfileImageURLEQ applies the EQ predicate on the "profile_image_url" field.
 func ProfileImageURLEQ(v string) predicate.User {
@@ -507,62 +500,55 @@ func UpdatedAtLTE(v time.Time) predicate.User {
 	return predicate.User(sql.FieldLTE(FieldUpdatedAt, v))
 }
 
-// RefreshTokenEQ applies the EQ predicate on the "refresh_token" field.
-func RefreshTokenEQ(v string) predicate.User {
-	return predicate.User(sql.FieldEQ(FieldRefreshToken, v))
+// RefreshTokenHashEQ applies the EQ predicate on the "refresh_token_hash" field.
+func RefreshTokenHashEQ(v []byte) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldRefreshTokenHash, v))
 }
 
-// RefreshTokenNEQ applies the NEQ predicate on the "refresh_token" field.
-func RefreshTokenNEQ(v string) predicate.User {
-	return predicate.User(sql.FieldNEQ(FieldRefreshToken, v))
+// RefreshTokenHashNEQ applies the NEQ predicate on the "refresh_token_hash" field.
+func RefreshTokenHashNEQ(v []byte) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldRefreshTokenHash, v))
 }
 
-// RefreshTokenIn applies the In predicate on the "refresh_token" field.
-func RefreshTokenIn(vs ...string) predicate.User {
-	return predicate.User(sql.FieldIn(FieldRefreshToken, vs...))
+// RefreshTokenHashIn applies the In predicate on the "refresh_token_hash" field.
+func RefreshTokenHashIn(vs ...[]byte) predicate.User {
+	return predicate.User(sql.FieldIn(FieldRefreshTokenHash, vs...))
 }
 
-// RefreshTokenNotIn applies the NotIn predicate on the "refresh_token" field.
-func RefreshTokenNotIn(vs ...string) predicate.User {
-	return predicate.User(sql.FieldNotIn(FieldRefreshToken, vs...))
+// RefreshTokenHashNotIn applies the NotIn predicate on the "refresh_token_hash" field.
+func RefreshTokenHashNotIn(vs ...[]byte) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldRefreshTokenHash, vs...))
 }
 
-// RefreshTokenGT applies the GT predicate on the "refresh_token" field.
-func RefreshTokenGT(v string) predicate.User {
-	return predicate.User(sql.FieldGT(FieldRefreshToken, v))
+// RefreshTokenHashGT applies the GT predicate on the "refresh_token_hash" field.
+func RefreshTokenHashGT(v []byte) predicate.User {
+	return predicate.User(sql.FieldGT(FieldRefreshTokenHash, v))
 }
 
-// RefreshTokenGTE applies the GTE predicate on the "refresh_token" field.
-func RefreshTokenGTE(v string) predicate.User {
-	return predicate.User(sql.FieldGTE(FieldRefreshToken, v))
+// RefreshTokenHashGTE applies the GTE predicate on the "refresh_token_hash" field.
+func RefreshTokenHashGTE(v []byte) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldRefreshTokenHash, v))
 }
 
-// RefreshTokenLT applies the LT predicate on the "refresh_token" field.
-func RefreshTokenLT(v string) predicate.User {
-	return predicate.User(sql.FieldLT(FieldRefreshToken, v))
+// RefreshTokenHashLT applies the LT predicate on the "refresh_token_hash" field.
+func RefreshTokenHashLT(v []byte) predicate.User {
+	return predicate.User(sql.FieldLT(FieldRefreshTokenHash, v))
 }
 
-// RefreshTokenLTE applies the LTE predicate on the "refresh_token" field.
-func RefreshTokenLTE(v string) predicate.User {
-	return predicate.User(sql.FieldLTE(FieldRefreshToken, v))
+// RefreshTokenHashLTE applies the LTE predicate on the "refresh_token_hash" field.
+func RefreshTokenHashLTE(v []byte) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldRefreshTokenHash, v))
 }
 
-
-// RefreshTokenIsNil applies the IsNil predicate on the "refresh_token" field.
-func RefreshTokenIsNil() predicate.User {
-	return predicate.User(sql.FieldIsNull(FieldRefreshToken))
+// RefreshTokenHashIsNil applies the IsNil predicate on the "refresh_token_hash" field.
+func RefreshTokenHashIsNil() predicate.User {
+	return predicate.User(sql.FieldIsNull(FieldRefreshTokenHash))
 }
 
-// RefreshTokenNotNil applies the NotNil predicate on the "refresh_token" field.
-func RefreshTokenNotNil() predicate.User {
-	return predicate.User(sql.FieldNotNull(FieldRefreshToken))
+// RefreshTokenHashNotNil applies the NotNil predicate on the "refresh_token_hash" field.
+func RefreshTokenHashNotNil() predicate.User {
+	return predicate.User(sql.FieldNotNull(FieldRefreshTokenHash))
 }
-
-// RefreshTokenEqualFold applies the EqualFold predicate on the "refresh_token" field.
-func RefreshTokenEqualFold(v string) predicate.User {
-	return predicate.User(sql.FieldEqualFold(FieldRefreshToken, v))
-}
-
 
 // RefreshTokenExpiresAtEQ applies the EQ predicate on the "refresh_token_expires_at" field.
 func RefreshTokenExpiresAtEQ(v time.Time) predicate.User {

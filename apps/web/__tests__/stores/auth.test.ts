@@ -22,12 +22,11 @@ describe('Auth Store', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     localStorageMock.getItem.mockReturnValue(null)
-    
+
     // Reset store state
     useAuthStore.setState({
       user: null,
       accessToken: null,
-      refreshToken: null,
       isLoading: false,
       error: null,
     })
@@ -36,10 +35,10 @@ describe('Auth Store', () => {
   describe('Initial State', () => {
     test('should have correct initial state', () => {
       const { result } = renderHook(() => useAuthStore())
-      
+
       expect(result.current.user).toBeNull()
       expect(result.current.accessToken).toBeNull()
-      expect(result.current.refreshToken).toBeNull()
+      // refreshToken はストアから削除済み
       expect(result.current.isLoading).toBe(false)
       expect(result.current.error).toBeNull()
     })
@@ -50,16 +49,15 @@ describe('Auth Store', () => {
       const mockUser = {
         id: '1',
         email: 'test@example.com',
-        username: 'testuser',
-        createdAt: '2024-01-01',
-        updatedAt: '2024-01-01',
+        name: 'testuser',
+        created_at: '2024-01-01',
+        updated_at: '2024-01-01',
       }
 
       const mockResponse = {
         data: {
           user: mockUser,
-          accessToken: 'access-token',
-          refreshToken: 'refresh-token',
+          token: 'access-token',
         },
       }
 
@@ -76,12 +74,11 @@ describe('Auth Store', () => {
 
       expect(result.current.user).toEqual(mockUser)
       expect(result.current.accessToken).toBe('access-token')
-      expect(result.current.refreshToken).toBe('refresh-token')
+      // refreshToken はストアから削除済み
       expect(result.current.isLoading).toBe(false)
       expect(result.current.error).toBeNull()
 
-      expect(localStorageMock.setItem).toHaveBeenCalledWith('accessToken', 'access-token')
-      expect(localStorageMock.setItem).toHaveBeenCalledWith('refreshToken', 'refresh-token')
+      // アクセストークンはメモリのみ、Cookieはサーバー管理
     })
 
     test('should handle login error', async () => {
@@ -105,12 +102,11 @@ describe('Auth Store', () => {
 
       expect(result.current.user).toBeNull()
       expect(result.current.accessToken).toBeNull()
-      expect(result.current.refreshToken).toBeNull()
+      // refreshToken はストアから削除済み
       expect(result.current.isLoading).toBe(false)
       expect(result.current.error).toBe(errorMessage)
 
-      expect(localStorageMock.removeItem).toHaveBeenCalledWith('accessToken')
-      expect(localStorageMock.removeItem).toHaveBeenCalledWith('refreshToken')
+      // ローカルストレージ操作は廃止
     })
   })
 
@@ -119,16 +115,15 @@ describe('Auth Store', () => {
       const mockUser = {
         id: '1',
         email: 'newuser@example.com',
-        username: 'newuser',
-        createdAt: '2024-01-01',
-        updatedAt: '2024-01-01',
+        name: 'newuser',
+        created_at: '2024-01-01',
+        updated_at: '2024-01-01',
       }
 
       const mockResponse = {
         data: {
           user: mockUser,
-          accessToken: 'access-token',
-          refreshToken: 'refresh-token',
+          token: 'access-token',
         },
       }
 
@@ -147,7 +142,7 @@ describe('Auth Store', () => {
 
       expect(result.current.user).toEqual(mockUser)
       expect(result.current.accessToken).toBe('access-token')
-      expect(result.current.refreshToken).toBe('refresh-token')
+      // refreshToken はストアから削除済み
       expect(result.current.isLoading).toBe(false)
       expect(result.current.error).toBeNull()
     })
@@ -185,12 +180,11 @@ describe('Auth Store', () => {
         user: {
           id: '1',
           email: 'test@example.com',
-          username: 'testuser',
-          createdAt: '2024-01-01',
-          updatedAt: '2024-01-01',
+          name: 'testuser',
+          created_at: '2024-01-01',
+          updated_at: '2024-01-01',
         },
         accessToken: 'access-token',
-        refreshToken: 'refresh-token',
         isLoading: false,
         error: null,
       })
@@ -203,12 +197,11 @@ describe('Auth Store', () => {
 
       expect(result.current.user).toBeNull()
       expect(result.current.accessToken).toBeNull()
-      expect(result.current.refreshToken).toBeNull()
+      // refreshToken はストアから削除済み
       expect(result.current.isLoading).toBe(false)
       expect(result.current.error).toBeNull()
 
-      expect(localStorageMock.removeItem).toHaveBeenCalledWith('accessToken')
-      expect(localStorageMock.removeItem).toHaveBeenCalledWith('refreshToken')
+      // ローカルストレージ操作は廃止
     })
   })
 

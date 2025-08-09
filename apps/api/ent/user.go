@@ -20,10 +20,10 @@ type User struct {
 	ID uuid.UUID `json:"id,omitempty"`
 	// ユーザー名
 	Name string `json:"name,omitempty"`
-	// メールアドレス（ユニーク）
+	// メールアドレス（正規化によりユニーク）
 	Email string `json:"email,omitempty"`
 	// パスワードハッシュ
-	PasswordHash string `json:"-"`
+	PasswordHash []byte `json:"-"`
 	// プロフィール画像URL
 	ProfileImageURL string `json:"profile_image_url,omitempty"`
 	// 自己紹介文
@@ -32,8 +32,8 @@ type User struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// 更新日時
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
-	// リフレッシュトークン
-	RefreshToken *string `json:"-"`
+	// リフレッシュトークンハッシュ
+	RefreshTokenHash *[]byte `json:"-"`
 	// リフレッシュトークン有効期限
 	RefreshTokenExpiresAt *time.Time `json:"refresh_token_expires_at,omitempty"`
 	selectValues          sql.SelectValues
@@ -44,7 +44,9 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldName, user.FieldEmail, user.FieldPasswordHash, user.FieldProfileImageURL, user.FieldBio, user.FieldRefreshToken:
+		case user.FieldPasswordHash, user.FieldRefreshTokenHash:
+			values[i] = new([]byte)
+		case user.FieldName, user.FieldEmail, user.FieldProfileImageURL, user.FieldBio:
 			values[i] = new(sql.NullString)
 		case user.FieldCreatedAt, user.FieldUpdatedAt, user.FieldRefreshTokenExpiresAt:
 			values[i] = new(sql.NullTime)
@@ -84,10 +86,10 @@ func (u *User) assignValues(columns []string, values []any) error {
 				u.Email = value.String
 			}
 		case user.FieldPasswordHash:
-			if value, ok := values[i].(*sql.NullString); !ok {
+			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field password_hash", values[i])
-			} else if value.Valid {
-				u.PasswordHash = value.String
+			} else if value != nil {
+				u.PasswordHash = *value
 			}
 		case user.FieldProfileImageURL:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -113,12 +115,11 @@ func (u *User) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				u.UpdatedAt = value.Time
 			}
-		case user.FieldRefreshToken:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field refresh_token", values[i])
-			} else if value.Valid {
-				u.RefreshToken = new(string)
-				*u.RefreshToken = value.String
+		case user.FieldRefreshTokenHash:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field refresh_token_hash", values[i])
+			} else if value != nil {
+				u.RefreshTokenHash = value
 			}
 		case user.FieldRefreshTokenExpiresAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -183,7 +184,7 @@ func (u *User) String() string {
 	builder.WriteString("updated_at=")
 	builder.WriteString(u.UpdatedAt.Format(time.ANSIC))
 	builder.WriteString(", ")
-	builder.WriteString("refresh_token=<sensitive>")
+	builder.WriteString("refresh_token_hash=<sensitive>")
 	builder.WriteString(", ")
 	if v := u.RefreshTokenExpiresAt; v != nil {
 		builder.WriteString("refresh_token_expires_at=")

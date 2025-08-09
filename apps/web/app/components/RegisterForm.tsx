@@ -115,7 +115,7 @@ export const RegisterForm: React.FC = () => {
                 type="submit"
                 isLoading={isLoading}
                 className="w-full"
-                size="sm"
+                size="md"
               >
                 アカウント作成
               </Button>
