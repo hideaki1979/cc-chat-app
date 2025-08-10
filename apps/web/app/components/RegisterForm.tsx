@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
@@ -10,10 +10,17 @@ import { Input } from '@repo/ui/input';
 import { FormCard, FormHeader, FormContainer, FormFields, FormFooter } from '@repo/ui/form-card';
 import { useAuthStore } from '../stores/auth';
 import { registerSchema, type RegisterFormData } from '../lib/validations';
+import { HTTP_STATUS, REDIRECT_DELAY_MS } from '../constants/constants';
 
 export const RegisterForm: React.FC = () => {
   const router = useRouter();
   const { register: registerUser, isLoading, error, clearError } = useAuthStore();
+
+  // 画面遷移後の古いエラーを初期化
+  useEffect(() => {
+    clearError();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const {
     register,
@@ -26,8 +33,18 @@ export const RegisterForm: React.FC = () => {
   const onSubmit = async (data: RegisterFormData) => {
     try {
       clearError();
-      await registerUser(data);
-      router.push('/dashboard'); // ダッシュボードページにリダイレクト
+      const result = await registerUser(data);
+      if (result.ok) {
+        router.push('/dashboard');
+        return;
+      }
+      if (!result.ok && result.status === HTTP_STATUS.HTTP_STATUS_CONFLICT) {
+        // 409: 3秒後にログインへリダイレクト
+        const timer = setTimeout(() => {
+          router.push('/login');
+        }, REDIRECT_DELAY_MS);
+        return clearTimeout(timer);
+      }
     } catch (err) {
       // エラーはstoreで処理済みだが、必要に応じて追加の処理を行う
       console.error('Registration failed:', err);

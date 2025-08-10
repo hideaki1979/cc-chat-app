@@ -48,39 +48,10 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle unauthorized requests and token refresh
+// Response interceptor: 不要な自動リトライは行わず、そのままエラーを返す
 api.interceptors.response.use(
   (response) => response,
-  async (error: AxiosError) => {
-    if (error.response?.status === 401 && typeof window !== 'undefined') {
-      const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
-      // refresh自体の401はスキップ
-      if (originalRequest?.url?.includes('/auth/refresh')) {
-        return Promise.reject(error);
-      }
-
-      // 同一リクエストの多重リトライを抑止
-      if (originalRequest?._retry) {
-        return Promise.reject(error);
-      }
-      originalRequest._retry = true;
-
-      try {
-        // 認証ストアのrefreshAccessTokenを呼び出し（Cookieベース）
-        const authState = window.authStore?.getState?.();
-        if (authState?.refreshAccessToken) {
-          await authState.refreshAccessToken();
-          // トークン更新成功、元のリクエストを再実行
-          return api.request(originalRequest);
-        }
-      } catch (refreshError) {
-        // リフレッシュ失敗、ログイン画面へリダイレクト
-        console.error('Token refresh failed:', refreshError);
-        window.location.href = '/login';
-      }
-    }
-    return Promise.reject(error);
-  }
+  async (error: AxiosError) => Promise.reject(error)
 );
 
 export default api;
