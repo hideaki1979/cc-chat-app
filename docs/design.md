@@ -52,13 +52,13 @@ erDiagram
     users ||--o{ message_reactions : "リアクション"
     users ||--o{ friendships : "フレンド申請"
     users ||--o{ friendships : "フレンド承認"
-    
+
     chat_rooms ||--o{ room_members : "メンバー"
     chat_rooms ||--o{ messages : "メッセージ"
-    
+
     messages ||--o{ message_reads : "既読状態"
     messages ||--o{ message_reactions : "リアクション"
-    
+
     users {
         uuid id PK
         varchar name
@@ -69,7 +69,7 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
     }
-    
+
     chat_rooms {
         uuid id PK
         varchar name
@@ -77,14 +77,14 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
     }
-    
+
     room_members {
         bigserial id PK
         uuid room_id FK
         uuid user_id FK
         timestamptz joined_at
     }
-    
+
     messages {
         uuid id PK
         uuid room_id FK
@@ -95,7 +95,7 @@ erDiagram
         timestamptz updated_at
         timestamptz deleted_at
     }
-    
+
     message_reads {
         bigserial id PK
         uuid message_id FK
@@ -103,7 +103,7 @@ erDiagram
         uuid room_id FK
         timestamptz read_at
     }
-    
+
     message_reactions {
         bigserial id PK
         uuid message_id FK
@@ -111,7 +111,7 @@ erDiagram
         varchar reaction_emoji
         timestamptz created_at
     }
-    
+
     friendships {
         bigserial id PK
         uuid requester_id FK
@@ -138,6 +138,7 @@ CREATE INDEX idx_users_email ON users(email);
 ### 3.1 REST API エンドポイント
 
 #### 認証関連
+
 ```
 POST   /api/auth/register     # ユーザー登録
 POST   /api/auth/login        # ログイン
@@ -146,6 +147,7 @@ POST   /api/auth/refresh      # トークンリフレッシュ
 ```
 
 #### ユーザー関連
+
 ```
 GET    /api/users/me          # 自分の情報取得
 PUT    /api/users/me          # プロフィール更新
@@ -154,6 +156,7 @@ POST   /api/users/avatar      # アバター画像アップロード
 ```
 
 #### チャットルーム関連
+
 ```
 GET    /api/rooms             # 参加中のルーム一覧
 POST   /api/rooms             # ルーム作成
@@ -165,6 +168,7 @@ POST   /api/rooms/:id/leave   # ルーム退出
 ```
 
 #### メッセージ関連
+
 ```
 GET    /api/rooms/:id/messages    # メッセージ履歴取得
 POST   /api/rooms/:id/messages    # メッセージ送信
@@ -175,6 +179,7 @@ POST   /api/messages/:id/reaction # リアクション追加
 ```
 
 #### フレンド関連
+
 ```
 GET    /api/friends           # フレンド一覧
 POST   /api/friends/request   # フレンド申請
@@ -185,11 +190,13 @@ DELETE /api/friends/:id       # フレンド削除
 ### 3.2 WebSocket API
 
 #### 接続・認証
+
 ```
 WS /ws?token=<jwt_token>
 ```
 
 #### イベント種別
+
 ```javascript
 // クライアント → サーバー
 {
@@ -253,6 +260,7 @@ WS /ws?token=<jwt_token>
 ### 4.2 コンポーネント設計
 
 #### レイアウトコンポーネント
+
 ```typescript
 // Layout Components
 - AppLayout              # アプリ全体のレイアウト
@@ -266,6 +274,7 @@ WS /ws?token=<jwt_token>
 ```
 
 #### UIコンポーネント
+
 ```typescript
 // Basic UI Components
 - Button                 # ボタン
@@ -288,6 +297,7 @@ WS /ws?token=<jwt_token>
 ### 4.3 状態管理設計
 
 #### Zustand Store構成
+
 ```typescript
 // stores/authStore.ts
 interface AuthState {
@@ -306,7 +316,7 @@ interface ChatState {
   messages: Record<string, Message[]>;
   onlineUsers: string[];
   typingUsers: Record<string, string[]>;
-  
+
   // Actions
   setCurrentRoom: (room: Room) => void;
   addMessage: (roomId: string, message: Message) => void;
@@ -319,7 +329,7 @@ interface FriendState {
   friends: Friend[];
   friendRequests: FriendRequest[];
   searchResults: User[];
-  
+
   // Actions
   sendFriendRequest: (userId: string) => Promise<void>;
   acceptFriendRequest: (requestId: string) => Promise<void>;
@@ -417,6 +427,7 @@ type Client struct {
 ### 6.1 認証・認可
 
 #### JWT設計
+
 ```json
 {
   "header": {
@@ -434,6 +445,7 @@ type Client struct {
 ```
 
 #### 認可フロー
+
 ```
 1. ユーザーログイン
 2. JWTトークン発行（Access Token + Refresh Token）
@@ -445,6 +457,7 @@ type Client struct {
 ### 6.2 セキュリティ対策
 
 #### API保護
+
 - CORS設定
 - Rate Limiting
 - Input Validation
@@ -452,6 +465,7 @@ type Client struct {
 - XSS対策（Content Security Policy）
 
 #### ファイルアップロード
+
 - ファイル形式検証
 - ファイルサイズ制限
 - ウイルススキャン（将来実装）
@@ -462,12 +476,14 @@ type Client struct {
 ### 7.1 データベース最適化
 
 #### クエリ最適化
+
 - 適切なインデックス設計
 - N+1問題の回避
 - ページネーション実装
 - 接続プール設定
 
 #### キャッシュ戦略
+
 ```
 - メモリキャッシュ（アプリケーション内）
 - Redis（将来実装）
@@ -479,6 +495,7 @@ type Client struct {
 ### 7.2 フロントエンド最適化
 
 #### パフォーマンス対策
+
 - コード分割（Dynamic Import）
 - 画像最適化（Next.js Image）
 - 仮想スクロール（メッセージ一覧）
@@ -486,6 +503,7 @@ type Client struct {
 - Service Worker（将来実装）
 
 #### バンドル最適化
+
 ```javascript
 // next.config.js
 module.exports = {
@@ -494,12 +512,12 @@ module.exports = {
   },
   webpack: (config) => {
     config.optimization.splitChunks = {
-      chunks: 'all',
+      chunks: "all",
       cacheGroups: {
         vendor: {
           test: /[\\/]node_modules[\\/]/,
-          name: 'vendors',
-          chunks: 'all',
+          name: "vendors",
+          chunks: "all",
         },
       },
     };
@@ -513,6 +531,7 @@ module.exports = {
 ### 8.1 ログ設計
 
 #### 構造化ログ
+
 ```json
 {
   "timestamp": "2024-01-01T12:00:00Z",
@@ -529,6 +548,7 @@ module.exports = {
 ```
 
 #### ログレベル
+
 - ERROR: システムエラー、例外
 - WARN: 警告、異常な状況
 - INFO: 重要な業務イベント
@@ -537,6 +557,7 @@ module.exports = {
 ### 8.2 メトリクス設計
 
 #### 監視項目
+
 - システムメトリクス（CPU、メモリ、ディスク）
 - アプリケーションメトリクス（レスポンス時間、エラー率）
 - ビジネスメトリクス（アクティブユーザー数、メッセージ数）
@@ -562,14 +583,14 @@ jobs:
         run: |
           pnpm install
           pnpm test
-          
+
   deploy-frontend:
     needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v20
-        
+
   deploy-backend:
     needs: test
     runs-on: ubuntu-latest
@@ -582,11 +603,13 @@ jobs:
 ### 9.2 環境構成
 
 #### 開発環境
+
 - Docker Compose
 - ホットリロード
 - 開発用データベース
 
 #### 本番環境
+
 - Vercel（フロントエンド）
 - Render（バックエンド）
 - PostgreSQL（マネージドサービス）
@@ -597,22 +620,22 @@ jobs:
 ### 10.1 テスト戦略
 
 #### フロントエンド
+
 ```typescript
 // Unit Tests (Jest + Testing Library)
-- コンポーネントテスト
-- カスタムフックテスト
-- ユーティリティ関数テスト
-
-// Integration Tests
-- API通信テスト
-- WebSocket通信テスト
-
-// E2E Tests (Playwright)
-- ユーザーフローテスト
-- クロスブラウザテスト
+-コンポーネントテスト -
+  カスタムフックテスト -
+  ユーティリティ関数テスト -
+  // Integration Tests
+  API通信テスト -
+  WebSocket通信テスト -
+  // E2E Tests (Playwright)
+  ユーザーフローテスト -
+  クロスブラウザテスト;
 ```
 
 #### バックエンド
+
 ```go
 // Unit Tests (Go testing + testify)
 - ビジネスロジックテスト
@@ -630,11 +653,13 @@ jobs:
 ### 10.2 テストデータ管理
 
 #### テストデータベース
+
 - Docker Compose でテスト用PostgreSQL起動
 - マイグレーション自動実行
 - テストデータのシード
 
 #### モック・スタブ
+
 - 外部API呼び出しのモック
 - ファイルストレージのモック
 - WebSocket接続のモック

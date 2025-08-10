@@ -10,6 +10,7 @@ import { Input } from '@repo/ui/input';
 import { FormCard, FormHeader, FormContainer, FormFields, FormFooter } from '@repo/ui/form-card';
 import { useAuthStore } from '../stores/auth';
 import { registerSchema, type RegisterFormData } from '../lib/validations';
+import { HTTP_STATUS, REDIRECT_DELAY_MS } from '../constants/constants';
 
 export const RegisterForm: React.FC = () => {
   const router = useRouter();
@@ -37,11 +38,12 @@ export const RegisterForm: React.FC = () => {
         router.push('/dashboard');
         return;
       }
-      if (!result.ok && result.status === 409) {
+      if (!result.ok && result.status === HTTP_STATUS.HTTP_STATUS_CONFLICT) {
         // 409: 3秒後にログインへリダイレクト
-        setTimeout(() => {
+        const timer = setTimeout(() => {
           router.push('/login');
-        }, 3000);
+        }, REDIRECT_DELAY_MS);
+        return clearTimeout(timer);
       }
     } catch (err) {
       // エラーはstoreで処理済みだが、必要に応じて追加の処理を行う

@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/auth"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/middleware"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
+	"github.com/hideaki1979/cc-chat-app/apps/api/util"
 	"github.com/labstack/echo/v4"
 )
 
@@ -116,10 +116,10 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		Name:     "refresh_token",
 		Value:    refreshToken,
 		Path:     "/",
-		MaxAge:   int(7 * 24 * time.Hour.Seconds()),   // 7日間（秒単位）
-		HttpOnly: true,                                // XSS攻撃を防ぐ
-		Secure:   os.Getenv("GO_ENV") == "production", // 本番環境のみHTTPS必須
-		SameSite: http.SameSiteLaxMode,                // 開発環境でのクロスサイト許可
+		MaxAge:   int(7 * 24 * time.Hour.Seconds()), // 7日間（秒単位）
+		HttpOnly: true,                              // XSS攻撃を防ぐ
+		Secure:   util.IsProduction(),               // 本番環境のみHTTPS必須
+		SameSite: http.SameSiteLaxMode,              // 開発環境でのクロスサイト許可
 	}
 	c.SetCookie(cookie)
 
@@ -216,10 +216,10 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		Name:     "refresh_token",
 		Value:    refreshToken,
 		Path:     "/",
-		MaxAge:   int(7 * 24 * time.Hour.Seconds()),   // 7日間（秒単位）
-		HttpOnly: true,                                // XSS攻撃を防ぐ
-		Secure:   os.Getenv("GO_ENV") == "production", // 本番環境のみHTTPS必須
-		SameSite: http.SameSiteLaxMode,                // 開発環境でのクロスサイト許可
+		MaxAge:   int(7 * 24 * time.Hour.Seconds()), // 7日間（秒単位）
+		HttpOnly: true,                              // XSS攻撃を防ぐ
+		Secure:   util.IsProduction(),               // 本番環境のみHTTPS必須
+		SameSite: http.SameSiteLaxMode,              // 開発環境でのクロスサイト許可
 	}
 	c.SetCookie(cookie)
 
@@ -268,7 +268,7 @@ func (h *AuthHandler) Logout(c echo.Context) error {
 		Path:     "/",
 		MaxAge:   -1, // 即座に削除
 		HttpOnly: true,
-		Secure:   os.Getenv("GO_ENV") == "production",
+		Secure:   util.IsProduction(),
 		SameSite: http.SameSiteLaxMode,
 	}
 	c.SetCookie(clearCookie)
@@ -427,10 +427,10 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 		Name:     "refresh_token",
 		Value:    newRefreshToken,
 		Path:     "/",
-		MaxAge:   7 * 24 * 60 * 60,                 // 7日間（秒単位）
-		HttpOnly: true,                             // XSS攻撃を防ぐ
-		Secure:   os.Getenv("ENV") == "production", // 本番環境のみHTTPS必須
-		SameSite: http.SameSiteLaxMode,             // 開発環境でのクロスサイト許可
+		MaxAge:   7 * 24 * 60 * 60,     // 7日間（秒単位）
+		HttpOnly: true,                 // XSS攻撃を防ぐ
+		Secure:   util.IsProduction(),  // 本番環境のみHTTPS必須
+		SameSite: http.SameSiteLaxMode, // 開発環境でのクロスサイト許可
 	}
 	c.SetCookie(newCookie)
 

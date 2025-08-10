@@ -138,28 +138,32 @@ export const useAuthStore = create<AuthStore>()(
 
       // 初期化用: リロード時に現在ユーザーを取得（リトライしない）
       loadCurrentUser: async () => {
-        const { setLoading } = get();
+        const { setLoading, logout, refreshAccessToken } = get();
         try {
           setLoading(true);
-          const authState = get();
-          // アクセストークンが無い場合はサーバーに問い合わせず未ログイン扱いにする
-          if (!authState.accessToken) {
-            set({ user: null, isLoading: false });
-            return;
+          // セッションを確立するために、まずトークンをリフレッシュする
+          await refreshAccessToken();
+
+          // ストアから最新のアクセストークンを取得
+          const {accessToken} = get();
+
+          // トークンがなければ認証されていない
+          if (!accessToken) {
+            throw new Error("セッションを確立出来ませんでした");
           }
-          const headers: HeadersInit = authState.accessToken
-            ? { Authorization: `Bearer ${authState.accessToken}` }
-            : {} as Record<string, string>;
+
+          // プロファイル情報を取得
+          const headers: HeadersInit = {Authorization: `Bearer ${accessToken}`};
           const res = await fetch('/api/backend/profile', { headers, credentials: 'include' });
           if (!res.ok) {
-            set({ user: null, isLoading: false });
-            return;
+            throw new Error('プロファイルの取得に失敗しました');
           }
           const user = await res.json() as User;
           set({ user, isLoading: false, error: null });
         } catch (error) {
+          // refreshAccessToken内でエラー時にlogoutが呼ばれるが、ここでも呼んで状態をクリーンにする
+          logout();
           set({ isLoading: false });
-          throw error;
         }
       },
     }),
