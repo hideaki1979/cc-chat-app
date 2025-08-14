@@ -560,7 +560,7 @@ func (h *AuthHandler) SearchUsers(c echo.Context) error {
 		).Count(ctx)
 
 	if err != nil {
-		c.Logger().Errorf("count users error：%v, err")
+		c.Logger().Errorf("count users error：%v", err)
 		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Message: "ユーザー検索中にエラーが発生しました",
 			Code:    "SEARCH_USERS_ERROR",
