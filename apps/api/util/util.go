@@ -1,8 +1,13 @@
 package util
 
-import "os"
+import (
+	"os"
+	"strings"
+)
 
 // 環境判定
 func IsProduction() bool {
-	return os.Getenv("GO_ENV") == "production"
+	env := os.Getenv("GO_ENV")
+	env = strings.ToLower(strings.TrimSpace(env))
+	return env == "production" || env == "prod"
 }
