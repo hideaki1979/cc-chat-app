@@ -8,7 +8,7 @@ export async function proxyRequest(request: Request, backendPath: string): Promi
     const authHeader = request.headers.get('authorization') || ''// プロフィールルート用
 
 
-    const requestHeaders: HeadersInit = {cookie};
+    const requestHeaders: Record<string, string> = {cookie};
     const incomingContentType = request.headers.get('content-type');
     if (incomingContentType) {
         requestHeaders['Content-Type'] = incomingContentType;
