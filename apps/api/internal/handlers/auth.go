@@ -683,11 +683,11 @@ func (h *AuthHandler) UploadAvatar(c echo.Context) error {
 	// 本番環境ではCloudflare R2やAWS S3などのオブジェクトストレージを使用する
 	fileName := fmt.Sprintf("avatar_%s_%d", userID, time.Now().Unix())
 
-	extMap := map[string]string {
+	extMap := map[string]string{
 		"image/jpeg": ".jpg",
-		"image/jpg": ".jpg",
-		"image/png": ".png",
-		"image/gif": ".git",
+		"image/jpg":  ".jpg",
+		"image/png":  ".png",
+		"image/gif":  ".git",
 		"image/webp": ".webp",
 	}
 
@@ -700,7 +700,7 @@ func (h *AuthHandler) UploadAvatar(c echo.Context) error {
 
 	// データベースクライアント取得
 	client := c.Get("db").(*ent.Client)
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// ユーザー情報をUUIDで検索
 	userUUID, err := uuid.Parse(userID)
