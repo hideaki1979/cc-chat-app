@@ -465,7 +465,7 @@ func (h *AuthHandler) UpdateProfile(c echo.Context) error {
 
 	// データベースクライアント取得
 	client := c.Get("db").(*ent.Client)
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// ユーザー情報をUUIDで検索
 	userUUID, err := uuid.Parse(userID)
@@ -478,7 +478,7 @@ func (h *AuthHandler) UpdateProfile(c echo.Context) error {
 
 	// 更新するフィールドを動的に設定
 	updateQuery := client.User.UpdateOneID(userUUID)
-	
+
 	if req.Name != "" {
 		updateQuery = updateQuery.SetName(req.Name)
 	}
@@ -546,9 +546,27 @@ func (h *AuthHandler) SearchUsers(c echo.Context) error {
 
 	// データベースクライアント取得
 	client := c.Get("db").(*ent.Client)
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// ユーザー検索（名前とメールアドレスで検索）
+	// 総件数を取得
+	total, err := client.User.Query().
+		Where(
+			user.Or(
+				user.NameContainsFold(req.Query),
+				user.EmailContainsFold(req.Query),
+			),
+		).Count(ctx)
+
+	if err != nil {
+		c.Logger().Errorf("count users error：%v, err")
+		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "ユーザー検索中にエラーが発生しました",
+			Code:    "SEARCH_USERS_ERROR",
+		})
+	}
+
+	// 実際の検索結果を取得
 	users, err := client.User.Query().
 		Where(
 			user.Or(
@@ -558,7 +576,7 @@ func (h *AuthHandler) SearchUsers(c echo.Context) error {
 		).
 		Limit(req.Limit).
 		All(ctx)
-	
+
 	if err != nil {
 		c.Logger().Errorf("search users error: %v", err)
 		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
@@ -580,7 +598,7 @@ func (h *AuthHandler) SearchUsers(c echo.Context) error {
 
 	response := models.UserSearchResponse{
 		Users: searchResults,
-		Total: len(searchResults),
+		Total: total,
 	}
 
 	return c.JSON(http.StatusOK, response)
@@ -644,6 +662,15 @@ func (h *AuthHandler) UploadAvatar(c echo.Context) error {
 		})
 	}
 
+	// ファイルを先頭に戻す（将来的な実際のアップロード処理のため）
+	_, err = src.Seek(0, 0)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "ファイルの読み込みに失敗しました",
+			Code:    "FILE_READ_ERROR",
+		})
+	}
+
 	contentType := http.DetectContentType(buffer)
 	if !allowedTypes[contentType] {
 		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
@@ -655,19 +682,16 @@ func (h *AuthHandler) UploadAvatar(c echo.Context) error {
 	// 一時的にファイル名として現在時刻 + ユーザーIDを使用
 	// 本番環境ではCloudflare R2やAWS S3などのオブジェクトストレージを使用する
 	fileName := fmt.Sprintf("avatar_%s_%d", userID, time.Now().Unix())
-	
-	// 拡張子を取得
-	var ext string
-	switch contentType {
-	case "image/jpeg", "image/jpg":
-		ext = ".jpg"
-	case "image/png":
-		ext = ".png"
-	case "image/gif":
-		ext = ".gif"
-	case "image/webp":
-		ext = ".webp"
+
+	extMap := map[string]string {
+		"image/jpeg": ".jpg",
+		"image/jpg": ".jpg",
+		"image/png": ".png",
+		"image/gif": ".git",
+		"image/webp": ".webp",
 	}
+
+	ext := extMap[contentType]
 	fileName += ext
 
 	// TODO: 本番環境では実際のオブジェクトストレージにアップロードする
@@ -691,7 +715,7 @@ func (h *AuthHandler) UploadAvatar(c echo.Context) error {
 	_, err = client.User.UpdateOneID(userUUID).
 		SetProfileImageURL(avatarURL).
 		Save(ctx)
-	
+
 	if err != nil {
 		if ent.IsNotFound(err) {
 			return c.JSON(http.StatusNotFound, models.ErrorResponse{
