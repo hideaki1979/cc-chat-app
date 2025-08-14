@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -437,6 +439,302 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 	// レスポンス作成（access_tokenのみ、refresh_tokenはCookieに保存）
 	response := models.RefreshTokenResponse{
 		Token: newAccessToken, // access_tokenのみレスポンスに含める
+	}
+
+	return c.JSON(http.StatusOK, response)
+}
+
+// UpdateProfile プロフィール更新ハンドラー（JWT認証が必要）
+func (h *AuthHandler) UpdateProfile(c echo.Context) error {
+	// JWTミドルウェアで設定されたユーザー情報を取得
+	userID, ok := c.Get("user_id").(string)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+			Message: "認証が必要です",
+			Code:    "NOT_AUTHENTICATED",
+		})
+	}
+
+	// リクエストのバリデーション
+	var req models.UpdateProfileRequest
+	if err := middleware.ValidateRequest(c, &req); err != nil {
+		if c.Response().Committed {
+			return nil
+		}
+		return err
+	}
+
+	// データベースクライアント取得
+	client := c.Get("db").(*ent.Client)
+	ctx := c.Request().Context()
+
+	// ユーザー情報をUUIDで検索
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Message: "無効なユーザーIDです",
+			Code:    "INVALID_USER_ID",
+		})
+	}
+
+	// 更新するフィールドを動的に設定
+	updateQuery := client.User.UpdateOneID(userUUID)
+
+	if req.Name != "" {
+		updateQuery = updateQuery.SetName(req.Name)
+	}
+	if req.Bio != "" {
+		updateQuery = updateQuery.SetBio(req.Bio)
+	}
+	if req.ProfileImageURL != "" {
+		updateQuery = updateQuery.SetProfileImageURL(req.ProfileImageURL)
+	}
+
+	// プロフィールを更新
+	updatedUser, err := updateQuery.Save(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return c.JSON(http.StatusNotFound, models.ErrorResponse{
+				Message: "ユーザーが見つかりません",
+				Code:    "USER_NOT_FOUND",
+			})
+		}
+		c.Logger().Errorf("update profile error: %v", err)
+		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "プロフィールの更新中にエラーが発生しました",
+			Code:    "UPDATE_PROFILE_ERROR",
+		})
+	}
+
+	// レスポンス作成
+	userInfo := models.UserInfo{
+		ID:              updatedUser.ID.String(),
+		Name:            updatedUser.Name,
+		Email:           updatedUser.Email,
+		ProfileImageURL: updatedUser.ProfileImageURL,
+		Bio:             updatedUser.Bio,
+		CreatedAt:       updatedUser.CreatedAt,
+		UpdatedAt:       updatedUser.UpdatedAt,
+	}
+
+	return c.JSON(http.StatusOK, userInfo)
+}
+
+// SearchUsers ユーザー検索ハンドラー（JWT認証が必要）
+func (h *AuthHandler) SearchUsers(c echo.Context) error {
+	// JWTミドルウェアで設定されたユーザー情報を取得（認証チェック）
+	_, ok := c.Get("user_id").(string)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+			Message: "認証が必要です",
+			Code:    "NOT_AUTHENTICATED",
+		})
+	}
+
+	// リクエストのバリデーション
+	var req models.UserSearchRequest
+	if err := middleware.ValidateRequest(c, &req); err != nil {
+		if c.Response().Committed {
+			return nil
+		}
+		return err
+	}
+
+	// デフォルトのlimit設定
+	if req.Limit == 0 {
+		req.Limit = 10
+	}
+
+	// データベースクライアント取得
+	client := c.Get("db").(*ent.Client)
+	ctx := c.Request().Context()
+
+	// ユーザー検索（名前とメールアドレスで検索）
+	// 総件数を取得
+	total, err := client.User.Query().
+		Where(
+			user.Or(
+				user.NameContainsFold(req.Query),
+				user.EmailContainsFold(req.Query),
+			),
+		).Count(ctx)
+
+	if err != nil {
+		c.Logger().Errorf("count users error：%v", err)
+		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "ユーザー検索中にエラーが発生しました",
+			Code:    "SEARCH_USERS_ERROR",
+		})
+	}
+
+	// 実際の検索結果を取得
+	users, err := client.User.Query().
+		Where(
+			user.Or(
+				user.NameContainsFold(req.Query),
+				user.EmailContainsFold(req.Query),
+			),
+		).
+		Limit(req.Limit).
+		All(ctx)
+
+	if err != nil {
+		c.Logger().Errorf("search users error: %v", err)
+		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "ユーザー検索中にエラーが発生しました",
+			Code:    "SEARCH_USERS_ERROR",
+		})
+	}
+
+	// レスポンス作成
+	searchResults := make([]models.UserSearchResult, len(users))
+	for i, user := range users {
+		searchResults[i] = models.UserSearchResult{
+			ID:              user.ID.String(),
+			Name:            user.Name,
+			Email:           user.Email,
+			ProfileImageURL: user.ProfileImageURL,
+		}
+	}
+
+	response := models.UserSearchResponse{
+		Users: searchResults,
+		Total: total,
+	}
+
+	return c.JSON(http.StatusOK, response)
+}
+
+// UploadAvatar アバター画像アップロードハンドラー（JWT認証が必要）
+func (h *AuthHandler) UploadAvatar(c echo.Context) error {
+	// JWTミドルウェアで設定されたユーザー情報を取得
+	userID, ok := c.Get("user_id").(string)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+			Message: "認証が必要です",
+			Code:    "NOT_AUTHENTICATED",
+		})
+	}
+
+	// マルチパートフォームからファイルを取得
+	file, err := c.FormFile("avatar")
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Message: "アバター画像ファイルが見つかりません",
+			Code:    "FILE_NOT_FOUND",
+		})
+	}
+
+	// ファイルサイズチェック (5MB制限)
+	const maxFileSize = 5 * 1024 * 1024
+	if file.Size > maxFileSize {
+		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Message: "ファイルサイズが大きすぎます（5MB以下にしてください）",
+			Code:    "FILE_TOO_LARGE",
+		})
+	}
+
+	// ファイル形式チェック
+	allowedTypes := map[string]bool{
+		"image/jpeg": true,
+		"image/jpg":  true,
+		"image/png":  true,
+		"image/gif":  true,
+		"image/webp": true,
+	}
+
+	// ファイルを開いてMIMEタイプをチェック
+	src, err := file.Open()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "ファイルの読み込みに失敗しました",
+			Code:    "FILE_READ_ERROR",
+		})
+	}
+	defer src.Close()
+
+	// ファイルヘッダーから実際のMIMEタイプを判定(512バイト未満のファイルも)
+	buffer := make([]byte, 512)
+	_, err = src.Read(buffer)
+	if err != nil && err != io.EOF {
+		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "ファイルの読み込みに失敗しました",
+			Code:    "FILE_READ_ERROR",
+		})
+	}
+
+	// ファイルを先頭に戻す（将来的な実際のアップロード処理のため）
+	_, err = src.Seek(0, 0)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "ファイルの読み込みに失敗しました",
+			Code:    "FILE_READ_ERROR",
+		})
+	}
+
+	contentType := http.DetectContentType(buffer)
+	if !allowedTypes[contentType] {
+		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Message: "サポートされていないファイル形式です（JPEG、PNG、GIF、WebPのみ）",
+			Code:    "INVALID_FILE_TYPE",
+		})
+	}
+
+	// 一時的にファイル名として現在時刻 + ユーザーIDを使用
+	// 本番環境ではCloudflare R2やAWS S3などのオブジェクトストレージを使用する
+	fileName := fmt.Sprintf("avatar_%s_%d", userID, time.Now().Unix())
+
+	extMap := map[string]string{
+		"image/jpeg": ".jpg",
+		"image/jpg":  ".jpg",
+		"image/png":  ".png",
+		"image/gif":  ".git",
+		"image/webp": ".webp",
+	}
+
+	ext := extMap[contentType]
+	fileName += ext
+
+	// TODO: 本番環境では実際のオブジェクトストレージにアップロードする
+	// 現在は仮のURLを生成
+	avatarURL := fmt.Sprintf("https://example.com/uploads/avatars/%s", fileName)
+
+	// データベースクライアント取得
+	client := c.Get("db").(*ent.Client)
+	ctx := c.Request().Context()
+
+	// ユーザー情報をUUIDで検索
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Message: "無効なユーザーIDです",
+			Code:    "INVALID_USER_ID",
+		})
+	}
+
+	// プロフィール画像URLを更新
+	_, err = client.User.UpdateOneID(userUUID).
+		SetProfileImageURL(avatarURL).
+		Save(ctx)
+
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return c.JSON(http.StatusNotFound, models.ErrorResponse{
+				Message: "ユーザーが見つかりません",
+				Code:    "USER_NOT_FOUND",
+			})
+		}
+		c.Logger().Errorf("update avatar error: %v", err)
+		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "アバターの更新中にエラーが発生しました",
+			Code:    "UPDATE_AVATAR_ERROR",
+		})
+	}
+
+	// レスポンス作成
+	response := models.UploadAvatarResponse{
+		ProfileImageURL: avatarURL,
+		Message:         "アバター画像が正常にアップロードされました",
 	}
 
 	return c.JSON(http.StatusOK, response)

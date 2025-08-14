@@ -40,13 +40,26 @@ turbo dev --filter=docs    # Docs on default port
 ```bash
 # Run Go API server (from apps/api directory)
 cd apps/api
-pnpm dev  # Uses Air for hot reload via .air.toml
+pnpm dev          # Uses Air for hot reload via .air.toml
 # OR
-go run main.go
+go run main.go    # Direct Go execution
+air               # Air hot reload directly
 
-# Database setup required:
-# Set DATABASE_URL environment variable
-# Set RUN_MIGRATIONS=true for schema creation
+# Go testing
+go test ./...                    # Run all tests
+go test ./internal/handlers      # Run specific package tests
+go test -v -run TestAuthHandler  # Run specific test with verbose output
+go test -cover ./...            # Run tests with coverage
+
+# Go build
+go build -o ./tmp/main .        # Build binary
+go mod tidy                     # Clean up dependencies
+go mod download                 # Download dependencies
+
+# Environment setup required:
+# DATABASE_URL=postgres://user:password@localhost:5433/dbname?sslmode=disable
+# RUN_MIGRATIONS=true  # For automatic schema creation
+# JWT_SECRET=your-secret-key
 ```
 
 ### Docker Development
@@ -66,11 +79,19 @@ docker-compose up
 ```bash
 # Frontend tests
 cd apps/web
-pnpm test              # Jest unit tests
-pnpm test:watch        # Watch mode
-pnpm test:coverage     # Coverage report
-pnpm test:e2e          # Playwright E2E tests
-pnpm test:e2e:ui       # Playwright UI mode
+pnpm test                           # Jest unit tests
+pnpm test:watch                     # Watch mode
+pnpm test:coverage                  # Coverage report
+pnpm test -- LoginForm.test.tsx     # Run specific test file
+pnpm test:e2e                       # Playwright E2E tests
+pnpm test:e2e:ui                    # Playwright UI mode
+pnpm test:e2e -- auth.spec.ts       # Run specific E2E test
+
+# Backend tests (from apps/api)
+cd apps/api
+go test ./...                       # Run all Go tests
+go test -v ./internal/handlers      # Run specific package with verbose
+go test -cover ./...               # Run with coverage report
 ```
 
 ### Linting and Type Checking
@@ -174,6 +195,32 @@ packages/
 4. **Frontend State**: Managed via Zustand auth store
 5. **Token Storage**: Client-side token management
 
+## Development Workflow
+
+### Environment Setup
+
+```bash
+# Backend environment variables (apps/api/.env)
+DATABASE_URL=postgres://user:password@localhost:5433/cc_chat_db?sslmode=disable
+RUN_MIGRATIONS=true
+JWT_SECRET=your-super-secret-jwt-key-here
+PORT=8080
+
+# Frontend environment variables (apps/web/.env.local)
+BACKEND_INTERNAL_URL=http://localhost:8080
+NEXT_PUBLIC_API_URL=http://localhost:3003/api/backend
+```
+
+### Turborepo Filtering
+
+```bash
+# Run commands for specific workspaces
+turbo dev --filter=web                    # Only frontend
+turbo build --filter=api                  # Only backend
+turbo lint --filter="./packages/*"        # Only packages
+turbo test --filter="web" --filter="api"  # Multiple workspaces
+```
+
 ## Development Notes
 
 - **Language**: Interface supports Japanese (ログイン, チャットアプリ, etc.)
@@ -183,6 +230,7 @@ packages/
 - **Component Library**: Shared UI components in `@repo/ui`
 - **Testing**: Comprehensive Jest + Playwright setup
 - **Docker**: Multi-service development environment ready
+- **Proxy Setup**: Next.js API routes proxy to Go backend for seamless development
 
 ## コーディング規約
 

@@ -117,6 +117,9 @@ func main() {
 	protectedGroup := e.Group("/api")
 	protectedGroup.Use(middleware.JWTAuth())
 	protectedGroup.GET("/profile", authHandler.Profile)
+	protectedGroup.PUT("/profile", authHandler.UpdateProfile)
+	protectedGroup.GET("/users/search", authHandler.SearchUsers)
+	protectedGroup.POST("/avatar/upload", authHandler.UploadAvatar)
 
 	// グレースフルシャットダウンの設定
 	go func() {

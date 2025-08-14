@@ -43,3 +43,6 @@ postgres-data
 # kiro
 .kiro/
 .serena
+.cursor/
+.vscode/
+cookies.txt

@@ -7,17 +7,23 @@ export async function proxyRequest(request: Request, backendPath: string): Promi
     const cookie = request.headers.get('cookie') || '';
     const authHeader = request.headers.get('authorization') || ''// プロフィールルート用
 
-    const requestHeaders: HeadersInit = {
-        'Content-Type': 'application/json',
-        cookie,
-    };
+
+    const requestHeaders: Record<string, string> = {cookie};
+    const incomingContentType = request.headers.get('content-type');
+    if (incomingContentType) {
+        requestHeaders['Content-Type'] = incomingContentType;
+    }
+    const incomingAccept = request.headers.get('accept');
+    if(incomingAccept) {
+        requestHeaders['Accept'] = incomingAccept;
+    }
 
     if (authHeader) {
         requestHeaders['Authorization'] = authHeader;
     }
 
     let requestBody: string | undefined;
-    if(method === 'POST' || method === 'PUT') {
+    if(['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
         requestBody = await request.text();
     }
 
@@ -41,10 +47,21 @@ export async function proxyRequest(request: Request, backendPath: string): Promi
             },
         });
 
-        const setCookie = backendRes.headers.get('set-cookie');
-        if (setCookie) {
-            response.headers.append('set-cookie', setCookie);
+        // Set-Cookie: handle multiple headers (undici extension), fallback to single
+        // @ts-ignore - getSetCookie is non-standard but available in undici/Next runtime
+        const setCookies: string[] | undefined = backendRes.headers.getSetCookie?.();
+        if(Array.isArray(setCookies) && setCookies.length > 0) {
+            for(const sc of setCookies) response.headers.append('set-cookie', sc);
+        } else {
+            const sc = backendRes.headers.get('set-cookie');
+            if(sc) response.headers.append('set-cookie', sc);
         }
+
+        // Optionally forward selected headers
+        const wwwAuth = backendRes.headers.get('www-authenticate');
+        if (wwwAuth) response.headers.set('www-authenticate', wwwAuth);
+        const cacheCtl = backendRes.headers.get('cache-control');
+        if (cacheCtl) response.headers.set('cache-control', cacheCtl);
 
         return response;
     } catch (err) {
