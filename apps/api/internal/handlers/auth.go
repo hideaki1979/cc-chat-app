@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -652,10 +653,10 @@ func (h *AuthHandler) UploadAvatar(c echo.Context) error {
 	}
 	defer src.Close()
 
-	// ファイルヘッダーから実際のMIMEタイプを判定
+	// ファイルヘッダーから実際のMIMEタイプを判定(512バイト未満のファイルも)
 	buffer := make([]byte, 512)
 	_, err = src.Read(buffer)
-	if err != nil {
+	if err != nil && err != io.EOF {
 		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Message: "ファイルの読み込みに失敗しました",
 			Code:    "FILE_READ_ERROR",
