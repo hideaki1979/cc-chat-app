@@ -48,7 +48,6 @@ export async function proxyRequest(request: Request, backendPath: string): Promi
         });
 
         // Set-Cookie: handle multiple headers (undici extension), fallback to single
-        // @ts-ignore - getSetCookie is non-standard but available in undici/Next runtime
         const setCookies: string[] | undefined = backendRes.headers.getSetCookie?.();
         if(Array.isArray(setCookies) && setCookies.length > 0) {
             for(const sc of setCookies) response.headers.append('set-cookie', sc);

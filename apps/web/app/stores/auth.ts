@@ -160,7 +160,7 @@ export const useAuthStore = create<AuthStore>()(
           }
           const user = await res.json() as User;
           set({ user, isLoading: false, error: null });
-        } catch (error) {
+        } catch {
           // refreshAccessToken内でエラー時にlogoutが呼ばれるが、ここでも呼んで状態をクリーンにする
           logout();
           set({ isLoading: false });

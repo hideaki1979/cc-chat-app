@@ -225,6 +225,45 @@
 - **テスト**: Jest (Frontend) + Go testing (Backend)
 - **Go**: 1.24.5（ローカル/Dockerで統一）
 
+### 4.3 フロントエンド設計要件
+
+#### 4.3.1 コンポーネント設計パターン
+
+**Render Props パターンの必須適用**
+
+プロパティ注入が必要なコンポーネントでは `React.cloneElement` の使用を禁止し、Render Props パターンを採用する。
+
+**技術要件**:
+- プロパティ注入を行うレイアウトコンポーネントは関数型プロパティとして実装
+- TypeScript インターフェースで注入されるプロパティを明示的に定義
+- プロパティの型安全性を保証すること
+
+**品質要件**:
+- コンパイル時の型チェック実行
+- プロパティの流れが追跡可能であること
+- ESLint ルールによる `React.cloneElement` の使用検出
+
+**実装パターン**:
+```typescript
+// 必須パターン: Render Props
+interface InjectedProps {
+  onAction: () => void;
+  state: boolean;
+}
+
+interface ComponentProps {
+  render?: (props: InjectedProps) => React.ReactNode;
+}
+
+// 禁止パターン: React.cloneElement
+// React.cloneElement(element, injectedProps) ❌
+```
+
+**適用スコープ**:
+- レイアウトコンポーネント（ChatLayout、Container等）
+- 状態管理を子コンポーネントに注入するコンポーネント
+- 動的プロパティが必要なコンポーネント
+
 ## 5. データ要件
 
 ### 5.1 主要エンティティ

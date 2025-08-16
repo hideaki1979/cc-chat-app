@@ -25,7 +25,7 @@ export default function DashboardPage() {
     if (!isLoading && !user) {
       router.replace('/login');
     }
-  }, [isLoading, user]);
+  }, [isLoading, user, router]);
 
   const handleLogout = () => {
     logout();
