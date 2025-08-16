@@ -27,7 +27,7 @@ type MessageResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	DeletedAt *time.Time `json:"deleted_at,omitempty"`
-	Sender    MessageSender `json:"sender"`
+	Sender    *MessageSender `json:"sender"`
 }
 
 // MessageSender メッセージ送信者情報
@@ -67,7 +67,7 @@ func ConvertToMessageResponse(message *ent.Message) *MessageResponse {
 
 	// 送信者情報設定
 	if message.Edges.Sender != nil {
-		response.Sender = MessageSender{
+		response.Sender = &MessageSender{
 			ID:   message.Edges.Sender.ID.String(),
 			Name: message.Edges.Sender.Name,
 		}

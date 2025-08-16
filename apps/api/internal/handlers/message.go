@@ -51,23 +51,27 @@ func (h *MessageHandler) SendMessage(c echo.Context) error {
 	ctx := context.Background()
 
 	// ユーザーがそのルームのメンバーかチェック
-	isMember, err := h.client.RoomMember.Query().
+	member, err := h.client.RoomMember.Query().
 		Where(
 			roommember.RoomID(roomUUID),
 			roommember.UserID(userUUID),
 		).
-		Exist(ctx)
+		WithRoom().	// CharRoomを読み込む
+		First(ctx)	// Existの代わりにFirstを使用
+
 	if err != nil {
+		if ent.IsNotFound(err) {
+			return echo.NewHTTPError(http.StatusForbidden, "You are not a member of this room")
+		}
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to check membership")
-	}
-	if !isMember {
-		return echo.NewHTTPError(http.StatusForbidden, "You are not a member of this room")
 	}
 
 	// メッセージ作成
 	messageBuilder := h.client.Message.Create().
 		SetRoomID(roomUUID).
 		SetUserID(userUUID).
+		SetRoom(member.Edges.Room).	// 取得したChatRoomを設定
+		SetSenderID(userUUID).	// Senderエッジを設定
 		SetContent(req.Content)
 
 	if req.FileURL != "" {
@@ -277,7 +281,7 @@ func (h *MessageHandler) UpdateMessage(c echo.Context) error {
 	}
 
 	// メッセージ更新（作成から5分以内のみ編集可能）
-	if time.Since(msg.CreatedAt) > 5*time.Minute {
+	if time.Since(msg.CreatedAt) > MessageEditTimeLimit {
 		return echo.NewHTTPError(http.StatusBadRequest, "Message can only be edited within 5 minutes")
 	}
 

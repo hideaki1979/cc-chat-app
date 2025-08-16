@@ -58,23 +58,18 @@ func (h *ChatRoomHandler) CreateChatRoom(c echo.Context) error {
 	}
 	defer tx.Rollback()
 
-	// メンバーのユーザーIDリストにログインユーザーを追加（重複チェック）
-	memberUUIDs := make([]uuid.UUID, 0, len(req.MemberIDs)+1)
-	memberUUIDs = append(memberUUIDs, currentUserUUID)
-
+	// メンバーのユーザーIDリストにログインユーザーを追加
+	memberSet := make(map[uuid.UUID]struct{})
+	memberSet[currentUserUUID] = struct{}{}
 	for _, memberID := range req.MemberIDs {
-		memberUUID, _ := uuid.Parse(memberID)
-		// 重複チェック
-		isDuplicate := false
-		for _, existing := range memberUUIDs {
-			if existing == memberUUID {
-				isDuplicate = true
-				break
-			}
-		}
-		if !isDuplicate {
-			memberUUIDs = append(memberUUIDs, memberUUID)
-		}
+		memberUUID, _ := uuid.Parse(memberID)	// バリデーション済のため、エラーは無視
+		memberSet[memberUUID] = struct{}{}
+	}
+
+	memberUUIDs := make([]uuid.UUID, 0, len(memberSet))
+	
+	for u := range memberSet {
+		memberUUIDs = append(memberUUIDs, u)
 	}
 
 	// メンバーの存在チェック
@@ -159,6 +154,7 @@ func (h *ChatRoomHandler) GetChatRooms(c echo.Context) error {
 				Order(ent.Desc("created_at")).
 				Limit(1) // 最新メッセージのみ
 		}).
+		WithRoomMembers().
 		Order(ent.Desc(chatroom.FieldUpdatedAt)).
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
@@ -171,13 +167,7 @@ func (h *ChatRoomHandler) GetChatRooms(c echo.Context) error {
 	responses := make([]*models.ChatRoomListResponse, len(rooms))
 	for i, room := range rooms {
 		// メンバー数を取得
-		memberCount, err := h.client.RoomMember.Query().
-			Where(roommember.RoomID(room.ID)).
-			Count(ctx)
-		if err != nil {
-			memberCount = 0
-		}
-
+		memberCount := len(room.Edges.RoomMembers)
 		responses[i] = models.ConvertToChatRoomListResponse(room, memberCount)
 	}
 
