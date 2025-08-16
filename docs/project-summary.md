@@ -82,6 +82,52 @@
 - **Jest**: フロントエンドテスト
 - **Go testing**: バックエンドテスト
 
+## 🎨 フロントエンド設計原則
+
+### コンポーネント設計パターン
+
+#### Render Props パターンの採用
+**必須事項**: プロパティ注入が必要なレイアウトコンポーネントでは `React.cloneElement` を禁止し、Render Props パターンを使用すること
+
+**推奨理由**:
+- **型安全性**: TypeScript による完全な型チェック
+- **可読性**: 明示的なプロパティの流れ
+- **保守性**: コンポーネント間の関係が明確
+- **デバッグ性**: プロパティの追跡が容易
+
+**実装例**:
+```typescript
+// ❌ 非推奨: React.cloneElement による暗黙的prop注入
+interface LayoutProps {
+  header?: React.ReactElement;
+}
+React.cloneElement(header, { onToggle, isOpen })
+
+// ✅ 推奨: Render Props パターン
+interface HeaderProps {
+  onToggle: () => void;
+  isOpen: boolean;
+}
+
+interface LayoutProps {
+  header?: (props: HeaderProps) => React.ReactNode;
+}
+
+// 使用例
+<Layout
+  header={(props) => <Header {...props} title="Chat" />}
+/>
+```
+
+**適用対象**:
+- レイアウトコンポーネント（Layout、Container系）
+- 状態管理を注入するコンポーネント
+- 動的プロパティが必要なコンポーネント
+
+**例外**:
+- 単純な子要素の表示のみを行うコンポーネント
+- プロパティ注入が不要なコンポーネント
+
 ## 📊 データベース設計
 
 ### 主要テーブル

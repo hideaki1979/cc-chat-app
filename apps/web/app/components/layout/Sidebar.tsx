@@ -149,7 +149,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         {room.last_message.sender_name}: {room.last_message.content}
                       </p>
                     ) : (
-                      <p className="text-xs text-gray-500 dark:text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         メッセージはまだありません
                       </p>
                     )}

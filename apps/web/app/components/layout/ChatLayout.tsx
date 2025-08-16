@@ -2,10 +2,15 @@
 
 import React, { useState } from 'react';
 
+interface HeaderProps {
+  onToggleSidebar: () => void;
+  isSidebarOpen: boolean;
+}
+
 interface ChatLayoutProps {
   children: React.ReactNode;
   sidebar?: React.ReactNode;
-  header?: React.ReactElement;
+  header?: (props: HeaderProps) => React.ReactNode;
 }
 
 export const ChatLayout: React.FC<ChatLayoutProps> = ({
@@ -47,10 +52,7 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
         {/* ヘッダー */}
         {header && (
           <div className="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-            {React.cloneElement(header, {
-              onToggleSidebar: toggleSidebar,
-              isSidebarOpen,
-            } as React.Attributes)}
+            {header({ onToggleSidebar: toggleSidebar, isSidebarOpen })}
           </div>
         )}
 

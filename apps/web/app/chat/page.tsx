@@ -59,13 +59,6 @@ export default function ChatPage() {
     }
   }, [user, isLoading, loadCurrentUser, router]);
 
-  // 未ログインならログインページへ遷移
-  useEffect(() => {
-    if (!isLoading && !user) {
-      router.replace('/login');
-    }
-  }, [isLoading, user, router]);
-
   const handleRoomSelect = (roomId: string) => {
     setSelectedRoomId(roomId);
     const room = dummyRooms.find(r => r.id === roomId) || null;
@@ -118,8 +111,9 @@ export default function ChatPage() {
           onLogout={handleLogout}
         />
       }
-      header={
+      header={(props) => (
         <ChatHeader
+          {...props}
           roomName={selectedRoom?.name}
           isGroupChat={selectedRoom?.is_group_chat}
           memberCount={selectedRoom?.member_count}
@@ -128,7 +122,7 @@ export default function ChatPage() {
           onVideoCall={handleVideoCall}
           onVoiceCall={handleVoiceCall}
         />
-      }
+      )}
     >
       {/* メインチャットエリア */}
       <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
