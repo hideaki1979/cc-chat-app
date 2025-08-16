@@ -7,6 +7,7 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 )
 
@@ -33,8 +34,26 @@ const (
 	FieldRefreshTokenHash = "refresh_token_hash"
 	// FieldRefreshTokenExpiresAt holds the string denoting the refresh_token_expires_at field in the database.
 	FieldRefreshTokenExpiresAt = "refresh_token_expires_at"
+	// EdgeRoomMembers holds the string denoting the room_members edge name in mutations.
+	EdgeRoomMembers = "room_members"
+	// EdgeMessages holds the string denoting the messages edge name in mutations.
+	EdgeMessages = "messages"
 	// Table holds the table name of the user in the database.
 	Table = "users"
+	// RoomMembersTable is the table that holds the room_members relation/edge.
+	RoomMembersTable = "room_members"
+	// RoomMembersInverseTable is the table name for the RoomMember entity.
+	// It exists in this package in order to avoid circular dependency with the "roommember" package.
+	RoomMembersInverseTable = "room_members"
+	// RoomMembersColumn is the table column denoting the room_members relation/edge.
+	RoomMembersColumn = "user_id"
+	// MessagesTable is the table that holds the messages relation/edge.
+	MessagesTable = "messages"
+	// MessagesInverseTable is the table name for the Message entity.
+	// It exists in this package in order to avoid circular dependency with the "message" package.
+	MessagesInverseTable = "messages"
+	// MessagesColumn is the table column denoting the messages relation/edge.
+	MessagesColumn = "user_id"
 )
 
 // Columns holds all SQL columns for user fields.
@@ -125,4 +144,46 @@ func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByRefreshTokenExpiresAt orders the results by the refresh_token_expires_at field.
 func ByRefreshTokenExpiresAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRefreshTokenExpiresAt, opts...).ToFunc()
+}
+
+// ByRoomMembersCount orders the results by room_members count.
+func ByRoomMembersCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newRoomMembersStep(), opts...)
+	}
+}
+
+// ByRoomMembers orders the results by room_members terms.
+func ByRoomMembers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newRoomMembersStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByMessagesCount orders the results by messages count.
+func ByMessagesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newMessagesStep(), opts...)
+	}
+}
+
+// ByMessages orders the results by messages terms.
+func ByMessages(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newMessagesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newRoomMembersStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(RoomMembersInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, RoomMembersTable, RoomMembersColumn),
+	)
+}
+func newMessagesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(MessagesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, MessagesTable, MessagesColumn),
+	)
 }

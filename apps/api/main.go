@@ -101,6 +101,8 @@ func main() {
 
 	// ハンドラー初期化
 	authHandler := handlers.NewAuthHandler()
+	chatRoomHandler := handlers.NewChatRoomHandler(client)
+	messageHandler := handlers.NewMessageHandler(client)
 
 	// ルーティング設定
 	// ヘルスチェック
@@ -116,10 +118,27 @@ func main() {
 	// 認証が必要なエンドポイント
 	protectedGroup := e.Group("/api")
 	protectedGroup.Use(middleware.JWTAuth())
+	
+	// ユーザー関連
 	protectedGroup.GET("/profile", authHandler.Profile)
 	protectedGroup.PUT("/profile", authHandler.UpdateProfile)
 	protectedGroup.GET("/users/search", authHandler.SearchUsers)
 	protectedGroup.POST("/avatar/upload", authHandler.UploadAvatar)
+
+	// チャットルーム関連
+	protectedGroup.POST("/chatrooms", chatRoomHandler.CreateChatRoom)
+	protectedGroup.GET("/chatrooms", chatRoomHandler.GetChatRooms)
+	protectedGroup.GET("/chatrooms/:id", chatRoomHandler.GetChatRoom)
+	protectedGroup.PUT("/chatrooms/:id", chatRoomHandler.UpdateChatRoom)
+	protectedGroup.POST("/chatrooms/:id/members", chatRoomHandler.AddMember)
+	protectedGroup.DELETE("/chatrooms/:id/members/:user_id", chatRoomHandler.RemoveMember)
+
+	// メッセージ関連
+	protectedGroup.POST("/chatrooms/:room_id/messages", messageHandler.SendMessage)
+	protectedGroup.GET("/chatrooms/:room_id/messages", messageHandler.GetMessages)
+	protectedGroup.GET("/messages/:id", messageHandler.GetMessage)
+	protectedGroup.PUT("/messages/:id", messageHandler.UpdateMessage)
+	protectedGroup.DELETE("/messages/:id", messageHandler.DeleteMessage)
 
 	// グレースフルシャットダウンの設定
 	go func() {

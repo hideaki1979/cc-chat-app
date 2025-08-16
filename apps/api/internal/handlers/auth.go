@@ -484,10 +484,10 @@ func (h *AuthHandler) UpdateProfile(c echo.Context) error {
 		updateQuery = updateQuery.SetName(req.Name)
 	}
 	if req.Bio != "" {
-		updateQuery = updateQuery.SetBio(req.Bio)
+		updateQuery = updateQuery.SetNillableBio(&req.Bio)
 	}
 	if req.ProfileImageURL != "" {
-		updateQuery = updateQuery.SetProfileImageURL(req.ProfileImageURL)
+		updateQuery = updateQuery.SetNillableProfileImageURL(&req.ProfileImageURL)
 	}
 
 	// プロフィールを更新
@@ -714,7 +714,7 @@ func (h *AuthHandler) UploadAvatar(c echo.Context) error {
 
 	// プロフィール画像URLを更新
 	_, err = client.User.UpdateOneID(userUUID).
-		SetProfileImageURL(avatarURL).
+		SetNillableProfileImageURL(&avatarURL).
 		Save(ctx)
 
 	if err != nil {

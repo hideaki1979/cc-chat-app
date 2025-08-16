@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/predicate"
 )
@@ -598,6 +599,52 @@ func RefreshTokenExpiresAtIsNil() predicate.User {
 // RefreshTokenExpiresAtNotNil applies the NotNil predicate on the "refresh_token_expires_at" field.
 func RefreshTokenExpiresAtNotNil() predicate.User {
 	return predicate.User(sql.FieldNotNull(FieldRefreshTokenExpiresAt))
+}
+
+// HasRoomMembers applies the HasEdge predicate on the "room_members" edge.
+func HasRoomMembers() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, RoomMembersTable, RoomMembersColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasRoomMembersWith applies the HasEdge predicate on the "room_members" edge with a given conditions (other predicates).
+func HasRoomMembersWith(preds ...predicate.RoomMember) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newRoomMembersStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasMessages applies the HasEdge predicate on the "messages" edge.
+func HasMessages() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, MessagesTable, MessagesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasMessagesWith applies the HasEdge predicate on the "messages" edge with a given conditions (other predicates).
+func HasMessagesWith(preds ...predicate.Message) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newMessagesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.
