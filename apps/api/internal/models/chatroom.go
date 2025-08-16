@@ -98,7 +98,7 @@ func ConvertToChatRoomResponse(room *ent.ChatRoom) *ChatRoomResponse {
 	}
 
 	// 最新メッセージ情報がロードされている場合
-	if room.Edges.Messages != nil && len(room.Edges.Messages) > 0 {
+	if len(room.Edges.Messages) > 0 {
 		lastMsg := room.Edges.Messages[0] // 最新メッセージ（created_at DESC順でソート済み想定）
 		response.LastMessage = &LastMessageInfo{
 			ID:        lastMsg.ID.String(),
@@ -127,7 +127,7 @@ func ConvertToChatRoomListResponse(room *ent.ChatRoom, memberCount int) *ChatRoo
 	}
 
 	// 最新メッセージ情報がロードされている場合
-	if room.Edges.Messages != nil && len(room.Edges.Messages) > 0 {
+	if len(room.Edges.Messages) > 0 {
 		lastMsg := room.Edges.Messages[0] // 最新メッセージ（created_at DESC順でソート済み想定）
 		response.LastMessage = &LastMessageInfo{
 			ID:        lastMsg.ID.String(),
