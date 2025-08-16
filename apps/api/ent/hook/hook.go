@@ -9,6 +9,42 @@ import (
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent"
 )
 
+// The ChatRoomFunc type is an adapter to allow the use of ordinary
+// function as ChatRoom mutator.
+type ChatRoomFunc func(context.Context, *ent.ChatRoomMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ChatRoomFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ChatRoomMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ChatRoomMutation", m)
+}
+
+// The MessageFunc type is an adapter to allow the use of ordinary
+// function as Message mutator.
+type MessageFunc func(context.Context, *ent.MessageMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MessageFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MessageMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MessageMutation", m)
+}
+
+// The RoomMemberFunc type is an adapter to allow the use of ordinary
+// function as RoomMember mutator.
+type RoomMemberFunc func(context.Context, *ent.RoomMemberMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f RoomMemberFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.RoomMemberMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RoomMemberMutation", m)
+}
+
 // The UserFunc type is an adapter to allow the use of ordinary
 // function as User mutator.
 type UserFunc func(context.Context, *ent.UserMutation) (ent.Value, error)

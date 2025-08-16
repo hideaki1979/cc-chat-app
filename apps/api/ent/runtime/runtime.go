@@ -6,6 +6,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hideaki1979/cc-chat-app/apps/api/ent/chatroom"
+	"github.com/hideaki1979/cc-chat-app/apps/api/ent/message"
+	"github.com/hideaki1979/cc-chat-app/apps/api/ent/roommember"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/schema"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/user"
 )
@@ -14,6 +17,70 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	chatroomFields := schema.ChatRoom{}.Fields()
+	_ = chatroomFields
+	// chatroomDescName is the schema descriptor for name field.
+	chatroomDescName := chatroomFields[1].Descriptor()
+	// chatroom.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	chatroom.NameValidator = func() func(string) error {
+		validators := chatroomDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// chatroomDescIsGroupChat is the schema descriptor for is_group_chat field.
+	chatroomDescIsGroupChat := chatroomFields[2].Descriptor()
+	// chatroom.DefaultIsGroupChat holds the default value on creation for the is_group_chat field.
+	chatroom.DefaultIsGroupChat = chatroomDescIsGroupChat.Default.(bool)
+	// chatroomDescCreatedAt is the schema descriptor for created_at field.
+	chatroomDescCreatedAt := chatroomFields[3].Descriptor()
+	// chatroom.DefaultCreatedAt holds the default value on creation for the created_at field.
+	chatroom.DefaultCreatedAt = chatroomDescCreatedAt.Default.(func() time.Time)
+	// chatroomDescUpdatedAt is the schema descriptor for updated_at field.
+	chatroomDescUpdatedAt := chatroomFields[4].Descriptor()
+	// chatroom.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	chatroom.DefaultUpdatedAt = chatroomDescUpdatedAt.Default.(func() time.Time)
+	// chatroom.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	chatroom.UpdateDefaultUpdatedAt = chatroomDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// chatroomDescID is the schema descriptor for id field.
+	chatroomDescID := chatroomFields[0].Descriptor()
+	// chatroom.DefaultID holds the default value on creation for the id field.
+	chatroom.DefaultID = chatroomDescID.Default.(func() uuid.UUID)
+	messageFields := schema.Message{}.Fields()
+	_ = messageFields
+	// messageDescCreatedAt is the schema descriptor for created_at field.
+	messageDescCreatedAt := messageFields[5].Descriptor()
+	// message.DefaultCreatedAt holds the default value on creation for the created_at field.
+	message.DefaultCreatedAt = messageDescCreatedAt.Default.(func() time.Time)
+	// messageDescUpdatedAt is the schema descriptor for updated_at field.
+	messageDescUpdatedAt := messageFields[6].Descriptor()
+	// message.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	message.DefaultUpdatedAt = messageDescUpdatedAt.Default.(func() time.Time)
+	// message.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	message.UpdateDefaultUpdatedAt = messageDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// messageDescID is the schema descriptor for id field.
+	messageDescID := messageFields[0].Descriptor()
+	// message.DefaultID holds the default value on creation for the id field.
+	message.DefaultID = messageDescID.Default.(func() uuid.UUID)
+	roommemberFields := schema.RoomMember{}.Fields()
+	_ = roommemberFields
+	// roommemberDescJoinedAt is the schema descriptor for joined_at field.
+	roommemberDescJoinedAt := roommemberFields[3].Descriptor()
+	// roommember.DefaultJoinedAt holds the default value on creation for the joined_at field.
+	roommember.DefaultJoinedAt = roommemberDescJoinedAt.Default.(func() time.Time)
+	// roommemberDescID is the schema descriptor for id field.
+	roommemberDescID := roommemberFields[0].Descriptor()
+	// roommember.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	roommember.IDValidator = roommemberDescID.Validators[0].(func(int64) error)
 	userHooks := schema.User{}.Hooks()
 	user.Hooks[0] = userHooks[0]
 	user.Hooks[1] = userHooks[1]

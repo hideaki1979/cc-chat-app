@@ -25,9 +25,9 @@ type User struct {
 	// パスワードハッシュ
 	PasswordHash []byte `json:"-"`
 	// プロフィール画像URL
-	ProfileImageURL string `json:"profile_image_url,omitempty"`
+	ProfileImageURL *string `json:"profile_image_url,omitempty"`
 	// 自己紹介文
-	Bio string `json:"bio,omitempty"`
+	Bio *string `json:"bio,omitempty"`
 	// 作成日時
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// 更新日時
@@ -36,7 +36,39 @@ type User struct {
 	RefreshTokenHash *[]byte `json:"-"`
 	// リフレッシュトークン有効期限
 	RefreshTokenExpiresAt *time.Time `json:"refresh_token_expires_at,omitempty"`
-	selectValues          sql.SelectValues
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the UserQuery when eager-loading is set.
+	Edges        UserEdges `json:"edges"`
+	selectValues sql.SelectValues
+}
+
+// UserEdges holds the relations/edges for other nodes in the graph.
+type UserEdges struct {
+	// RoomMembers holds the value of the room_members edge.
+	RoomMembers []*RoomMember `json:"room_members,omitempty"`
+	// Messages holds the value of the messages edge.
+	Messages []*Message `json:"messages,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [2]bool
+}
+
+// RoomMembersOrErr returns the RoomMembers value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) RoomMembersOrErr() ([]*RoomMember, error) {
+	if e.loadedTypes[0] {
+		return e.RoomMembers, nil
+	}
+	return nil, &NotLoadedError{edge: "room_members"}
+}
+
+// MessagesOrErr returns the Messages value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) MessagesOrErr() ([]*Message, error) {
+	if e.loadedTypes[1] {
+		return e.Messages, nil
+	}
+	return nil, &NotLoadedError{edge: "messages"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -95,13 +127,15 @@ func (u *User) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field profile_image_url", values[i])
 			} else if value.Valid {
-				u.ProfileImageURL = value.String
+				u.ProfileImageURL = new(string)
+				*u.ProfileImageURL = value.String
 			}
 		case user.FieldBio:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field bio", values[i])
 			} else if value.Valid {
-				u.Bio = value.String
+				u.Bio = new(string)
+				*u.Bio = value.String
 			}
 		case user.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -141,6 +175,16 @@ func (u *User) Value(name string) (ent.Value, error) {
 	return u.selectValues.Get(name)
 }
 
+// QueryRoomMembers queries the "room_members" edge of the User entity.
+func (u *User) QueryRoomMembers() *RoomMemberQuery {
+	return NewUserClient(u.config).QueryRoomMembers(u)
+}
+
+// QueryMessages queries the "messages" edge of the User entity.
+func (u *User) QueryMessages() *MessageQuery {
+	return NewUserClient(u.config).QueryMessages(u)
+}
+
 // Update returns a builder for updating this User.
 // Note that you need to call User.Unwrap() before calling this method if this User
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -172,11 +216,15 @@ func (u *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("password_hash=<sensitive>")
 	builder.WriteString(", ")
-	builder.WriteString("profile_image_url=")
-	builder.WriteString(u.ProfileImageURL)
+	if v := u.ProfileImageURL; v != nil {
+		builder.WriteString("profile_image_url=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
-	builder.WriteString("bio=")
-	builder.WriteString(u.Bio)
+	if v := u.Bio; v != nil {
+		builder.WriteString("bio=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(u.CreatedAt.Format(time.ANSIC))

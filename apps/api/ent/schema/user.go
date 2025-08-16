@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
 )
 
@@ -36,9 +38,11 @@ func (User) Fields() []ent.Field {
 			Comment("パスワードハッシュ"),
 		field.String("profile_image_url").
 			Optional().
+			Nillable().
 			Comment("プロフィール画像URL"),
 		field.Text("bio").
 			Optional().
+			Nillable().
 			Comment("自己紹介文"),
 		field.Time("created_at").
 			Default(time.Now).
@@ -63,12 +67,20 @@ func (User) Fields() []ent.Field {
 
 // Edges of the User.
 func (User) Edges() []ent.Edge {
-	return nil
+	return []ent.Edge{
+		// Userは複数のルームメンバー（RoomMember）を持つ
+		edge.To("room_members", RoomMember.Type),
+		// Userは複数のメッセージ（Message）を持つ
+		edge.To("messages", Message.Type),
+	}
 }
 
 // Indexes of the User.
 func (User) Indexes() []ent.Index {
-	return nil
+	return []ent.Index{
+		// 設計書で指定されたパフォーマンス最適化インデックス
+		index.Fields("email"),
+	}
 }
 
 // Hooks of the User.

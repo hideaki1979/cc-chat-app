@@ -33,13 +33,13 @@ type RefreshTokenResponse struct {
 
 // ユーザー情報構造体（パスワードを除く）
 type UserInfo struct {
-	ID              string    `json:"id"`
-	Name            string    `json:"name"`
-	Email           string    `json:"email"`
-	ProfileImageURL string    `json:"profile_image_url,omitempty"`
-	Bio             string    `json:"bio,omitempty"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID              string     `json:"id"`
+	Name            string     `json:"name"`
+	Email           string     `json:"email"`
+	ProfileImageURL *string    `json:"profile_image_url,omitempty"`
+	Bio             *string    `json:"bio,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 // プロフィール更新用のリクエスト構造体
@@ -63,10 +63,10 @@ type UserSearchResponse struct {
 
 // ユーザー検索結果（簡易ユーザー情報）
 type UserSearchResult struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	Email           string `json:"email"`
-	ProfileImageURL string `json:"profile_image_url,omitempty"`
+	ID              string  `json:"id"`
+	Name            string  `json:"name"`
+	Email           string  `json:"email"`
+	ProfileImageURL *string `json:"profile_image_url,omitempty"`
 }
 
 // アバター画像アップロードレスポンス構造体
