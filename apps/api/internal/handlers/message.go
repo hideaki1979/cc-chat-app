@@ -41,11 +41,10 @@ func (h *MessageHandler) SendMessage(c echo.Context) error {
 	if err := c.Validate(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-
-	userID := c.Get("user_id").(string)
-	userUUID, err := uuid.Parse(userID)
+	
+	userUUID, err := getUserUUID(c)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
+		return err
 	}
 
 	ctx := context.Background()
@@ -105,10 +104,9 @@ func (h *MessageHandler) GetMessages(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid room ID")
 	}
 
-	userID := c.Get("user_id").(string)
-	userUUID, err := uuid.Parse(userID)
+	userUUID, err := getUserUUID(c)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
+		return err
 	}
 
 	// クエリパラメータ
@@ -193,10 +191,9 @@ func (h *MessageHandler) GetMessage(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid message ID")
 	}
 
-	userID := c.Get("user_id").(string)
-	userUUID, err := uuid.Parse(userID)
+	userUUID, err := getUserUUID(c)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
+		return err
 	}
 
 	ctx := context.Background()
@@ -253,10 +250,9 @@ func (h *MessageHandler) UpdateMessage(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
-	userID := c.Get("user_id").(string)
-	userUUID, err := uuid.Parse(userID)
+	userUUID, err := getUserUUID(c)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
+		return err
 	}
 
 	ctx := context.Background()
@@ -314,10 +310,9 @@ func (h *MessageHandler) DeleteMessage(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid message ID")
 	}
 
-	userID := c.Get("user_id").(string)
-	userUUID, err := uuid.Parse(userID)
+	userUUID, err := getUserUUID(c)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
+		return err
 	}
 
 	ctx := context.Background()
@@ -353,4 +348,19 @@ func (h *MessageHandler) DeleteMessage(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{
 		"message": "Message deleted successfully",
 	})
+}
+
+// 安全に user_id を取り出し UUID へ変換するヘルパー関数
+func getUserUUID(c echo.Context) (uuid.UUID, error) {
+	v := c.Get("user_id")
+	s, ok := v.(string)
+	if !ok || s == "" {
+		return uuid.Nil, echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+	}
+	
+	u, err := uuid.Parse(s)
+	if err != nil {
+		return uuid.Nil, echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
+	}
+	return u, nil
 }
