@@ -4,7 +4,7 @@ import React from 'react';
 import { Button } from '@repo/ui/button';
 
 // チャットルーム型定義（将来のAPI連携用）
-interface ChatRoom {
+export interface ChatRoom {
   id: string;
   name: string;
   is_group_chat: boolean;

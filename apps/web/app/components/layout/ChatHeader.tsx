@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { Button } from '@repo/ui/button';
 
 interface ChatHeaderProps {
   roomName?: string;
@@ -21,7 +20,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   memberCount,
   onlineCount,
   onToggleSidebar,
-  isSidebarOpen,
+  isSidebarOpen: _isSidebarOpen,
   onRoomSettings,
   onVideoCall,
   onVoiceCall,

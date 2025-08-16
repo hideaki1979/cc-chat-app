@@ -3,10 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../stores/auth';
-import { ChatLayout, Sidebar, ChatHeader } from '../components/layout';
+import { ChatLayout, Sidebar, ChatHeader, type ChatRoom } from '../components/layout';
 
 // テスト用のダミーデータ
-const dummyRooms = [
+const dummyRooms: ChatRoom[] = [
   {
     id: '1',
     name: '一般チャット',
@@ -48,7 +48,7 @@ export default function ChatPage() {
   const router = useRouter();
   const { user, isLoading, logout, loadCurrentUser } = useAuthStore();
   const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>();
-  const [selectedRoom, setSelectedRoom] = useState<any>(null);
+  const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
 
   // 認証チェック
   useEffect(() => {
@@ -68,7 +68,7 @@ export default function ChatPage() {
 
   const handleRoomSelect = (roomId: string) => {
     setSelectedRoomId(roomId);
-    const room = dummyRooms.find(r => r.id === roomId);
+    const room = dummyRooms.find(r => r.id === roomId) || null;
     setSelectedRoom(room);
   };
 
