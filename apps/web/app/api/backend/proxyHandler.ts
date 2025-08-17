@@ -50,10 +50,28 @@ export async function proxyRequest(request: Request, backendPath: string): Promi
         // Set-Cookie: handle multiple headers (undici extension), fallback to single
         const setCookies: string[] | undefined = backendRes.headers.getSetCookie?.();
         if(Array.isArray(setCookies) && setCookies.length > 0) {
-            for(const sc of setCookies) response.headers.append('set-cookie', sc);
+            for(const sc of setCookies) {
+                // Docker環境でのCookie問題を修正: localhost:3003でアクセス可能にする
+                let fixedCookie = sc;
+                // refresh_tokenのCookieの場合、Domainを明示的にlocalhostに設定
+                if (sc.includes('refresh_token')) {
+                    // 既存のDomain指定を除去してlocalhostを設定
+                    fixedCookie = sc.replace(/;\s*Domain=[^;]*/, '') + '; Domain=localhost';
+                }
+                response.headers.append('set-cookie', fixedCookie);
+            }
         } else {
             const sc = backendRes.headers.get('set-cookie');
-            if(sc) response.headers.append('set-cookie', sc);
+            if(sc) {
+                // Docker環境でのCookie問題を修正: localhost:3003でアクセス可能にする
+                let fixedCookie = sc;
+                // refresh_tokenのCookieの場合、Domainを明示的にlocalhostに設定
+                if (sc.includes('refresh_token')) {
+                    // 既存のDomain指定を除去してlocalhostを設定
+                    fixedCookie = sc.replace(/;\s*Domain=[^;]*/, '') + '; Domain=localhost';
+                }
+                response.headers.append('set-cookie', fixedCookie);
+            }
         }
 
         // Optionally forward selected headers

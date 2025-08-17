@@ -46,3 +46,7 @@ postgres-data
 .cursor/
 .vscode/
 cookies.txt
+# 一時ファイル
+apps/api/tmp/
+apps/web/playwright-report/
+apps/web/test-results/

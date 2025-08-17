@@ -34,6 +34,7 @@ export interface AuthState {
   accessToken: string | null;  // メモリ内のみ保存
   // refreshTokenは削除（httpOnly Cookieで管理）
   isLoading: boolean;
+  isInitialized: boolean;  // 認証状態の初期化が完了したかのフラグ
   error: string | null;
 }
 
@@ -47,6 +48,7 @@ export interface AuthActions {
   clearError: () => void;
   setUser: (user: User | null) => void;
   loadCurrentUser: () => Promise<void>;
+  initializeAuth: () => Promise<void>;
 }
 
 export type AuthStore = AuthState & AuthActions;

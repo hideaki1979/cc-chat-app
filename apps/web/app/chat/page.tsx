@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../stores/auth';
 import { ChatLayout, Sidebar, ChatHeader, type ChatRoom } from '../components/layout';
@@ -46,18 +46,18 @@ const dummyRooms: ChatRoom[] = [
 
 export default function ChatPage() {
   const router = useRouter();
-  const { user, isLoading, logout, loadCurrentUser } = useAuthStore();
+  const { user, isLoading, isInitialized, logout, initializeAuth } = useAuthStore();
   const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>();
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
+  const [initStarted, setInitStarted] = useState(false);
 
-  // 認証チェック
-  useEffect(() => {
-    if (!user && !isLoading) {
-      loadCurrentUser().catch(() => {
-        router.replace('/login');
-      });
+  // 初期化処理（一度だけ実行）
+  React.useEffect(() => {
+    if (!isInitialized && !initStarted) {
+      setInitStarted(true);
+      initializeAuth();
     }
-  }, [user, isLoading, loadCurrentUser, router]);
+  }, [isInitialized, initStarted, initializeAuth]);
 
   const handleRoomSelect = (roomId: string) => {
     setSelectedRoomId(roomId);
@@ -87,7 +87,8 @@ export default function ChatPage() {
     alert('音声通話機能は今後実装予定です');
   };
 
-  if (isLoading) {
+  // 初期化中はローディング表示
+  if (isLoading || !isInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>ユーザー情報を読み込み中...</p>
@@ -95,8 +96,21 @@ export default function ChatPage() {
     );
   }
 
+  // middlewareで認証チェック済みのため、userがnullの場合は初期化エラー
   if (!user) {
-    return null; // リダイレクト中
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">認証エラーが発生しました</p>
+          <button 
+            onClick={() => router.push('/login')} 
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            ログイン画面に戻る
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

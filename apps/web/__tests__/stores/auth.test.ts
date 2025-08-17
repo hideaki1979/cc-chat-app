@@ -1,10 +1,8 @@
 import { act, renderHook } from '@testing-library/react'
 import { useAuthStore } from '../../app/stores/auth'
-import { api } from '../../app/lib/api'
 
-// Mock axios
-jest.mock('../../app/lib/api')
-const mockedApi = api as jest.Mocked<typeof api>
+// Mock fetch
+global.fetch = jest.fn()
 
 // Mock localStorage
 const localStorageMock = {
@@ -22,12 +20,15 @@ describe('Auth Store', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     localStorageMock.getItem.mockReturnValue(null)
+    // Reset fetch mock
+    ;(global.fetch as jest.Mock).mockClear()
 
     // Reset store state
     useAuthStore.setState({
       user: null,
       accessToken: null,
       isLoading: false,
+      isInitialized: false,
       error: null,
     })
   })
@@ -38,9 +39,10 @@ describe('Auth Store', () => {
 
       expect(result.current.user).toBeNull()
       expect(result.current.accessToken).toBeNull()
-      // refreshToken はストアから削除済み
       expect(result.current.isLoading).toBe(false)
+      expect(result.current.isInitialized).toBe(false)
       expect(result.current.error).toBeNull()
+      expect(typeof result.current.initializeAuth).toBe('function')
     })
   })
 
@@ -55,58 +57,56 @@ describe('Auth Store', () => {
       }
 
       const mockResponse = {
-        data: {
-          user: mockUser,
-          token: 'access-token',
-        },
+        user: mockUser,
+        token: 'access-token',
       }
 
-      mockedApi.post.mockResolvedValueOnce(mockResponse)
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      })
 
       const { result } = renderHook(() => useAuthStore())
 
+      let loginResult: boolean
       await act(async () => {
-        await result.current.login({
+        loginResult = await result.current.login({
           email: 'test@example.com',
           password: 'password123',
         })
       })
 
+      expect(loginResult).toBe(true)
       expect(result.current.user).toEqual(mockUser)
       expect(result.current.accessToken).toBe('access-token')
-      // refreshToken はストアから削除済み
       expect(result.current.isLoading).toBe(false)
+      expect(result.current.isInitialized).toBe(true)
       expect(result.current.error).toBeNull()
-
-      // アクセストークンはメモリのみ、Cookieはサーバー管理
     })
 
     test('should handle login error', async () => {
       const errorMessage = 'Invalid credentials'
-      mockedApi.post.mockRejectedValueOnce({
-        response: { data: { message: errorMessage } },
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ message: errorMessage }),
       })
 
       const { result } = renderHook(() => useAuthStore())
 
+      let loginResult: boolean
       await act(async () => {
-        try {
-          await result.current.login({
-            email: 'test@example.com',
-            password: 'wrongpassword',
-          })
-        } catch (error) {
-          // Expected to throw
-        }
+        loginResult = await result.current.login({
+          email: 'test@example.com',
+          password: 'wrongpassword',
+        })
       })
 
+      expect(loginResult).toBe(false)
       expect(result.current.user).toBeNull()
       expect(result.current.accessToken).toBeNull()
-      // refreshToken はストアから削除済み
       expect(result.current.isLoading).toBe(false)
       expect(result.current.error).toBe(errorMessage)
-
-      // ローカルストレージ操作は廃止
     })
   })
 
@@ -121,18 +121,20 @@ describe('Auth Store', () => {
       }
 
       const mockResponse = {
-        data: {
-          user: mockUser,
-          token: 'access-token',
-        },
+        user: mockUser,
+        token: 'access-token',
       }
 
-      mockedApi.post.mockResolvedValueOnce(mockResponse)
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      })
 
       const { result } = renderHook(() => useAuthStore())
 
+      let registerResult: any
       await act(async () => {
-        await result.current.register({
+        registerResult = await result.current.register({
           email: 'newuser@example.com',
           username: 'newuser',
           password: 'Password123',
@@ -140,41 +142,103 @@ describe('Auth Store', () => {
         })
       })
 
+      expect(registerResult.ok).toBe(true)
       expect(result.current.user).toEqual(mockUser)
       expect(result.current.accessToken).toBe('access-token')
-      // refreshToken はストアから削除済み
       expect(result.current.isLoading).toBe(false)
+      expect(result.current.isInitialized).toBe(true)
       expect(result.current.error).toBeNull()
     })
 
     test('should handle register error', async () => {
       const errorMessage = 'Email already exists'
-      mockedApi.post.mockRejectedValueOnce({
-        response: { data: { message: errorMessage } },
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ message: errorMessage }),
       })
 
       const { result } = renderHook(() => useAuthStore())
 
+      let registerResult: any
       await act(async () => {
-        try {
-          await result.current.register({
-            email: 'existing@example.com',
-            username: 'existinguser',
-            password: 'Password123',
-            confirmPassword: 'Password123',
-          })
-        } catch (error) {
-          // Expected to throw
-        }
+        registerResult = await result.current.register({
+          email: 'existing@example.com',
+          username: 'existinguser',
+          password: 'Password123',
+          confirmPassword: 'Password123',
+        })
       })
 
+      expect(registerResult.ok).toBe(false)
       expect(result.current.user).toBeNull()
       expect(result.current.error).toBe(errorMessage)
     })
   })
 
+  describe('Initialize Auth', () => {
+    test('should initialize auth successfully', async () => {
+      const mockUser = {
+        id: '1',
+        email: 'test@example.com',
+        name: 'testuser',
+        created_at: '2024-01-01',
+        updated_at: '2024-01-01',
+      }
+
+      // Mock refresh token call
+      ;(global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ token: 'new-access-token' }),
+        })
+        // Mock profile call
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockUser,
+        })
+
+      const { result } = renderHook(() => useAuthStore())
+
+      await act(async () => {
+        await result.current.initializeAuth()
+      })
+
+      expect(result.current.user).toEqual(mockUser)
+      expect(result.current.accessToken).toBe('new-access-token')
+      expect(result.current.isInitialized).toBe(true)
+      expect(result.current.isLoading).toBe(false)
+      expect(result.current.error).toBeNull()
+    })
+
+    test('should handle initialization failure', async () => {
+      // Mock refresh token failure
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+      })
+
+      const { result } = renderHook(() => useAuthStore())
+
+      await act(async () => {
+        await result.current.initializeAuth()
+      })
+
+      expect(result.current.user).toBeNull()
+      expect(result.current.accessToken).toBeNull()
+      expect(result.current.isInitialized).toBe(true)
+      expect(result.current.isLoading).toBe(false)
+      expect(result.current.error).toBeNull()
+    })
+  })
+
   describe('Logout', () => {
-    test('should logout and clear state', () => {
+    test('should logout and clear state', async () => {
+      // Mock logout API call
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+      })
+
       // Set initial state
       useAuthStore.setState({
         user: {
@@ -186,22 +250,21 @@ describe('Auth Store', () => {
         },
         accessToken: 'access-token',
         isLoading: false,
+        isInitialized: true,
         error: null,
       })
 
       const { result } = renderHook(() => useAuthStore())
 
-      act(() => {
-        result.current.logout()
+      await act(async () => {
+        await result.current.logout()
       })
 
       expect(result.current.user).toBeNull()
       expect(result.current.accessToken).toBeNull()
-      // refreshToken はストアから削除済み
       expect(result.current.isLoading).toBe(false)
+      expect(result.current.isInitialized).toBe(true)
       expect(result.current.error).toBeNull()
-
-      // ローカルストレージ操作は廃止
     })
   })
 
