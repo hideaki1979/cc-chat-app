@@ -206,7 +206,7 @@ export const useAuthStore = create<AuthStore>()(
           console.log('認証状態の初期化完了:', user);
           set({ user, isInitialized: true, isLoading: false, error: null });
         } catch (error) {
-          console.log('初期化時の認証確認: ログイン状態ではありません');
+          console.log('初期化時の認証確認: ログイン状態ではありません', error);
           set({ 
             user: null, 
             accessToken: null, 
