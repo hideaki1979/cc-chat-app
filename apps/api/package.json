@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "go run main.go"
+    "dev": "go run main.go",
+    "build": "go build -o ./tmp/main .",
+    "test": "go test ./...",
+    "test:coverage": "go test -cover ./...",
+    "lint": "golangci-lint run",
+    "clean": "rm -rf ./tmp"
   }
 }
