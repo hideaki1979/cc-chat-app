@@ -2,27 +2,20 @@ import { test, expect } from '@playwright/test'
 
 test.describe('Authentication Flow', () => {
   test.beforeEach(async ({ page }) => {
-    // Clear localStorage before each test
-    await page.goto('/')
-    await page.evaluate(() => localStorage.clear())
+    // Clear cookies before each test (refresh token is stored in httpOnly cookie)
+    await page.context().clearCookies()
   })
 
-  test('should display home page with login and register buttons', async ({ page }) => {
+  test('should redirect to login page when accessing root', async ({ page }) => {
     await page.goto('/')
 
-    // Check page title and heading
-    await expect(page.locator('h1')).toContainText('チャットアプリへようこそ')
-    
-    // Check login and register buttons are present
-    await expect(page.locator('text=ログイン')).toBeVisible()
-    await expect(page.locator('text=新規登録')).toBeVisible()
+    // Middleware should redirect to login page
+    await expect(page).toHaveURL('/login')
+    await expect(page.locator('h2')).toContainText('アカウントにログイン')
   })
 
-  test('should navigate to login page', async ({ page }) => {
-    await page.goto('/')
-    
-    // Click login button
-    await page.click('text=ログイン')
+  test('should display login page correctly', async ({ page }) => {
+    await page.goto('/login')
     
     // Check URL and page content
     await expect(page).toHaveURL('/login')
@@ -34,10 +27,10 @@ test.describe('Authentication Flow', () => {
     await expect(page.locator('button[type="submit"]')).toContainText('ログイン')
   })
 
-  test('should navigate to register page', async ({ page }) => {
-    await page.goto('/')
+  test('should navigate to register page from login', async ({ page }) => {
+    await page.goto('/login')
     
-    // Click register button
+    // Click register link
     await page.click('text=新規登録')
     
     // Check URL and page content
@@ -126,6 +119,31 @@ test.describe('Authentication Flow', () => {
     // Click login link
     await page.click('text=ログイン')
     await expect(page).toHaveURL('/login')
+  })
+
+  test('should redirect authenticated users from login page', async ({ page }) => {
+    // First, simulate setting a refresh token cookie (would normally be set by successful login)
+    await page.context().addCookies([{
+      name: 'refresh_token',
+      value: 'mock-refresh-token',
+      domain: 'localhost',
+      path: '/',
+      httpOnly: true,
+    }])
+
+    // Try to access login page
+    await page.goto('/login')
+
+    // Should be redirected to dashboard
+    await expect(page).toHaveURL('/dashboard')
+  })
+
+  test('should redirect unauthenticated users from protected routes', async ({ page }) => {
+    // Try to access protected route without authentication
+    await page.goto('/chat')
+
+    // Should be redirected to login with redirect parameter
+    await expect(page).toHaveURL('/login?redirect=/chat')
   })
 
   test('should handle network errors gracefully', async ({ page }) => {

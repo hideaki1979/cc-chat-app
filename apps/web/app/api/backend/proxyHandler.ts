@@ -8,13 +8,13 @@ export async function proxyRequest(request: Request, backendPath: string): Promi
     const authHeader = request.headers.get('authorization') || ''// プロフィールルート用
 
 
-    const requestHeaders: Record<string, string> = {cookie};
+    const requestHeaders: Record<string, string> = { cookie };
     const incomingContentType = request.headers.get('content-type');
     if (incomingContentType) {
         requestHeaders['Content-Type'] = incomingContentType;
     }
     const incomingAccept = request.headers.get('accept');
-    if(incomingAccept) {
+    if (incomingAccept) {
         requestHeaders['Accept'] = incomingAccept;
     }
 
@@ -23,7 +23,7 @@ export async function proxyRequest(request: Request, backendPath: string): Promi
     }
 
     let requestBody: string | undefined;
-    if(['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
         requestBody = await request.text();
     }
 
@@ -49,11 +49,29 @@ export async function proxyRequest(request: Request, backendPath: string): Promi
 
         // Set-Cookie: handle multiple headers (undici extension), fallback to single
         const setCookies: string[] | undefined = backendRes.headers.getSetCookie?.();
-        if(Array.isArray(setCookies) && setCookies.length > 0) {
-            for(const sc of setCookies) response.headers.append('set-cookie', sc);
+        if (Array.isArray(setCookies) && setCookies.length > 0) {
+            for (const sc of setCookies) {
+                // Docker環境でのCookie問題を修正: localhost:3003でアクセス可能にする
+                let fixedCookie = sc;
+                // refresh_tokenのCookieの場合、Domainを明示的にlocalhostに設定
+                if (sc.includes('refresh_token')) {
+                    // 既存のDomain指定を除去(ホスト限定クッキーにする)
+                    fixedCookie = sc.replace(/;\s*Domain=[^;]*/, '');
+                }
+                response.headers.append('set-cookie', fixedCookie);
+            }
         } else {
             const sc = backendRes.headers.get('set-cookie');
-            if(sc) response.headers.append('set-cookie', sc);
+            if (sc) {
+                // Docker環境でのCookie問題を修正: localhost:3003でアクセス可能にする
+                let fixedCookie = sc;
+                // refresh_tokenのCookieの場合、Domainを明示的にlocalhostに設定
+                if (sc.includes('refresh_token')) {
+                    // 既存のDomain指定を除去してlocalhostを設定
+                    fixedCookie = sc.replace(/;\s*Domain=[^;]*/, '');
+                }
+                response.headers.append('set-cookie', fixedCookie);
+            }
         }
 
         // Optionally forward selected headers
@@ -65,7 +83,7 @@ export async function proxyRequest(request: Request, backendPath: string): Promi
         return response;
     } catch (err) {
         console.error(`Proxy request to ${backendPath} failed:`, err);
-        return new NextResponse(JSON.stringify({ message: 'サーバーエラー発生' }),{
+        return new NextResponse(JSON.stringify({ message: 'サーバーエラー発生' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' },
         })

@@ -118,6 +118,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		Name:     "refresh_token",
 		Value:    refreshToken,
 		Path:     "/",
+		Domain:   "",                                // 空文字でcurrent hostに設定
 		MaxAge:   int(7 * 24 * time.Hour.Seconds()), // 7日間（秒単位）
 		HttpOnly: true,                              // XSS攻撃を防ぐ
 		Secure:   util.IsProduction(),               // 本番環境のみHTTPS必須
@@ -218,6 +219,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		Name:     "refresh_token",
 		Value:    refreshToken,
 		Path:     "/",
+		Domain:   "",                                // 空文字でcurrent hostに設定
 		MaxAge:   int(7 * 24 * time.Hour.Seconds()), // 7日間（秒単位）
 		HttpOnly: true,                              // XSS攻撃を防ぐ
 		Secure:   util.IsProduction(),               // 本番環境のみHTTPS必須
@@ -268,10 +270,11 @@ func (h *AuthHandler) Logout(c echo.Context) error {
 		Name:     "refresh_token",
 		Value:    "",
 		Path:     "/",
-		MaxAge:   -1, // 即座に削除
+		Domain:   "",           // 空文字でcurrent hostに設定
+		MaxAge:   -1,           // 即座に削除
 		HttpOnly: true,
 		Secure:   util.IsProduction(),
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteLaxMode, // 開発環境でのクロスサイト許可
 	}
 	c.SetCookie(clearCookie)
 
@@ -339,6 +342,7 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 	// Cookieからリフレッシュトークンを取得（平文）
 	cookie, err := c.Cookie("refresh_token")
 	if err != nil {
+		c.Logger().Errorf("refresh token cookie not found: %v", err)
 		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Message: "リフレッシュトークンが見つかりません",
 			Code:    "REFRESH_TOKEN_NOT_FOUND",
@@ -429,6 +433,7 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 		Name:     "refresh_token",
 		Value:    newRefreshToken,
 		Path:     "/",
+		Domain:   "",                   // 空文字でcurrent hostに設定
 		MaxAge:   7 * 24 * 60 * 60,     // 7日間（秒単位）
 		HttpOnly: true,                 // XSS攻撃を防ぐ
 		Secure:   util.IsProduction(),  // 本番環境のみHTTPS必須
