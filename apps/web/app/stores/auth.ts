@@ -146,30 +146,33 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
+      _fetchUserProfileAfterRefresh: async (): Promise<User> => {
+        const { refreshAccessToken } = get();
+        await refreshAccessToken();
+
+        const { accessToken } = get();
+        if (!accessToken) {
+          throw new Error('認証セッションが確立できませんでした');
+        }
+
+        const headers: HeadersInit = { Authorization: `Bearer ${accessToken}` };
+        const res = await fetch('/api/backend/profile', {
+          headers,
+          credentials: 'include'
+        });
+        if (!res.ok) {
+          throw new Error(`プロファイルの取得に失敗しました：${res.status}`);
+        }
+        return (await res.json()) as User;
+      },
+
       // 手動でのユーザー情報再取得（リトライ機能付き）
       loadCurrentUser: async () => {
-        const { setLoading, refreshAccessToken } = get();
+        const { setLoading, _fetchUserProfileAfterRefresh } = get();
         try {
           setLoading(true);
-          
           // セッションを確立するために、まずトークンをリフレッシュする
-          await refreshAccessToken();
-
-          // ストアから最新のアクセストークンを取得
-          const { accessToken } = get();
-
-          // トークンがなければ認証されていない
-          if (!accessToken) {
-            throw new Error("セッションを確立出来ませんでした");
-          }
-
-          // プロファイル情報を取得
-          const headers: HeadersInit = { Authorization: `Bearer ${accessToken}` };
-          const res = await fetch('/api/backend/profile', { headers, credentials: 'include' });
-          if (!res.ok) {
-            throw new Error(`プロファイルの取得に失敗しました: ${res.status}`);
-          }
-          const user = await res.json() as User;
+          const user = await _fetchUserProfileAfterRefresh();
           set({ user, isLoading: false, error: null, isInitialized: true });
         } catch (error) {
           console.error('Load current user failed:', error);
@@ -188,31 +191,18 @@ export const useAuthStore = create<AuthStore>()(
         try {
           console.log('認証状態を初期化中...');
           set({ isLoading: true });
-          
-          const { refreshAccessToken } = get();
-          await refreshAccessToken();
-          
-          const { accessToken } = get();
-          if (!accessToken) {
-            throw new Error("認証セッションが確立できませんでした");
-          }
 
-          const headers: HeadersInit = { Authorization: `Bearer ${accessToken}` };
-          const res = await fetch('/api/backend/profile', { headers, credentials: 'include' });
-          if (!res.ok) {
-            throw new Error(`プロファイルの取得に失敗しました: ${res.status}`);
-          }
-          const user = await res.json() as User;
+          const user = await get()._fetchUserProfileAfterRefresh();
           console.log('認証状態の初期化完了:', user);
           set({ user, isInitialized: true, isLoading: false, error: null });
         } catch (error) {
           console.log('初期化時の認証確認: ログイン状態ではありません', error);
-          set({ 
-            user: null, 
-            accessToken: null, 
-            isInitialized: true, 
-            isLoading: false, 
-            error: null 
+          set({
+            user: null,
+            accessToken: null,
+            isInitialized: true,
+            isLoading: false,
+            error: null
           });
         }
       },

@@ -47,6 +47,7 @@ export interface AuthActions {
   setError: (error: string | null) => void;
   clearError: () => void;
   setUser: (user: User | null) => void;
+  _fetchUserProfileAfterRefresh: () => Promise<User>;
   loadCurrentUser: () => Promise<void>;
   initializeAuth: () => Promise<void>;
 }
