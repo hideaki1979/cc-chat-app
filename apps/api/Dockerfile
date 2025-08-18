@@ -13,6 +13,14 @@ RUN apk add --no-cache curl git
 RUN mkdir -p /go/pkg /go/bin && \
     chown -R golang:golang /go
 
+# ワーキングディレクトリの所有者を設定（root権限で実行）
+RUN chown -R golang:golang /app
+
+# airが使用するtmpディレクトリを事前に作成（root権限で実行）
+RUN mkdir -p /app/tmp && \
+    chmod 755 /app/tmp && \
+    chown -R golang:golang /app/tmp
+
 # 非rootユーザーに切り替え
 USER golang
 
@@ -27,9 +35,6 @@ RUN go mod download
 
 # ソースコードをコピー
 COPY --chown=golang:golang . .
-
-# airが使用するtmpディレクトリを作成
-RUN mkdir -p tmp && chmod 755 tmp
 
 # PORTを明示的に指定
 EXPOSE 8080

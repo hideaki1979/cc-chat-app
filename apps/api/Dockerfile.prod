@@ -1,0 +1,51 @@
+# Production用マルチステージビルドDockerfile
+# ビルドステージ
+FROM golang:1.24-alpine AS builder
+
+WORKDIR /app
+
+# ビルドに必要なツールをインストール
+RUN apk add --no-cache git
+
+# Goモジュールファイルをコピーして依存関係をダウンロード
+COPY go.mod go.sum ./
+RUN go mod download
+
+# ソースコードをコピーしてビルド
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+
+# 実行ステージ
+FROM alpine:latest
+
+# CA証明書とランタイムツールをインストール
+RUN apk --no-cache add ca-certificates curl
+
+WORKDIR /root/
+
+# 非rootユーザーを作成
+RUN addgroup -g 1001 -S appuser && \
+    adduser -S appuser -u 1001 -G appuser
+
+# アプリケーション用ディレクトリを作成
+RUN mkdir -p /app/tmp && \
+    chown -R appuser:appuser /app
+
+# ビルドステージからバイナリをコピー
+COPY --from=builder /app/main /app/main
+RUN chown appuser:appuser /app/main
+
+# 非rootユーザーに切り替え
+USER appuser
+
+WORKDIR /app
+
+# ポート公開
+EXPOSE 8080
+
+# ヘルスチェック
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# アプリケーション実行
+CMD ["./main"]
