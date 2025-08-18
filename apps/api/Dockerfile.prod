@@ -32,8 +32,7 @@ RUN mkdir -p /app/tmp && \
     chown -R appuser:appuser /app
 
 # ビルドステージからバイナリをコピー
-COPY --from=builder /app/main /app/main
-RUN chown appuser:appuser /app/main
+COPY --chown=appuser:appuser --from=builder /app/main /app/main
 
 # 非rootユーザーに切り替え
 USER appuser

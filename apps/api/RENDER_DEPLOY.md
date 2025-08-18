@@ -78,7 +78,7 @@ FROM alpine:latest
 docker build -f Dockerfile.prod -t test-prod .
 
 # ログ確認
-docker run --rm test-prod
+docker run --rm -e DATABASE_URL=dummy test-prod
 ```
 
 #### データベース接続エラー

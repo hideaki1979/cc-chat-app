@@ -13,9 +13,6 @@ RUN apk add --no-cache curl git
 RUN mkdir -p /go/pkg /go/bin && \
     chown -R golang:golang /go
 
-# ワーキングディレクトリの所有者を設定（root権限で実行）
-RUN chown -R golang:golang /app
-
 # airが使用するtmpディレクトリを事前に作成（root権限で実行）
 RUN mkdir -p /app/tmp && \
     chmod 755 /app/tmp && \
