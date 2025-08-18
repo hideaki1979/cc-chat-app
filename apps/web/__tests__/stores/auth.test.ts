@@ -95,7 +95,7 @@ describe('Auth Store', () => {
 
       const { result } = renderHook(() => useAuthStore())
 
-      let loginResult: boolean = false
+      let loginResult: boolean = true
       await act(async () => {
         loginResult = await result.current.login({
           email: 'test@example.com',

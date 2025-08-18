@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "go run main.go",
-    "build": "go build -o ./tmp/main .",
+    "build": "mkdir -p ./tmp && go build -o ./tmp/main .",
     "test": "go test ./...",
-    "test:coverage": "go test -cover ./...",
+    "test:coverage": "mkdir -p coverage && go test -covermode=atomic -coverprofile=coverage/coverage.out ./...",
     "lint": "golangci-lint run",
-    "clean": "rm -rf ./tmp"
+    "clean": "rm -rf ./tmp ./coverage"
   }
 }
