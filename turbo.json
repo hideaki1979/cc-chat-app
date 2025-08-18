@@ -2,16 +2,39 @@
   "$schema": "https://turborepo.com/schema.json",
   "ui": "tui",
   "globalEnv": ["BACKEND_INTERNAL_URL"],
+  "globalPassThroughEnv": [
+    "NODE_ENV",
+    "CI"
+  ],
+  "globalDependencies": ["package.json", "pnpm-lock.yaml"],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**"],
-      "env": ["BACKEND_INTERNAL_URL"]
+      "dependsOn": ["^build", "check-types"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env*",
+        "!**/*.test.*",
+        "!**/*.spec.*",
+        "!node_modules/**"
+      ],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**", "tmp/**"],
+      "env": ["BACKEND_INTERNAL_URL"],
+      "passThroughEnv": ["NODE_ENV"]
     },
     "build:styles": {
-      "inputs": ["src/**/*.css", "src/**/*.tsx"],
-      "outputs": ["dist/**"]
+      "inputs": [
+        "src/**/*.css",
+        "src/**/*.tsx",
+        "tailwind.config.*",
+        "postcss.config.*"
+      ],
+      "outputs": ["dist/**", "styles/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "env": ["BACKEND_INTERNAL_URL"],
+      "passThroughEnv": ["NODE_ENV", "PORT"]
     },
     "dev:styles": {
       "cache": false,
@@ -19,15 +42,36 @@
     },
     "lint": {
       "dependsOn": ["^lint"],
-      "env": ["BACKEND_INTERNAL_URL"]
+      "inputs": ["src/**/*.{ts,tsx,js,jsx}", ".eslintrc.*", "eslint.config.*"],
+      "outputs": []
+    },
+    "lint:fix": {
+      "cache": false,
+      "inputs": ["src/**/*.{ts,tsx,js,jsx}"]
     },
     "check-types": {
-      "dependsOn": ["^check-types"]
+      "dependsOn": ["^check-types"],
+      "inputs": ["src/**/*.{ts,tsx}", "tsconfig.json", "**/*.d.ts"],
+      "outputs": []
     },
-    "dev": {
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "src/**/*.{ts,tsx,js,jsx}",
+        "**/*.test.*",
+        "**/*.spec.*",
+        "jest.config.*"
+      ],
+      "outputs": ["coverage/**"],
+      "env": ["NODE_ENV"],
+      "passThroughEnv": ["NODE_ENV"]
+    },
+    "test:watch": {
       "cache": false,
-      "persistent": true,
-      "env": ["BACKEND_INTERNAL_URL"]
+      "persistent": true
+    },
+    "clean": {
+      "cache": false
     }
   }
 }

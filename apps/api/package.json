@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "go run main.go"
+    "dev": "go run main.go",
+    "build": "mkdir -p ./tmp && go build -o ./tmp/main .",
+    "test": "go test ./...",
+    "test:coverage": "mkdir -p coverage && go test -covermode=atomic -coverprofile=coverage/coverage.out ./...",
+    "lint": "golangci-lint run",
+    "clean": "rm -rf ./tmp ./coverage"
   }
 }

@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { useAuthStore } from '../../app/stores/auth'
+import type { RegisterResult } from '../../app/types/auth'
 
 // Mock fetch
 global.fetch = jest.fn()
@@ -68,7 +69,7 @@ describe('Auth Store', () => {
 
       const { result } = renderHook(() => useAuthStore())
 
-      let loginResult: boolean
+      let loginResult: boolean = false  // 初期値を設定
       await act(async () => {
         loginResult = await result.current.login({
           email: 'test@example.com',
@@ -94,7 +95,7 @@ describe('Auth Store', () => {
 
       const { result } = renderHook(() => useAuthStore())
 
-      let loginResult: boolean
+      let loginResult: boolean = true
       await act(async () => {
         loginResult = await result.current.login({
           email: 'test@example.com',
@@ -132,7 +133,7 @@ describe('Auth Store', () => {
 
       const { result } = renderHook(() => useAuthStore())
 
-      let registerResult: any
+      let registerResult: RegisterResult = { ok: false }
       await act(async () => {
         registerResult = await result.current.register({
           email: 'newuser@example.com',
@@ -160,7 +161,7 @@ describe('Auth Store', () => {
 
       const { result } = renderHook(() => useAuthStore())
 
-      let registerResult: any
+      let registerResult: RegisterResult = { ok: true }
       await act(async () => {
         registerResult = await result.current.register({
           email: 'existing@example.com',
