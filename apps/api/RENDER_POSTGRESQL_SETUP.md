@@ -127,7 +127,7 @@ sslmode=require
 #### Step 1: ローカル接続テスト（オプション）
 ```bash
 # External URLを使用してローカルからテスト
-psql "postgresql://cc_chat_user:PASSWORD@dpg-XXXXX.oregon-postgres.render.com:5432/cc_chat_db?sslmode=require"
+psql "postgresql://cc_chat_user:<YOUR_PASSWORD>@dpg-XXXXX.oregon-postgres.render.com:5432/cc_chat_db?sslmode=require"
 ```
 
 #### Step 2: アプリケーション接続確認
@@ -144,7 +144,7 @@ curl https://your-app.onrender.com/health
 ```bash
 # 原因: 接続文字列が間違っている
 # 解決: Internal URLを使用しているか確認
-DATABASE_URL=postgresql://cc_chat_user:PASSWORD@dpg-XXXXX:5432/cc_chat_db?sslmode=require
+DATABASE_URL=postgresql://cc_chat_user:<YOUR_PASSWORD>@dpg-XXXXX:5432/cc_chat_db?sslmode=require
 ```
 
 **❌ `authentication failed`**
