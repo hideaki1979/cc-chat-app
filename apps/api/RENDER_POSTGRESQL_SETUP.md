@@ -31,10 +31,10 @@ PostgreSQLサービス詳細ページで以下を確認：
 
 ```bash
 # Internal Database URL (Render内部ネットワーク用)
-postgresql://cc_chat_user:password@dpg-xxxxxxxxx:5432/cc_chat_db
+postgresql://cc_chat_user:<YOUR_PASSWORD>@dpg-xxxxxxxxx:5432/cc_chat_db
 
 # External Database URL (外部接続用)
-postgresql://cc_chat_user:password@dpg-xxxxxxxxx.oregon-postgres.render.com:5432/cc_chat_db
+postgresql://cc_chat_user:<YOUR_PASSWORD>@dpg-xxxxxxxxx.oregon-postgres.render.com:5432/cc_chat_db
 ```
 
 **重要**: アプリサーバーには **Internal URL** を使用（高速・無料）
