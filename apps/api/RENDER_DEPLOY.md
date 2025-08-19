@@ -20,7 +20,7 @@ Renderの環境変数設定で以下を設定：
 
 ```bash
 # データベース接続
-DATABASE_URL=postgres://username:password@hostname:port/database_name?sslmode=require
+DATABASE_URL=postgres://username:<YOUR_PASSWORD>@hostname:port/database_name?sslmode=require
 
 # JWT設定
 JWT_SECRET=your-production-jwt-secret-key-here
