@@ -76,8 +76,8 @@ TZ=Asia/Tokyo
 #### Step 2: 環境変数の値例
 ```bash
 # 実際の例（パスワードとIDは実際の値に置き換え）
-DATABASE_URL=postgresql://cc_chat_user:ABC123xyz789@dpg-ch4k5l6m7n8o:5432/cc_chat_db?sslmode=require
-JWT_SECRET=super-secret-jwt-key-2024-production-render
+DATABASE_URL=postgresql://cc_chat_user:<YOUR_PASSWORD>@dpg-ch4k5l6m7n8o:5432/cc_chat_db?sslmode=require
+JWT_SECRET=super-secret-jwt-key-2024-production-render(openssl rand -hex 32 等で生成したランダム文字列)
 RUN_MIGRATIONS=true
 GO_ENV=production
 FRONTEND_URL=https://your-frontend-app.onrender.com

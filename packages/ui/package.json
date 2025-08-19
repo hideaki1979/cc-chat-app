@@ -4,13 +4,10 @@
   "type": "module",
   "private": true,
   "exports": {
-    "./styles.css": "./dist/index.css",
     "./*": "./src/*.tsx"
   },
   "scripts": {
-    "build:styles": "tailwindcss -i ./src/styles.css -o ./dist/index.css",
     "build:components": "tsc",
-    "dev:styles": "tailwindcss -i ./src/styles.css -o ./dist/index.css --watch",
     "dev:components": "tsc --watch",
     "lint": "eslint . --max-warnings 0",
     "generate:component": "turbo gen react-component",

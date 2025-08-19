@@ -93,7 +93,9 @@ func main() {
 			allowOrigins = []string{frontendURL}
 		} else {
 			// デフォルトの本番環境用設定
-			allowOrigins = []string{"https://*.onrender.com"}
+			// allowOrigins = []string{"https://*.onrender.com"}
+			// 本番環境ではFRONTEND_URLが必須です。設定されていない場合は安全のためにアプリケーションを停止します。
+			log.Fatal("FRONTEND_URL environment variable must be set in production")
 		}
 	}
 	
