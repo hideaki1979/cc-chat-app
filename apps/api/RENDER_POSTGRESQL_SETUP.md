@@ -59,7 +59,12 @@ Goアプリサーバーの **Environment Variables** で設定：
 DATABASE_URL=postgresql://cc_chat_user:GENERATED_PASSWORD@dpg-XXXXX:5432/cc_chat_db?sslmode=require
 
 # アプリケーション設定
-JWT_SECRET=your-super-secure-jwt-secret-key-for-production
+JWT_SECRET=<GENERATED_JWT_SECRET>
+# JWT_SECRET の生成例（Linux/macOS）
+openssl rand -hex 32
+# Windows (PowerShell) の一例
+powershell -Command "$b = New-Object byte[] 32; (New-Object System.Security.Cryptography.RNGCryptoServiceProvider).GetBytes($b); [System.BitConverter]::ToString($b).Replace('-', '').ToLower()"
+
 RUN_MIGRATIONS=true
 # PORT=8080  # ← Renderが自動設定するため不要
 
