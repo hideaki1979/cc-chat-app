@@ -84,11 +84,24 @@ func main() {
 	}))
 
 	e.Use(echoMiddleware.Recover())
+	// CORS設定（環境に応じて動的設定）
+	allowOrigins := []string{"http://localhost:3003"} // 開発環境用
+	if os.Getenv("GO_ENV") == "production" {
+		// 本番環境用のオリジンを設定
+		frontendURL := os.Getenv("FRONTEND_URL")
+		if frontendURL != "" {
+			allowOrigins = []string{frontendURL}
+		} else {
+			// デフォルトの本番環境用設定
+			allowOrigins = []string{"https://*.onrender.com"}
+		}
+	}
+	
 	e.Use(echoMiddleware.CORSWithConfig(echoMiddleware.CORSConfig{
-		AllowOrigins:     []string{"http://localhost:3003"}, // 一時的にすべてのオリジンを許可（デバッグ用）
-		AllowCredentials: true,         // ワイルドカード使用時はfalseにする必要がある
+		AllowOrigins:     allowOrigins,
+		AllowCredentials: true,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Content-Type", "Authorization"}, // すべてのヘッダーを許可
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
 	}))
 
 	// コンテキストにEntクライアントを設定
