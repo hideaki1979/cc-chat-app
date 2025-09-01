@@ -68,7 +68,7 @@ describe('useChatStore', () => {
   describe('初期状態', () => {
     test('初期状態が正しく設定される', () => {
       const { result } = renderHook(() => useChatStore());
-      
+
       expect(result.current.rooms).toEqual([]);
       expect(result.current.currentRoomId).toBeNull();
       expect(result.current.messages).toEqual({});
@@ -81,21 +81,21 @@ describe('useChatStore', () => {
   describe('チャットルーム管理', () => {
     test('ルーム一覧を設定できる', () => {
       const { result } = renderHook(() => useChatStore());
-      
+
       act(() => {
         result.current.setRooms(mockRooms);
       });
-      
+
       expect(result.current.rooms).toEqual(mockRooms);
     });
 
     test('現在のルームを設定できる', () => {
       const { result } = renderHook(() => useChatStore());
-      
+
       act(() => {
         result.current.setCurrentRoom('room1');
       });
-      
+
       expect(result.current.currentRoomId).toBe('room1');
     });
   });
@@ -103,81 +103,81 @@ describe('useChatStore', () => {
   describe('メッセージ管理', () => {
     test('ルーム別にメッセージを設定できる', () => {
       const { result } = renderHook(() => useChatStore());
-      
+
       act(() => {
-        result.current.setMessages('room1', [mockMessages[0], mockMessages[1]]);
-        result.current.setMessages('room2', [mockMessages[2]]);
+        result.current.setMessages('room1', [mockMessages[0]!, mockMessages[1]!]);
+        result.current.setMessages('room2', [mockMessages[2]!]);
       });
-      
+
       expect(result.current.messages['room1']).toHaveLength(2);
       expect(result.current.messages['room2']).toHaveLength(1);
-      expect(result.current.messages['room1'][0]).toEqual(mockMessages[0]);
-      expect(result.current.messages['room2'][0]).toEqual(mockMessages[2]);
+      expect(result.current.messages['room1']![0]).toEqual(mockMessages[0]);
+      expect(result.current.messages['room2']![0]).toEqual(mockMessages[2]);
     });
 
     test('メッセージを追加できる', () => {
       const { result } = renderHook(() => useChatStore());
-      
+
       act(() => {
-        result.current.setMessages('room1', [mockMessages[0]]);
-        result.current.addMessage(mockMessages[1]);
+        result.current.setMessages('room1', [mockMessages[0]!]);
+        result.current.addMessage(mockMessages[1]!);
       });
-      
+
       expect(result.current.messages['room1']).toHaveLength(2);
-      expect(result.current.messages['room1'][1]).toEqual(mockMessages[1]);
+      expect(result.current.messages['room1']![1]).toEqual(mockMessages[1]);
     });
 
     test('存在しないルームにメッセージを追加できる', () => {
       const { result } = renderHook(() => useChatStore());
-      
+
       act(() => {
-        result.current.addMessage(mockMessages[0]);
+        result.current.addMessage(mockMessages[0]!);
       });
-      
+
       expect(result.current.messages['room1']).toHaveLength(1);
-      expect(result.current.messages['room1'][0]).toEqual(mockMessages[0]);
+      expect(result.current.messages['room1']![0]).toEqual(mockMessages[0]);
     });
 
     test('メッセージを更新できる', () => {
       const { result } = renderHook(() => useChatStore());
-      
+
       act(() => {
-        result.current.setMessages('room1', [mockMessages[0]]);
-        result.current.updateMessage('msg1', { 
+        result.current.setMessages('room1', [mockMessages[0]!]);
+        result.current.updateMessage('msg1', {
           content: '更新されたメッセージ',
-          is_edited: true 
+          is_edited: true
         });
       });
-      
-      const updatedMessage = result.current.messages['room1'][0];
-      expect(updatedMessage.content).toBe('更新されたメッセージ');
-      expect(updatedMessage.is_edited).toBe(true);
-      expect(updatedMessage.id).toBe('msg1'); // 他のプロパティは保持される
+
+      const updatedMessage = result.current.messages['room1']![0];
+      expect(updatedMessage?.content).toBe('更新されたメッセージ');
+      expect(updatedMessage?.is_edited).toBe(true);
+      expect(updatedMessage?.id).toBe('msg1'); // 他のプロパティは保持される
     });
 
     test('メッセージを削除できる', () => {
       const { result } = renderHook(() => useChatStore());
-      
+
       act(() => {
         result.current.setMessages('room1', mockMessages.slice(0, 2));
         result.current.removeMessage('msg1');
       });
-      
+
       expect(result.current.messages['room1']).toHaveLength(1);
-      expect(result.current.messages['room1'][0].id).toBe('msg2');
+      expect(result.current.messages['room1']![0]?.id).toBe('msg2');
     });
 
     test('複数ルームから同じIDのメッセージを削除', () => {
       const { result } = renderHook(() => useChatStore());
-      
-      const duplicatedMessage = { ...mockMessages[0], room_id: 'room2' };
-      
+
+      const duplicatedMessage = { ...mockMessages[0]!, room_id: 'room2' };
+
       act(() => {
-        result.current.setMessages('room1', [mockMessages[0]]);
+        result.current.setMessages('room1', [mockMessages[0]!]);
         result.current.setMessages('room2', [duplicatedMessage]);
         result.current.removeMessage('msg1');
       });
-      
+
       expect(result.current.messages['room1']).toHaveLength(0);
       expect(result.current.messages['room2']).toHaveLength(0);
     });
@@ -186,28 +186,28 @@ describe('useChatStore', () => {
   describe('WebSocket接続管理', () => {
     test('接続状態を設定できる', () => {
       const { result } = renderHook(() => useChatStore());
-      
+
       act(() => {
         result.current.setConnectionStatus('connected');
       });
-      
+
       expect(result.current.connectionStatus).toBe('connected');
       expect(result.current.isConnected).toBe(true);
     });
 
     test('接続状態に応じてisConnectedが更新される', () => {
       const { result } = renderHook(() => useChatStore());
-      
+
       act(() => {
         result.current.setConnectionStatus('connecting');
       });
       expect(result.current.isConnected).toBe(false);
-      
+
       act(() => {
         result.current.setConnectionStatus('connected');
       });
       expect(result.current.isConnected).toBe(true);
-      
+
       act(() => {
         result.current.setConnectionStatus('error');
       });
@@ -218,17 +218,17 @@ describe('useChatStore', () => {
   describe('ローディング状態管理', () => {
     test('ローディング状態を設定できる', () => {
       const { result } = renderHook(() => useChatStore());
-      
+
       act(() => {
         result.current.setLoading(true);
       });
-      
+
       expect(result.current.isLoading).toBe(true);
-      
+
       act(() => {
         result.current.setLoading(false);
       });
-      
+
       expect(result.current.isLoading).toBe(false);
     });
   });
@@ -236,51 +236,51 @@ describe('useChatStore', () => {
   describe('ユーティリティ関数', () => {
     test('現在のルームのメッセージを取得できる', () => {
       const { result } = renderHook(() => useChatStore());
-      
+
       act(() => {
         result.current.setMessages('room1', mockMessages.slice(0, 2));
-        result.current.setMessages('room2', [mockMessages[2]]);
+        result.current.setMessages('room2', [mockMessages[2]!]);
         result.current.setCurrentRoom('room1');
       });
-      
+
       const currentMessages = result.current.getCurrentRoomMessages();
       expect(currentMessages).toHaveLength(2);
-      expect(currentMessages[0].id).toBe('msg1');
+      expect(currentMessages[0]?.id).toBe('msg1');
     });
 
     test('ルームが選択されていない場合は空配列を返す', () => {
       const { result } = renderHook(() => useChatStore());
-      
+
       act(() => {
         result.current.setMessages('room1', mockMessages.slice(0, 2));
       });
-      
+
       const currentMessages = result.current.getCurrentRoomMessages();
       expect(currentMessages).toEqual([]);
     });
 
     test('現在のルームのメッセージをクリアできる', () => {
       const { result } = renderHook(() => useChatStore());
-      
+
       act(() => {
         result.current.setMessages('room1', mockMessages.slice(0, 2));
-        result.current.setMessages('room2', [mockMessages[2]]);
+        result.current.setMessages('room2', [mockMessages[2]!]);
         result.current.setCurrentRoom('room1');
         result.current.clearCurrentRoomMessages();
       });
-      
+
       expect(result.current.messages['room1']).toBeUndefined();
       expect(result.current.messages['room2']).toHaveLength(1); // 他のルームは影響なし
     });
 
     test('ルームが選択されていない場合はクリア処理が無視される', () => {
       const { result } = renderHook(() => useChatStore());
-      
+
       act(() => {
         result.current.setMessages('room1', mockMessages.slice(0, 2));
         result.current.clearCurrentRoomMessages();
       });
-      
+
       expect(result.current.messages['room1']).toHaveLength(2); // 変更されない
     });
   });
