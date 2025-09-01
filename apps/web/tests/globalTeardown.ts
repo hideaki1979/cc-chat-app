@@ -1,10 +1,11 @@
-import { FullConfig } from '@playwright/test';
+import type { FullConfig } from '@playwright/test';
 import { execSync } from 'child_process';
 
-async function globalTeardown(config: FullConfig) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function globalTeardown(_config: FullConfig) {
     console.log('👇 Starting global teardown...');
-    console.log('🐳 Taking down Docker containers...');
-    execSync('docker-compose down', { stdio: 'inherit' });
+    const compose = process.env.USE_COMPOSE_V1 === '1' ? 'docker-compose' : 'docker compose';
+    execSync(`${compose} down`, { stdio: 'inherit' });
     console.log('✅ Global teardown complete.');
 }
 

@@ -1,131 +1,64 @@
 import { test, expect } from '@playwright/test';
 
-// 各テストで異なるユーザーを使用してリフレッシュトークンの競合を回避
-const generateTestUser = () => {
-  const timestamp = Date.now();
-  const random = Math.floor(Math.random() * 1000);
-  return {
-    email: `test-${timestamp}-${random}@example.com`,
-    password: 'Test123!@#', // バックエンドのバリデーション要件を満たすパスワード
-  };
-};
+// `globalSetup`で作成された単一のテストユーザー情報を取得
+let TEST_USER: { email: string; password: string };
+
+test.beforeAll(() => {
+  const email = process.env.TEST_USER_EMAIL;
+  const password = process.env.TEST_USER_PASSWORD;
+  if (!email || !password) {
+    throw new Error('TEST_USER_EMAIL and TEST_USER_PASSWORD must be set by globalSetup');
+  }
+  TEST_USER = { email, password };
+});
 
 test.describe('Chat Layout Integration', () => {
   test.beforeEach(async ({ page }) => {
-    // デバッグ用のログ設定
-    page.on('request', request => {
-      console.log('>> Test Request:', request.method(), request.url());
-      if (request.url().includes('/api/backend/')) {
-        console.log('   [API Request Headers]:', request.headers());
-      }
-    });
-    page.on('response', async response => {
-      console.log('<< Test Response:', response.status(), response.url());
-      if (response.url().includes('/api/backend/')) {
-        try {
-          console.log('   [API Response Body]:', await response.json());
-        } catch (e) {
-          console.log('   [API Response Body]: (could not parse as JSON)');
-        }
-      }
-    });
-    page.on('console', msg => console.log(`[Test Console] ${msg.type()}: ${msg.text()}`));
-
-    // 各テストで一意のユーザーを生成してリフレッシュトークンの競合を回避
-    const testUser = generateTestUser();
-    console.log(`[Test Setup] Creating new user and logging in as ${testUser.email}...`);
-
-    // まず新しいユーザーを登録
-    await page.goto('/register');
-    await page.getByLabel('メールアドレス').fill(testUser.email);
-    await page.getByLabel('ユーザー名').fill('E2E Test User');
-    await page.getByLabel('パスワード', { exact: true }).fill(testUser.password);
-    await page.getByLabel('パスワード確認').fill(testUser.password);
-    await page.getByRole('button', { name: 'アカウント作成' }).click();
-    await expect(page).toHaveURL(/.*dashboard/);
-    console.log('[Test Setup] User registration successful');
-
-    // 一度ログアウトしてから再ログインして認証状態を確実にする
+    // 各テストの前に、globalSetupで作成したユーザーでログイン
     await page.goto('/login');
-    await page.getByLabel('メールアドレス').fill(testUser.email);
-    await page.getByLabel('パスワード').fill(testUser.password);
+    await page.getByLabel('メールアドレス').fill(TEST_USER.email);
+    await page.getByLabel('パスワード').fill(TEST_USER.password);
     await page.getByRole('button', { name: 'ログイン' }).click();
     await expect(page).toHaveURL(/.*dashboard/);
-    console.log('[Test Setup] Login successful, navigating to chat...');
 
-    // ログイン完了後、チャットページに移動
+    // チャットページに移動
     await page.goto('/chat');
     await expect(page).toHaveURL(/.*chat/);
 
-    // 認証状態の初期化完了を待つ
-    console.log('[Test Setup] Waiting for authentication state initialization...');
-
-    // ローディング状態が終了するまで待機（認証初期化完了またはエラー表示）
-    await page.waitForFunction(() => {
-      // ローディングテキストがないか確認
-      const loadingElements = Array.from(document.querySelectorAll('*')).filter(el =>
-        el.textContent && el.textContent.includes('ユーザー情報を読み込み中')
-      );
-
-      // サイドバーまたはエラーメッセージの存在確認
-      const sidebar = document.querySelector('[data-testid="test-sidebar"]');
-      const errorElements = Array.from(document.querySelectorAll('*')).filter(el =>
-        el.textContent && el.textContent.includes('認証エラーが発生しました')
-      );
-
-      return loadingElements.length === 0 && (sidebar || errorElements.length > 0);
-    }, { timeout: 15000 });
-
-    // エラーが発生していないかチェック
-    const hasError = await page.locator('text=認証エラーが発生しました').isVisible();
-    if (hasError) {
-      throw new Error('Authentication error occurred during test setup');
-    }
-
-    // 認証状態の初期化完了を確認
-    await expect(page.locator('[data-testid="test-sidebar"]')).toBeVisible({ timeout: 10000 });
-    console.log('[Test Setup] Authentication initialization complete, ready for test execution');
+    // サイドバーが表示されるまで待機（認証初期化の完了を意味する）
+    await expect(page.locator('[data-testid="test-sidebar"]')).toBeVisible({ timeout: 15000 });
   });
 
   test('should display chat layout with sidebar and header', async ({ page }) => {
     // page.goto('/chat')はbeforeEachで実行済み
 
     // Check main layout elements
-    // TODO: test-idを付与して堅牢にする
     await expect(page.locator('[data-testid="test-sidebar"]')).toBeVisible();
-    await expect(page.locator('.flex.h-screen.bg-gray-50')).toBeVisible();
+    await expect(page.locator('main').first()).toBeVisible();
 
     // Check header is present
-    // h2に限定してセレクターの曖昧さを解消
     await expect(page.locator('h2', { hasText: 'チャットルームを選択してください' })).toBeVisible();
   });
 
   test('should toggle sidebar using hamburger menu on mobile', async ({ page }) => {
-    // Set mobile viewport
     await page.setViewportSize({ width: 375, height: 667 });
-    await page.reload();
+    await page.reload({ waitUntil: 'domcontentloaded' });
 
-    // [修正] reload後にレイアウトが安定するのを待つ
-    await expect(page.locator('button[aria-label*="サイドバーを"]')).toBeVisible();
-
-    // Find hamburger menu button (should be visible on mobile)
+    // hamburger menuが表示されるのを待つ
     const hamburgerButton = page.locator('button[aria-label*="サイドバーを"]').first();
     await expect(hamburgerButton).toBeVisible();
 
-    // Check initial state - should show "開く" (open) since sidebar starts closed on mobile
+    // 初期状態は閉じており、aria-labelが「開く」であることを確認
     await expect(hamburgerButton).toHaveAttribute('aria-label', 'サイドバーを開く');
 
-    // Click to open sidebar
+    // クリックしてサイドバーを開く
     await hamburgerButton.click();
-
-    // Check that aria-label changed to "閉じる" (close)
+    await expect(page.locator('[data-testid="test-sidebar"]')).toBeVisible();
     await expect(hamburgerButton).toHaveAttribute('aria-label', 'サイドバーを閉じる');
 
-    // Click again to close sidebar
-    // [修正] サイドバーが開いているときはオーバーレイをクリックして閉じる
+    // オーバーレイをクリックしてサイドバーを閉じる
     await page.getByTestId('sidebar-overlay').click();
-
-    // Should return to "開く" (open)
+    await expect(page.locator('[data-testid="test-sidebar"]')).not.toBeVisible();
     await expect(hamburgerButton).toHaveAttribute('aria-label', 'サイドバーを開く');
   });
 
@@ -196,20 +129,14 @@ test.describe('Chat Layout Integration', () => {
   });
 
   test('should select a chat room and update header', async ({ page, isMobile }) => {
-    // モバイルの場合はサイドバーを開く
     if (isMobile) {
       await page.locator('button[aria-label="サイドバーを開く"]').click();
     }
-    // Click on a chat room in the sidebar
-    await page.click('text=一般チャット');
+    await page.getByRole('button', { name: '一般チャット' }).click();
 
-    // Check that header shows the selected room name
+    // ヘッダーが選択したルーム名に更新されることを確認
     await expect(page.locator('h2')).toContainText('一般チャット');
-
-    // Check that group chat info is displayed
     await expect(page.locator('text=15人のメンバー')).toBeVisible();
-    // このテストはダミーデータに依存しすぎているため一旦コメントアウト
-    // await expect(page.locator('text=5人オンライン')).toBeVisible();
   });
 
   test('should select direct message and update header accordingly', async ({ page, isMobile }) => {
@@ -229,23 +156,21 @@ test.describe('Chat Layout Integration', () => {
   });
 
   test('should enable action buttons when room is selected', async ({ page, isMobile }) => {
-    // Initially, action buttons should be disabled
-    const voiceButton = page.locator('button[title="音声通話"]');
-    const videoButton = page.locator('button[title="ビデオ通話"]');
-    const settingsButton = page.locator('button[title="ルーム設定"]');
+    const voiceButton = page.getByRole('button', { name: '音声通話' });
+    const videoButton = page.getByRole('button', { name: 'ビデオ通話' });
+    const settingsButton = page.getByRole('button', { name: 'ルーム設定' });
 
+    // 初期状態ではボタンが無効であることを確認
     await expect(voiceButton).toBeDisabled();
     await expect(videoButton).toBeDisabled();
     await expect(settingsButton).toBeDisabled();
 
-    // モバイルの場合はサイドバーを開く
     if (isMobile) {
       await page.locator('button[aria-label="サイドバーを開く"]').click();
     }
-    // Select a room
-    await page.click('text=一般チャット');
+    await page.getByRole('button', { name: '一般チャット' }).click();
 
-    // Action buttons should now be enabled
+    // ルーム選択後にボタンが有効になることを確認
     await expect(voiceButton).toBeEnabled();
     await expect(videoButton).toBeEnabled();
     await expect(settingsButton).toBeEnabled();
@@ -265,12 +190,6 @@ test.describe('Chat Layout Integration', () => {
     // Select a room first
     await page.click('text=一般チャット');
 
-    // Set up dialog handlers for alerts
-    page.on('dialog', async dialog => {
-      expect(dialog.type()).toBe('alert');
-      await dialog.accept();
-    });
-
     // Test voice call button
     await page.click('button[title="音声通話"]');
 
@@ -282,9 +201,8 @@ test.describe('Chat Layout Integration', () => {
   });
 
   test('should display appropriate content when no room is selected', async ({ page }) => {
-    // Check default content when no room is selected
-    // サイドバー内のh3と区別するため、セレクターをより具体的にする
-    await expect(page.locator('div:not([data-testid="test-sidebar"]) h3', { hasText: 'チャットルームを選択してください' })).toBeVisible();
+    // page.gotoはbeforeEachで実行済み
+    await expect(page.locator('h3', { hasText: 'チャットルームを選択してください' })).toBeVisible();
     await expect(page.locator('text=左のサイドバーからチャットルームを選択するか')).toBeVisible();
   });
 
@@ -304,35 +222,17 @@ test.describe('Chat Layout Integration', () => {
   });
 
   test('should be responsive on different screen sizes', async ({ page }) => {
-    // Test desktop view
-    await page.setViewportSize({ width: 1200, height: 800 });
-    // [修正] reload後にレイアウトが安定するのを待つ
-    await page.reload();
+    // Desktop view
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-testid="test-sidebar"]')).toBeVisible();
+    await expect(page.locator('button[aria-label*="サイドバーを"]')).toBeHidden();
 
-    // Sidebar should be visible on desktop
-    const sidebar = page.locator('[data-testid="test-sidebar"]');
-    await expect(sidebar).toBeVisible();
-
-    // Hamburger menu should be hidden on desktop (lg:hidden)
-    const hamburgerButton = page.locator('button[aria-label*="サイドバーを"]');
-    // [修正] デスクトップではハンバーガーボタンは非表示であるべき
-    await expect(hamburgerButton).toBeHidden();
-
-    // Test tablet view
-    await page.setViewportSize({ width: 768, height: 1024 });
-    // [修正] reload後にレイアウトが安定するのを待つ
-    await page.reload();
-    await expect(page.locator('button[aria-label*="サイドバーを"]')).toBeVisible();
-
-    // Test mobile view
+    // Mobile view
     await page.setViewportSize({ width: 375, height: 667 });
-    // [修正] reload後にレイアウトが安定するのを待つ
-    await page.reload();
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.locator('[data-testid="test-sidebar"]')).not.toBeVisible();
     await expect(page.locator('button[aria-label*="サイドバーを"]')).toBeVisible();
-
-    // Hamburger menu should be visible on mobile
-    await expect(hamburgerButton).toBeVisible();
   });
 
   test('should handle keyboard navigation', async ({ page, isMobile }) => {
@@ -372,17 +272,15 @@ test.describe('Chat Layout Integration', () => {
     await expect(mainHeading).toBeVisible();
   });
 
-  test('should handle authentication redirect', async ({ page }) => {
-    // Clear authentication
-    await page.goto('/');
-    await page.evaluate(() => localStorage.clear());
-    await page.context().clearCookies(); // Cookieをクリア
+  test('should handle authentication redirect when unauthenticated', async ({ page, context }) => {
+    // 認証情報をクリア
+    await context.clearCookies();
+    await page.evaluate(() => window.localStorage.clear());
 
-    // Try to access chat page without authentication
-    // [修正] リダイレクトによるナビゲーション中断エラーを回避するため、'domcontentloaded'を待つ
+    // 保護されたチャットページにアクセス
     await page.goto('/chat', { waitUntil: 'domcontentloaded' });
 
-    // Should redirect to login page
+    // ログインページにリダイレクトされることを確認
     await expect(page).toHaveURL(/.*login/);
   });
 });

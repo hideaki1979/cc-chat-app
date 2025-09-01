@@ -20,21 +20,26 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const [isComposing, setIsComposing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // テキストエリアの高さを自動調整
+  // テキストエリアの最大高さを設定
+  const MAX_TEXTAREA_HEIGHT = 120; // 約5行分
+
+  // テキストエリアの高さを内容に応じて自動調整する関数
   const adjustTextareaHeight = useCallback((textarea: HTMLTextAreaElement) => {
     textarea.style.height = 'auto';
     const scrollHeight = textarea.scrollHeight;
-    const maxHeight = 120; // 最大高さ（約5行分）
-    textarea.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
+    textarea.style.height = `${Math.min(scrollHeight, MAX_TEXTAREA_HEIGHT)}px`;
   }, []);
 
-  // ref callbackでテキストエリアの高さ調整
-  const textareaRef$ = useCallback((node: HTMLTextAreaElement | null) => {
-    if (node) {
-      textareaRef.current = node;
-      adjustTextareaHeight(node);
-    }
-  }, [adjustTextareaHeight]);
+  // ref callbackを使って、textarea要素がマウントされた時に高さを調整
+  const textareaRef$ = useCallback(
+    (node: HTMLTextAreaElement | null) => {
+      if (node) {
+        textareaRef.current = node;
+        adjustTextareaHeight(node);
+      }
+    },
+    [adjustTextareaHeight],
+  );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
@@ -90,7 +95,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             disabled={true} // 現在は無効
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+              />
             </svg>
           </button>
 
@@ -116,10 +126,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
             {/* 文字数カウンター */}
             {message.length > maxLength * 0.8 && (
-              <div className={`absolute bottom-1 right-12 text-xs ${message.length >= maxLength
+              <div
+                className={`absolute bottom-1 right-12 text-xs ${message.length >= maxLength
                   ? 'text-red-500 dark:text-red-400'
                   : 'text-gray-500 dark:text-gray-400'
-                }`}>
+                  }`}
+              >
                 {message.length}/{maxLength}
               </div>
             )}
@@ -135,7 +147,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             aria-label="メッセージを送信"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+              />
             </svg>
           </Button>
         </div>

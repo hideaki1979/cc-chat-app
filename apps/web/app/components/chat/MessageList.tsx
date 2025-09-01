@@ -40,16 +40,21 @@ export const MessageList: React.FC<MessageListProps> = ({
     }
   }, []);
 
+  // 時間計算用定数
+  const MILLISECONDS_PER_MINUTE = 1000 * 60;
+  const MILLISECONDS_PER_HOUR = MILLISECONDS_PER_MINUTE * 60;
+  const HOURS_PER_DAY = 24;
+
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    
+    const diffHours = Math.floor(diffMs / MILLISECONDS_PER_HOUR);
+
     if (diffHours < 1) {
-      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      const diffMinutes = Math.floor(diffMs / MILLISECONDS_PER_MINUTE);
       return diffMinutes < 1 ? '今' : `${diffMinutes}分前`;
-    } else if (diffHours < 24) {
+    } else if (diffHours < HOURS_PER_DAY) {
       return `${diffHours}時間前`;
     } else {
       return date.toLocaleDateString('ja-JP', {
@@ -82,11 +87,11 @@ export const MessageList: React.FC<MessageListProps> = ({
     }
 
     return (
-      <div
-        key={message.id}
-        className={`flex mb-4 ${isOwn ? 'justify-end' : 'justify-start'}`}
-      >
-        <div className={`flex items-end space-x-2 max-w-xs lg:max-w-md ${isOwn ? 'flex-row-reverse space-x-reverse' : ''}`}>
+      <div key={message.id} className={`flex mb-4 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+        <div
+          className={`flex items-end space-x-2 max-w-xs lg:max-w-md ${isOwn ? 'flex-row-reverse space-x-reverse' : ''
+            }`}
+        >
           {/* アバター（自分のメッセージでない場合のみ表示） */}
           {!isOwn && showSender && (
             <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
@@ -99,37 +104,34 @@ export const MessageList: React.FC<MessageListProps> = ({
           <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
             {/* 送信者名（自分のメッセージでない場合のみ表示） */}
             {!isOwn && showSender && (
-              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 px-2">
-                {message.sender_name}
-              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 px-2">{message.sender_name}</div>
             )}
 
             {/* メッセージバブル */}
             <div
-              className={`px-4 py-2 rounded-2xl ${
-                isOwn
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
-              } ${
-                isOwn
-                  ? 'rounded-br-md'
-                  : 'rounded-bl-md'
-              } max-w-full break-words`}
+              className={`px-4 py-2 rounded-2xl ${isOwn
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
+                } ${isOwn ? 'rounded-br-md' : 'rounded-bl-md'} max-w-full break-words`}
             >
               <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-              
+
               {/* 編集済みマーク */}
               {message.is_edited && (
-                <div className={`text-xs mt-1 ${
-                  isOwn ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
-                }`}>
+                <div
+                  className={`text-xs mt-1 ${isOwn ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
+                    }`}
+                >
                   編集済み
                 </div>
               )}
             </div>
 
             {/* タイムスタンプ */}
-            <div className={`text-xs text-gray-500 dark:text-gray-400 mt-1 px-2 ${isOwn ? 'text-right' : 'text-left'}`}>
+            <div
+              className={`text-xs text-gray-500 dark:text-gray-400 mt-1 px-2 ${isOwn ? 'text-right' : 'text-left'
+                }`}
+            >
               {formatTime(message.created_at)}
             </div>
           </div>
@@ -159,7 +161,11 @@ export const MessageList: React.FC<MessageListProps> = ({
           {messages.length === 0 ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-center text-gray-500 dark:text-gray-400">
-                <svg className="w-12 h-12 mx-auto mb-4 opacity-50" fill="currentColor" viewBox="0 0 20 20">
+                <svg
+                  className="w-12 h-12 mx-auto mb-4 opacity-50"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
                   <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
                   <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z" />
                 </svg>

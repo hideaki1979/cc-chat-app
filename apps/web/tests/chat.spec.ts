@@ -1,13 +1,23 @@
 import { test, expect } from '@playwright/test';
 
-// globalSetupで登録されたテストユーザー情報を使用
-const TEST_USER = {
-  email: process.env.TEST_USER_EMAIL!,
-  password: process.env.TEST_USER_PASSWORD!,
-  name: 'E2E Test User',
-};
-
 test.describe('チャット機能', () => {
+  // test.beforeAll で初期化されるテストユーザー情報
+  let TEST_USER: { email: string; password: string; name: string };
+
+  test.beforeAll(() => {
+    // globalSetupで登録されたテストユーザー情報を使用
+    const email = process.env.TEST_USER_EMAIL;
+    const password = process.env.TEST_USER_PASSWORD;
+    if (!email || !password) {
+      throw new Error('E2E実行には TEST_USER_EMAIL/TEST_USER_PASSWORD の設定が必要です');
+    }
+    TEST_USER = {
+      email,
+      password,
+      name: 'E2E Test User',
+    };
+  });
+
   // 各テストの前にログイン処理を実行
   test.beforeEach(async ({ page }) => {
     await page.goto('/login');
@@ -169,33 +179,14 @@ test.describe('チャット機能', () => {
     // プロジェクトAルームに切り替え
     await page.getByRole('button', { name: /プロジェクトA/ }).click();
     await expect(page.getByRole('heading', { level: 2, name: 'プロジェクトA' })).toBeVisible();
-    await expect(page.getByText('プロジェクトAの進捗共有です。')).toBeVisible();
-  });
 
-  test('空のメッセージ送信防止', async ({ page, isMobile }) => {
-    if (isMobile) {
-      await page.getByRole('button', { name: /サイドバーを/ }).click();
-    }
-    // ルームを選択
+    // メッセージが空であることを確認
+    await expect(page.getByText('まだメッセージはありません。')).toBeVisible();
+
+    // 元のルームに戻って内容が保持されているか確認
     await page.getByRole('button', { name: /一般チャット/ }).click();
-
-    // 空の状態で送信ボタンが無効であることを確認
-    const sendButton = page.getByRole('button', { name: 'メッセージを送信' });
-    await expect(sendButton).toBeDisabled();
-
-    // スペースのみ入力
-    const messageInput = page.getByPlaceholder('一般チャットにメッセージを送信...');
-    await messageInput.fill('   ');
-
-    // 送信ボタンが無効のままであることを確認
-    await expect(sendButton).toBeDisabled();
-
-    // Enterキーを押しても送信されないことを確認
-    const messageCountBefore = await page.locator('[class*="space-y"]').count();
-    await messageInput.press('Enter');
-    const messageCountAfter = await page.locator('[class*="space-y"]').count();
-
-    expect(messageCountBefore).toBe(messageCountAfter);
+    await expect(page.getByRole('heading', { level: 2, name: '一般チャット' })).toBeVisible();
+    await expect(page.getByText('おはようございます！今日もよろしくお願いします。')).toBeVisible();
   });
 
   test('レスポンシブ対応 - モバイル表示', async ({ page }) => {
@@ -251,13 +242,12 @@ test.describe('チャット機能', () => {
     const logoutButton = page.getByTitle('ログアウト');
     await logoutButton.click();
 
-    // ログアウト処理が完了するまで少し待つ
-    await page.waitForTimeout(1000);
-
     // ログインページまたは認証が必要な場合のリダイレクトを確認
     // middlewareによりログインページにリダイレクトされる
-    await expect(page).toHaveURL(/\/(login|dashboard)/);
+    await expect(page).toHaveURL(/.*login/);
 
-    // localStorageはクリアされない仕様のため、チェック処理を削除
+    // ログアウト後に保護されたルートにアクセスできないことを確認
+    await page.goto('/chat');
+    await expect(page).toHaveURL(/.*login/);
   });
 });

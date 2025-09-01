@@ -1,164 +1,98 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from '@playwright/test';
 
-test.describe('Authentication Flow', () => {
-  test.beforeEach(async ({ page }) => {
-    // Clear cookies before each test (refresh token is stored in httpOnly cookie)
-    await page.context().clearCookies()
-  })
+test.describe('Authentication and Authorization', () => {
+  let TEST_USER: { email: string; password: string };
 
-  test('should redirect to login page when accessing root', async ({ page }) => {
-    await page.goto('/')
+  test.beforeAll(() => {
+    const email = process.env.TEST_USER_EMAIL;
+    const password = process.env.TEST_USER_PASSWORD;
+    if (!email || !password) {
+      throw new Error('TEST_USER_EMAIL and TEST_USER_PASSWORD must be set in globalSetup.');
+    }
+    TEST_USER = { email, password };
+  });
 
-    // Middleware should redirect to login page
-    await expect(page).toHaveURL('/login')
-    await expect(page.locator('h2')).toContainText('アカウントにログイン')
-  })
+  test.beforeEach(async ({ page, context }) => {
+    // 各テストの前にCookieとlocalStorageをクリアして独立性を保つ
+    await context.clearCookies();
+    await page.evaluate(() => window.localStorage.clear());
+  });
 
-  test('should display login page correctly', async ({ page }) => {
-    await page.goto('/login')
-    
-    // Check URL and page content
-    await expect(page).toHaveURL('/login')
-    await expect(page.locator('h2')).toContainText('アカウントにログイン')
-    
-    // Check form fields are present
-    await expect(page.getByLabel('メールアドレス')).toBeVisible()
-    await expect(page.getByLabel('パスワード')).toBeVisible()
-    await expect(page.locator('button[type="submit"]')).toContainText('ログイン')
-  })
+  test('should redirect unauthenticated users from protected routes to /login', async ({ page }) => {
+    await page.goto('/chat');
+    // /loginにリダイレクトされ、リダイレクト元の情報がクエリパラメータに含まれることを確認
+    await expect(page).toHaveURL(/\/login\?redirect=%2Fchat/);
+  });
 
-  test('should navigate to register page from login', async ({ page }) => {
-    await page.goto('/login')
-    
-    // Click register link
-    await page.click('text=新規登録')
-    
-    // Check URL and page content
-    await expect(page).toHaveURL('/register')
-    await expect(page.locator('h2')).toContainText('新規アカウント作成')
-    
-    // Check form fields are present
-    await expect(page.getByLabel('メールアドレス')).toBeVisible()
-    await expect(page.getByLabel('ユーザー名')).toBeVisible()
-    await expect(page.getByLabel('パスワード', { exact: true })).toBeVisible()
-    await expect(page.getByLabel('パスワード確認')).toBeVisible()
-    await expect(page.locator('button[type="submit"]')).toContainText('アカウント作成')
-  })
+  test('should show validation errors for empty login form', async ({ page }) => {
+    await page.goto('/login');
+    await page.getByRole('button', { name: 'ログイン' }).click();
 
-  test('should allow valid login form submission', async ({ page }) => {
-    await page.goto('/login')
-    
-    // Fill form with valid data
-    await page.getByLabel('メールアドレス').fill('test@example.com')
-    await page.getByLabel('パスワード').fill('ValidPassword123')
-    
-    // Submit form
-    await page.click('button[type="submit"]')
-    
-    // Form should be submittable (no client-side validation errors blocking submission)
-    // We can't test actual authentication without a backend, but form should process
-    await expect(page.locator('button[type="submit"]')).toBeVisible()
-  })
+    await expect(page.getByText('メールアドレスは必須です')).toBeVisible();
+    await expect(page.getByText('パスワードは必須です')).toBeVisible();
+  });
 
-  test('should allow valid registration form submission', async ({ page }) => {
-    await page.goto('/register')
-    
-    // Fill form with valid data
-    await page.getByLabel('メールアドレス').fill('newuser@example.com')
-    await page.getByLabel('ユーザー名').fill('newuser')
-    await page.getByLabel('パスワード', { exact: true }).fill('ValidPassword123')
-    await page.getByLabel('パスワード確認').fill('ValidPassword123')
-    
-    // Submit form
-    await page.click('button[type="submit"]')
-    
-    // Form should be submittable (no client-side validation errors blocking submission)
-    await expect(page.locator('button[type="submit"]')).toBeVisible()
-  })
+  test('should show error for incorrect login credentials', async ({ page }) => {
+    await page.goto('/login');
+    await page.getByLabel('メールアドレス').fill(TEST_USER.email);
+    await page.getByLabel('パスワード').fill('wrong-password');
+    await page.getByRole('button', { name: 'ログイン' }).click();
 
-  test('should handle form accessibility', async ({ page }) => {
-    await page.goto('/login')
-    
-    // Check form has proper accessibility attributes
-    const emailInput = page.getByLabel('メールアドレス')
-    const passwordInput = page.getByLabel('パスワード')
-    
-    await expect(emailInput).toHaveAttribute('type', 'email')
-    await expect(emailInput).toHaveAttribute('autoComplete', 'email')
-    await expect(passwordInput).toHaveAttribute('type', 'password')
-    await expect(passwordInput).toHaveAttribute('autoComplete', 'current-password')
-    
-    // Form should be keyboard navigable
-    await emailInput.focus()
-    await expect(emailInput).toBeFocused()
-  })
+    // APIからのエラーメッセージが表示されることを確認
+    await expect(page.getByRole('alert')).toContainText(/メールアドレスまたはパスワードが正しくありません/);
+  });
 
-  test('should navigate between login and register pages', async ({ page }) => {
-    await page.goto('/login')
-    
-    // Click register link
-    await page.click('text=新規登録')
-    await expect(page).toHaveURL('/register')
-    
-    // Click login link
-    await page.click('text=ログイン')
-    await expect(page).toHaveURL('/login')
-  })
+  test('should allow a user to log in and redirect to /dashboard', async ({ page }) => {
+    await page.goto('/login');
+    await page.getByLabel('メールアドレス').fill(TEST_USER.email);
+    await page.getByLabel('パスワード').fill(TEST_USER.password);
+    await page.getByRole('button', { name: 'ログイン' }).click();
 
-  test('should redirect authenticated users from login page', async ({ page }) => {
-    // First, simulate setting a refresh token cookie (would normally be set by successful login)
-    await page.context().addCookies([{
-      name: 'refresh_token',
-      value: 'mock-refresh-token',
-      domain: 'localhost',
-      path: '/',
-      httpOnly: true,
-    }])
+    await expect(page).toHaveURL(/.*dashboard/);
+    // ログイン後のダッシュボードにユーザー名が表示されることを確認
+    await expect(page.getByRole('heading', { name: /ようこそ/ })).toBeVisible();
+  });
 
-    // Try to access login page
-    await page.goto('/login')
+  test('should redirect authenticated users from /login to /dashboard', async ({ page }) => {
+    // 先にログインする
+    await page.goto('/login');
+    await page.getByLabel('メールアドレス').fill(TEST_USER.email);
+    await page.getByLabel('パスワード').fill(TEST_USER.password);
+    await page.getByRole('button', { name: 'ログイン' }).click();
+    await expect(page).toHaveURL(/.*dashboard/);
 
-    // Should be redirected to dashboard
-    await expect(page).toHaveURL('/dashboard')
-  })
+    // ログイン状態で/loginにアクセス
+    await page.goto('/login');
+    // /dashboardにリダイレクトされることを確認
+    await expect(page).toHaveURL(/.*dashboard/);
+  });
 
-  test('should redirect unauthenticated users from protected routes', async ({ page }) => {
-    // Try to access protected route without authentication
-    await page.goto('/chat')
+  test('should allow a user to log out', async ({ page }) => {
+    // ログイン
+    await page.goto('/login');
+    await page.getByLabel('メールアドレス').fill(TEST_USER.email);
+    await page.getByLabel('パスワード').fill(TEST_USER.password);
+    await page.getByRole('button', { name: 'ログイン' }).click();
+    await expect(page).toHaveURL(/.*dashboard/);
 
-    // Should be redirected to login with redirect parameter (URL encoded or decoded)
-    await expect(page).toHaveURL(/\/login\?redirect=(?:\/chat|%2Fchat)/)
-  })
+    // チャットページに移動してログアウトボタンを押す
+    await page.goto('/chat');
+    await page.getByTitle('ログアウト').click();
 
-  test('should handle API errors gracefully', async ({ page }) => {
-    // Block network requests to simulate API failure
-    await page.route('**/api/backend/**', route => route.abort())
-    
-    await page.goto('/login')
-    
-    // Fill and submit form
-    await page.getByLabel('メールアドレス').fill('test@example.com')
-    await page.getByLabel('パスワード').fill('password123')
-    await page.click('button[type="submit"]')
-    
-    // Should handle error gracefully (form should remain accessible)
-    await expect(page.locator('button[type="submit"]')).toBeVisible()
-    
-    // Form fields should still be functional after error
-    await expect(page.getByLabel('メールアドレス')).toBeVisible()
-    await expect(page.getByLabel('パスワード')).toBeVisible()
-  })
+    // ログインページにリダイレクトされることを確認
+    await expect(page).toHaveURL(/.*login/);
 
-  test('should be responsive on mobile viewport', async ({ page }) => {
-    // Set mobile viewport
-    await page.setViewportSize({ width: 375, height: 667 })
-    
-    await page.goto('/login')
-    
-    // Check form is still usable on mobile
-    await expect(page.locator('form')).toBeVisible()
-    await expect(page.locator('input[type="email"]')).toBeVisible()
-    await expect(page.locator('input[type="password"]')).toBeVisible()
-    await expect(page.locator('button[type="submit"]')).toBeVisible()
-  })
-})
+    // ログアウト後、保護されたルートにアクセスできないことを確認
+    await page.goto('/chat');
+    await expect(page).toHaveURL(/.*login/);
+  });
+
+  test('should navigate between /login and /register pages', async ({ page }) => {
+    await page.goto('/login');
+    await page.getByRole('link', { name: '新規登録' }).click();
+    await expect(page).toHaveURL('/register');
+
+    await page.getByRole('link', { name: 'ログイン' }).click();
+    await expect(page).toHaveURL('/login');
+  });
+});

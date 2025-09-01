@@ -212,9 +212,12 @@ export default function ChatPage() {
   const handleSendMessage = async (content: string) => {
     if (!selectedRoomId || !user) return;
 
+    // より安全なID生成（UUIDライブラリの使用を推奨）
+    const messageId = `msg_${selectedRoomId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
     // 新しいメッセージを作成
     const newMessage: Message = {
-      id: `msg_${Date.now()}`,
+      id: messageId,
       content,
       sender_id: user.id,
       sender_name: user.name,
@@ -227,7 +230,13 @@ export default function ChatPage() {
     setMessages(prev => [...prev, newMessage]);
 
     // TODO: 実際のAPIコールでメッセージを送信
-    // await api.sendMessage(selectedRoomId, content);
+    try {
+      // await api.sendMessage(selectedRoomId, content);
+    } catch (error) {
+      // API失敗時はメッセージを削除
+      setMessages(prev => prev.filter(msg => msg.id !== messageId));
+      console.error('Failed to send message:', error);
+    }
   };
 
   const handleCreateRoom = () => {
@@ -267,8 +276,8 @@ export default function ChatPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-4">認証エラーが発生しました</p>
-          <button 
-            onClick={() => router.push('/login')} 
+          <button
+            onClick={() => router.push('/login')}
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
             ログイン画面に戻る

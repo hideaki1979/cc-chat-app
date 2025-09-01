@@ -1,4 +1,4 @@
-import { chromium, FullConfig } from '@playwright/test';
+import { FullConfig, request } from '@playwright/test';
 import { execSync } from 'child_process';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -10,16 +10,20 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, '..', '.env.test') });
 
-async function globalSetup(config: FullConfig) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function globalSetup(_config: FullConfig) {
     console.log('🚀 Starting global setup...');
 
     // --- 1. Start Docker Compose ---
     console.log('🐳 Bringing up Docker containers...');
-    execSync('docker-compose up -d --build', { stdio: 'inherit' });
+    const compose = process.env.USE_COMPOSE_V1 === '1' ? 'docker-compose' : 'docker compose';
+    const buildFlag = process.env.PLAYWRIGHT_BUILD_IMAGES === '1' ? ' --build' : '';
+    execSync(`${compose} up -d${buildFlag}`, { stdio: 'inherit' });
+
 
     // --- 2. Wait for services to be healthy ---
-    const frontendUrl = 'http://localhost:3003';
-    const backendUrl = 'http://localhost:8080';
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3003';
+    const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:8080';
 
     console.log(`⏳ Waiting for frontend service at ${frontendUrl}...`);
     await waitForUrl(frontendUrl);
@@ -30,22 +34,16 @@ async function globalSetup(config: FullConfig) {
     // --- 3. Create a test user for this run ---
     const user = {
         email: `test-${Date.now()}@example.com`,
-        password: 'Password123',
+        password: process.env.TEST_USER_PASSWORD ?? `Test-123abc-${Date.now()}`,
         name: 'E2E Test User',
     };
-
     console.log(`👤 Registering test user: ${user.email}`);
 
-    const browser = await chromium.launch();
-    const page = await browser.newPage();
-
+    const api = await request.newContext({ baseURL: backendUrl });
     try {
-        const response = await page.request.post(`${backendUrl}/auth/register`, {
-            data: {
-                email: user.email,
-                password: user.password,
-                name: user.name,
-            },
+        const response = await api.post(`/auth/register`, {
+            data: { email: user.email, password: user.password, name: user.name },
+            timeout: 30_000,
         });
         if (!response.ok()) {
             throw new Error(`Failed to register user: ${await response.text()}`);
@@ -54,10 +52,11 @@ async function globalSetup(config: FullConfig) {
     } catch (error) {
         console.error('❌ Error registering user:', error);
         // Cleanup and exit if user registration fails
-        execSync('docker-compose down', { stdio: 'inherit' });
+        const compose = process.env.USE_COMPOSE_V1 === '1' ? 'docker-compose' : 'docker compose';
+        execSync(`${compose} down`, { stdio: 'inherit' });
         throw error;
     } finally {
-        await browser.close();
+        await api.dispose();
     }
 
     // --- 4. Save the user credentials for tests to use ---
@@ -76,7 +75,8 @@ async function waitForUrl(url: string, timeout = 120000) {
                 console.log(`✅ Service at ${url} is ready.`);
                 return;
             }
-        } catch (error) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (_error) {
             // Ignore fetch errors and retry
         }
         await new Promise(resolve => setTimeout(resolve, 2000));
