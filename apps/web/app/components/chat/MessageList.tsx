@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 
 // メッセージ型定義
 export interface Message {
@@ -45,6 +45,17 @@ export const MessageList: React.FC<MessageListProps> = ({
   const MILLISECONDS_PER_HOUR = MILLISECONDS_PER_MINUTE * 60;
   const HOURS_PER_DAY = 24;
 
+  const dateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat('ja-JP', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+    []
+  );
+
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -57,12 +68,7 @@ export const MessageList: React.FC<MessageListProps> = ({
     } else if (diffHours < HOURS_PER_DAY) {
       return `${diffHours}時間前`;
     } else {
-      return date.toLocaleDateString('ja-JP', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+      return dateFormatter.format(date);
     }
   };
 

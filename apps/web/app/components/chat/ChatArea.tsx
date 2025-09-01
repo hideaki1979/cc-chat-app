@@ -67,7 +67,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full">
+    <div className="relative flex-1 flex flex-col h-full">
       {/* メッセージリスト */}
       <MessageList
         messages={messages}

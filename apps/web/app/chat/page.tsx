@@ -46,7 +46,7 @@ const dummyRooms: ChatRoom[] = [
 ];
 
 // テスト用のダミーメッセージデータ
-const getDummyMessages = (roomId: string): Message[] => {
+const getDummyMessages = (roomId: string, currentUserId: string): Message[] => {
   const baseMessages: Record<string, Message[]> = {
     '1': [ // 一般チャット
       {
@@ -182,7 +182,9 @@ const getDummyMessages = (roomId: string): Message[] => {
     ],
   };
 
-  return baseMessages[roomId] || [];
+  return (baseMessages[roomId] || []).map(m =>
+    m.sender_id === 'current_user' ? {...m, sender_id: currentUserId} : m
+  );
 };
 
 export default function ChatPage() {
