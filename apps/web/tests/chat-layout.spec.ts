@@ -235,14 +235,10 @@ test.describe('Chat Layout Integration', () => {
     await expect(page.locator('button[aria-label*="サイドバーを"]')).toBeVisible();
   });
 
-  test('should handle keyboard navigation', async ({ page, isMobile }) => {
-    // [修正] isMobileの分岐を追加
-    if (isMobile) {
-      // モバイルでは別の要素にフォーカスが当たる可能性があるため、このテストはスキップ
-      test.skip(isMobile, 'Mobile keyboard navigation needs a separate test');
-      return;
-    }
-    // Test keyboard navigation to hamburger button
+  test('should handle keyboard navigation', async ({ page }) => {
+    await page.setViewportSize({width: 375, height: 667});
+    await page.reload();
+    // ハンバーガーにフォーカス
     await page.keyboard.press('Tab');
 
     // Should focus on the hamburger button
