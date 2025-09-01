@@ -216,7 +216,7 @@ export default function ChatPage() {
     const newMessage: Message = {
       id: `msg_${Date.now()}`,
       content,
-      sender_id: 'current_user',
+      sender_id: user.id,
       sender_name: user.name,
       room_id: selectedRoomId,
       created_at: new Date().toISOString(),
@@ -308,7 +308,7 @@ export default function ChatPage() {
         roomId={selectedRoomId}
         roomName={selectedRoom?.name}
         messages={messages}
-        currentUserId="current_user"
+        currentUserId={user?.id}
         onSendMessage={handleSendMessage}
       />
     </ChatLayout>

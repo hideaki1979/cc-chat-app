@@ -50,3 +50,5 @@ cookies.txt
 apps/api/tmp/
 apps/web/playwright-report/
 apps/web/test-results/
+# Playwright auth files
+apps/web/playwright/.auth/

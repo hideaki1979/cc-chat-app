@@ -15,7 +15,7 @@ describe('MessageInput', () => {
     render(<MessageInput onSendMessage={mockOnSendMessage} />);
     
     const textarea = screen.getByPlaceholderText('メッセージを入力してください...');
-    const sendButton = screen.getByRole('button', { name: '' }); // SVGアイコンなので名前なし
+    const sendButton = screen.getByRole('button', { name: 'メッセージを送信' }); // SVGアイコンなので名前なし
     
     // メッセージを入力
     await user.type(textarea, 'テストメッセージ');
