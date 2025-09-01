@@ -6,9 +6,9 @@ export const loginSchema = z.object({
     .min(1, { error: 'メールアドレスは必須です' }),
   password: z
     .string()
-    .min(8, { error: 'パスワードは8文字以上である必要があります' })
-    .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+    .min(1, { error: 'パスワードは必須です' })
+    .refine((val) => val.length >= 8, { error: 'パスワードは8文字以上である必要があります' })
+    .refine((val) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(val), 
       { error: 'パスワードは大文字、小文字、数字を含む必要があります' }
     ),
 });
@@ -28,9 +28,9 @@ export const registerSchema = z
       ),
     password: z
       .string()
-      .min(8, { error: 'パスワードは8文字以上である必要があります' })
-      .regex(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      .min(1, { error: 'パスワードは必須です' })
+      .refine((val) => val.length >= 8, { error: 'パスワードは8文字以上である必要があります' })
+      .refine((val) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(val), 
         { error: 'パスワードは大文字、小文字、数字を含む必要があります' }
       ),
     confirmPassword: z

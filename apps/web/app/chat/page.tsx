@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../stores/auth';
 import { ChatLayout, Sidebar, ChatHeader, type ChatRoom } from '../components/layout';
+import { ChatArea, type Message } from '../components/chat';
 
 // テスト用のダミーデータ
 const dummyRooms: ChatRoom[] = [
@@ -44,11 +45,152 @@ const dummyRooms: ChatRoom[] = [
   },
 ];
 
+// テスト用のダミーメッセージデータ
+const getDummyMessages = (roomId: string): Message[] => {
+  const baseMessages: Record<string, Message[]> = {
+    '1': [ // 一般チャット
+      {
+        id: 'msg_1_1',
+        content: 'おはようございます！今日もよろしくお願いします。',
+        sender_id: 'user_tanaka',
+        sender_name: '田中さん',
+        room_id: '1',
+        created_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+        message_type: 'text',
+      },
+      {
+        id: 'msg_1_2',
+        content: 'おはようございます！今日は会議が多いですね。',
+        sender_id: 'user_sato',
+        sender_name: '佐藤さん',
+        room_id: '1',
+        created_at: new Date(Date.now() - 2.5 * 60 * 60 * 1000).toISOString(),
+        message_type: 'text',
+      },
+      {
+        id: 'msg_1_3',
+        content: 'そうですね。午後の企画会議、準備はいかがですか？',
+        sender_id: 'current_user',
+        sender_name: 'あなた',
+        room_id: '1',
+        created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+        message_type: 'text',
+      },
+      {
+        id: 'msg_1_4',
+        content: '資料の準備は完了しています！\n皆さんもお疲れ様です。',
+        sender_id: 'user_tanaka',
+        sender_name: '田中さん',
+        room_id: '1',
+        created_at: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString(),
+        message_type: 'text',
+      },
+      {
+        id: 'msg_1_5',
+        content: 'ありがとうございます！よろしくお願いします。',
+        sender_id: 'user_yamamoto',
+        sender_name: '山本さん',
+        room_id: '1',
+        created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+        message_type: 'text',
+      },
+    ],
+    '2': [ // 山田太郎との個人チャット
+      {
+        id: 'msg_2_1',
+        content: 'お疲れ様です。明日の会議の件でご相談があります。',
+        sender_id: 'user_yamada',
+        sender_name: '山田太郎',
+        room_id: '2',
+        created_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+        message_type: 'text',
+      },
+      {
+        id: 'msg_2_2',
+        content: 'お疲れ様です！どのような件でしょうか？',
+        sender_id: 'current_user',
+        sender_name: 'あなた',
+        room_id: '2',
+        created_at: new Date(Date.now() - 2.8 * 60 * 60 * 1000).toISOString(),
+        message_type: 'text',
+      },
+      {
+        id: 'msg_2_3',
+        content: '資料の共有方法についてなのですが、事前に送付した方がよろしいでしょうか？',
+        sender_id: 'user_yamada',
+        sender_name: '山田太郎',
+        room_id: '2',
+        created_at: new Date(Date.now() - 2.5 * 60 * 60 * 1000).toISOString(),
+        message_type: 'text',
+      },
+      {
+        id: 'msg_2_4',
+        content: 'そうですね。事前共有があると議論がスムーズになりそうです。\nSlackかメールでお送りいただけますでしょうか？',
+        sender_id: 'current_user',
+        sender_name: 'あなた',
+        room_id: '2',
+        created_at: new Date(Date.now() - 2.3 * 60 * 60 * 1000).toISOString(),
+        message_type: 'text',
+      },
+      {
+        id: 'msg_2_5',
+        content: '承知いたしました。Slackで共有いたします。ありがとうございました！',
+        sender_id: 'user_yamada',
+        sender_name: '山田太郎',
+        room_id: '2',
+        created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+        message_type: 'text',
+      },
+    ],
+    '3': [ // プロジェクトA
+      {
+        id: 'msg_3_1',
+        content: 'プロジェクトAの進捗共有です。\n現在、開発フェーズの80%が完了しています。',
+        sender_id: 'user_project_lead',
+        sender_name: 'プロジェクトリーダー',
+        room_id: '3',
+        created_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+        message_type: 'text',
+      },
+      {
+        id: 'msg_3_2',
+        content: '順調な進捗ですね！テスト工程の準備はいかがでしょうか？',
+        sender_id: 'current_user',
+        sender_name: 'あなた',
+        room_id: '3',
+        created_at: new Date(Date.now() - 5.8 * 60 * 60 * 1000).toISOString(),
+        message_type: 'text',
+      },
+      {
+        id: 'msg_3_3',
+        content: 'テストケースの作成は来週月曜日から開始予定です。',
+        sender_id: 'user_sato',
+        sender_name: '佐藤さん',
+        room_id: '3',
+        created_at: new Date(Date.now() - 5.5 * 60 * 60 * 1000).toISOString(),
+        message_type: 'text',
+      },
+      {
+        id: 'msg_3_4',
+        content: 'レビューお疲れ様でした。指摘事項についても対応完了しています。',
+        sender_id: 'user_sato',
+        sender_name: '佐藤さん',
+        room_id: '3',
+        created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+        message_type: 'text',
+      },
+    ],
+  };
+
+  return baseMessages[roomId] || [];
+};
+
 export default function ChatPage() {
   const router = useRouter();
   const { user, isLoading, isInitialized, logout, initializeAuth } = useAuthStore();
   const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>();
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [initStarted, setInitStarted] = useState(false);
 
   // 初期化処理（一度だけ実行）
@@ -63,6 +205,29 @@ export default function ChatPage() {
     setSelectedRoomId(roomId);
     const room = dummyRooms.find(r => r.id === roomId) || null;
     setSelectedRoom(room);
+    // ルーム選択時にメッセージを読み込み
+    setMessages(getDummyMessages(roomId));
+  };
+
+  const handleSendMessage = async (content: string) => {
+    if (!selectedRoomId || !user) return;
+
+    // 新しいメッセージを作成
+    const newMessage: Message = {
+      id: `msg_${Date.now()}`,
+      content,
+      sender_id: 'current_user',
+      sender_name: user.name,
+      room_id: selectedRoomId,
+      created_at: new Date().toISOString(),
+      message_type: 'text',
+    };
+
+    // メッセージをローカル状態に追加
+    setMessages(prev => [...prev, newMessage]);
+
+    // TODO: 実際のAPIコールでメッセージを送信
+    // await api.sendMessage(selectedRoomId, content);
   };
 
   const handleCreateRoom = () => {
@@ -138,50 +303,14 @@ export default function ChatPage() {
         />
       )}
     >
-      {/* メインチャットエリア */}
-      <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        {selectedRoom ? (
-          <div className="text-center p-8">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
-                <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              {selectedRoom.name}
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              {selectedRoom.is_group_chat
-                ? `${selectedRoom.member_count}人のメンバー`
-                : 'ダイレクトメッセージ'
-              }
-            </p>
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <p className="text-blue-700 dark:text-blue-400">
-                メッセージ機能は次のフェーズで実装予定です。<br />
-                現在はレイアウトコンポーネントのテスト表示中です。
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center p-8">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
-              <svg className="w-8 h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
-                <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              チャットルームを選択してください
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              左のサイドバーからチャットルームを選択するか、<br />
-              新規ルームを作成してチャットを開始しましょう。
-            </p>
-          </div>
-        )}
-      </div>
+      {/* チャットメインエリア */}
+      <ChatArea
+        roomId={selectedRoomId}
+        roomName={selectedRoom?.name}
+        messages={messages}
+        currentUserId="current_user"
+        onSendMessage={handleSendMessage}
+      />
     </ChatLayout>
   );
 }
