@@ -28,7 +28,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     textarea.style.height = 'auto';
     const scrollHeight = textarea.scrollHeight;
     textarea.style.height = `${Math.min(scrollHeight, MAX_TEXTAREA_HEIGHT)}px`;
-  }, []);
+  }, [MAX_TEXTAREA_HEIGHT]);
 
   // ref callbackを使って、textarea要素がマウントされた時に高さを調整
   const textareaRef$ = useCallback(

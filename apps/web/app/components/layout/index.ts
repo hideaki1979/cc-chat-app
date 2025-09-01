@@ -5,7 +5,7 @@ export { ChatHeader } from './ChatHeader';
 export { Navigation } from './Navigation';
 
 // 型定義もエクスポート（将来的にAPIと連携するため）
-export type { ChatRoom } from '../types/chat';
+export type { ChatRoom } from '../../types/chat';
 
 // レスポンシブ対応とダークモード切り替え用のカスタムフック
 export { useTheme } from './hooks/useTheme';
