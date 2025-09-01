@@ -1,8 +1,12 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { MessageList, type Message } from './MessageList';
 import { MessageInput } from './MessageInput';
+import { MessageList } from './MessageList';
+import type { Message } from '../../types/chat';
+
+export { MessageInput, MessageList };
+export type { Message };
 
 interface ChatAreaProps {
   roomId?: string;

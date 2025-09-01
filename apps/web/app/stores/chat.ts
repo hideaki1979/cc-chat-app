@@ -1,8 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import type { Message } from '../components/chat';
-import type { ChatRoom } from '../components/layout';
+import type { Message, ChatRoom } from '../types/chat';
 
 interface ChatState {
   // チャットルーム関連
@@ -80,7 +79,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const idx = roomMessages.findIndex((m) => m.id === messageId);
         if (idx !== -1) {
           const next = roomMessages.slice();
-          next[idx] = { ...roomMessages[idx], ...updates };
+          next[idx] = { ...roomMessages[idx], ...updates } as Message;
           newMessages[roomId] = next;
           changed = true;
         } else {

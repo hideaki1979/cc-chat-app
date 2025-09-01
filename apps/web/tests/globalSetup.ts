@@ -70,8 +70,12 @@ async function waitForUrl(url: string, timeout = 120000) {
     const startTime = Date.now();
     while (Date.now() - startTime < timeout) {
         try {
-            const response = await fetch(url);
-            if (response.ok) {
+            const response = await fetch(url, {
+                method: "HEAD",
+                redirect: "follow",
+                signal: AbortSignal.timeout(5000),
+            });
+            if (response.status >= 200 && response.status < 400) {
                 console.log(`✅ Service at ${url} is ready.`);
                 return;
             }

@@ -51,7 +51,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   const handleSendMessage = useCallback(() => {
     const trimmedMessage = message.trim();
-    if (!trimmedMessage || disabled) return;
+    if (!trimmedMessage || disabled || isComposing) return;
 
     onSendMessage(trimmedMessage);
     setMessage('');
@@ -60,7 +60,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-  }, [message, disabled, onSendMessage]);
+  }, [message, disabled, isComposing, onSendMessage]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // IME入力中は送信しない
@@ -81,7 +81,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     setIsComposing(false);
   };
 
-  const canSend = message.trim().length > 0 && !disabled;
+  const canSend = message.trim().length > 0 && !disabled && !isComposing;
 
   return (
     <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">

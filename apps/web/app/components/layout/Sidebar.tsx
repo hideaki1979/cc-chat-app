@@ -2,20 +2,7 @@
 
 import React from 'react';
 import { Button } from '@repo/ui/button';
-
-// チャットルーム型定義（将来のAPI連携用）
-export interface ChatRoom {
-  id: string;
-  name: string;
-  is_group_chat: boolean;
-  member_count?: number;
-  last_message?: {
-    content: string;
-    sender_name: string;
-    created_at: string;
-  };
-  updated_at: string;
-}
+import type { ChatRoom } from '../../types/chat';
 
 interface SidebarProps {
   rooms?: ChatRoom[];

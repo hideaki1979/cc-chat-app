@@ -1,20 +1,8 @@
 'use client';
 
-import React, { useCallback, useMemo, useRef } from 'react';
-
-// メッセージ型定義
-export interface Message {
-  id: string;
-  content: string;
-  sender_id: string;
-  sender_name: string;
-  room_id: string;
-  created_at: string;
-  updated_at?: string;
-  message_type?: 'text' | 'image' | 'file' | 'system';
-  is_edited?: boolean;
-  reply_to_message_id?: string;
-}
+import React, { useMemo, useRef } from 'react';
+import type { Message } from '../../types/chat';
+import { useAutoScroll } from '../layout/hooks/useAutoScroll';
 
 interface MessageListProps {
   messages: Message[];
@@ -32,13 +20,8 @@ export const MessageList: React.FC<MessageListProps> = ({
   hasMore = false,
 }) => {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-
-  // ref callbackを使った自動スクロール（新しいメッセージ追加時）
-  const scrollToBottom = useCallback((node: HTMLDivElement | null) => {
-    if (node) {
-      node.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, []);
+  // カスタムフックで自動スクロール機能を利用
+  const bottomRef = useAutoScroll(messages.length);
 
   // 時間計算用定数
   const MILLISECONDS_PER_MINUTE = 1000 * 60;
@@ -183,7 +166,7 @@ export const MessageList: React.FC<MessageListProps> = ({
             <>
               {messages.map((message, index) => renderMessage(message, index))}
               {/* ref callbackで自動スクロール - 最新メッセージが追加された時に呼び出される */}
-              <div ref={scrollToBottom} />
+              <div ref={bottomRef} />
             </>
           )}
         </div>

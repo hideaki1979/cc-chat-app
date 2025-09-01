@@ -3,8 +3,9 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../stores/auth';
-import { ChatLayout, Sidebar, ChatHeader, type ChatRoom } from '../components/layout';
-import { ChatArea, type Message } from '../components/chat';
+import { ChatLayout, Sidebar, ChatHeader } from '../components/layout';
+import { ChatArea } from '../components/chat';
+import type { Message, ChatRoom } from '../types/chat';
 
 // テスト用のダミーデータ
 const dummyRooms: ChatRoom[] = [
@@ -183,7 +184,7 @@ const getDummyMessages = (roomId: string, currentUserId: string): Message[] => {
   };
 
   return (baseMessages[roomId] || []).map(m =>
-    m.sender_id === 'current_user' ? {...m, sender_id: currentUserId} : m
+    m.sender_id === 'current_user' ? { ...m, sender_id: currentUserId } : m
   );
 };
 
@@ -208,7 +209,7 @@ export default function ChatPage() {
     const room = dummyRooms.find(r => r.id === roomId) || null;
     setSelectedRoom(room);
     // ルーム選択時にメッセージを読み込み
-    setMessages(getDummyMessages(roomId));
+    setMessages(getDummyMessages(roomId, user?.id || ''));
   };
 
   const handleSendMessage = async (content: string) => {
