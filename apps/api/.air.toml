@@ -1,52 +1,94 @@
+# Air（ホットリロードツール）の設定ファイル
+
+# プロジェクトのルートディレクトリを指定
 root = "."
+# テストデータディレクトリを指定
 testdata_dir = "testdata"
+# 一時ファイルの保存ディレクトリを指定
 tmp_dir = "tmp"
 
 [build]
+  # バイナリ実行時に渡す引数のリスト
   args_bin = []
+  # ビルドされたバイナリファイルの出力パス
   bin = "./tmp/main"
+  # ビルドコマンドを指定
   cmd = "go build -o ./tmp/main ."
+  # ファイル変更検知後、ビルドを開始するまでの遅延時間（ミリ秒）
   delay = 1000
+  # 監視対象から除外するディレクトリのリスト
   exclude_dir = ["assets", "tmp", "vendor", "testdata"]
+  # 監視対象から除外するファイルのリスト
   exclude_file = []
+  # 正規表現で監視対象から除外するファイルパターン
   exclude_regex = ["_test.go"]
+  # 変更されていないファイルを除外するかどうか
   exclude_unchanged = false
+  # シンボリックリンクをたどるかどうか
   follow_symlink = false
+  # フルパスでバイナリを実行する場合のパス
   full_bin = ""
+  # 監視対象に含めるディレクトリのリスト
   include_dir = []
+  # 監視対象とする拡張子のリスト
   include_ext = ["go", "tpl", "tmpl", "html"]
+  # 監視対象に含める特定ファイルのリスト
   include_file = []
+  # プロセス終了時の待機時間
   kill_delay = "0s"
+  # ビルドエラーログの出力ファイル
   log = "build-errors.log"
+  # ポーリングモードを使用するかどうか
   poll = false
+  # ポーリング間隔（ミリ秒）
   poll_interval = 0
+  # ビルド後に実行するコマンドのリスト
   post_cmd = []
+  # ビルド前に実行するコマンドのリスト
   pre_cmd = []
+  # 再実行するかどうか
   rerun = false
+  # 再実行時の遅延時間（ミリ秒）
   rerun_delay = 500
+  # プロセスに割り込み信号を送信するかどうか
   send_interrupt = false
+  # エラー時に停止するかどうか
   stop_on_error = false
 
 [color]
+  # アプリケーションログの色設定
   app = ""
+  # ビルドログの色設定
   build = "yellow"
+  # メインログの色設定
   main = "magenta"
+  # ランナーログの色設定
   runner = "green"
+  # ウォッチャーログの色設定
   watcher = "cyan"
 
 [log]
+  # メインプロセスのログのみ表示するかどうか
   main_only = false
+  # サイレントモード（ログを表示しない）
   silent = false
+  # ログに時刻を表示するかどうか
   time = false
 
 [misc]
+  # 終了時に一時ファイルをクリーンアップするかどうか
   clean_on_exit = false
 
 [proxy]
+  # アプリケーションポート（0は無効）
   app_port = 0
+  # プロキシ機能を有効にするかどうか
   enabled = false
+  # プロキシポート（0は無効）
   proxy_port = 0
 
 [screen]
+  # リビルド時に画面をクリアするかどうか
   clear_on_rebuild = false
+  # スクロール位置を保持するかどうか
   keep_scroll = true

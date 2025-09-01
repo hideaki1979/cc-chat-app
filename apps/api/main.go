@@ -98,7 +98,7 @@ func main() {
 			log.Fatal("FRONTEND_URL environment variable must be set in production")
 		}
 	}
-	
+
 	e.Use(echoMiddleware.CORSWithConfig(echoMiddleware.CORSConfig{
 		AllowOrigins:     allowOrigins,
 		AllowCredentials: true,
@@ -123,6 +123,10 @@ func main() {
 	// ヘルスチェック
 	e.GET(healthCheckPath, healthCheck)
 
+	e.GET("/", func(c echo.Context) error {
+		return c.String(http.StatusOK, "Hello, world!")
+	})
+
 	// 認証関連のエンドポイント（JWT認証不要）
 	authGroup := e.Group("/auth")
 	authGroup.POST("/register", authHandler.Register)
@@ -133,7 +137,7 @@ func main() {
 	// 認証が必要なエンドポイント
 	protectedGroup := e.Group("/api")
 	protectedGroup.Use(middleware.JWTAuth())
-	
+
 	// ユーザー関連
 	protectedGroup.GET("/profile", authHandler.Profile)
 	protectedGroup.PUT("/profile", authHandler.UpdateProfile)

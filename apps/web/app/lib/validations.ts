@@ -29,10 +29,7 @@ export const registerSchema = z
     password: z
       .string()
       .min(8, { error: 'パスワードは8文字以上である必要があります' })
-      .regex(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-        { error: 'パスワードは大文字、小文字、数字を含む必要があります' }
-      ),
+      .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, { error: 'パスワードは大文字、小文字、数字を含む必要があります' }),
     confirmPassword: z
       .string()
       .min(1, { error: 'パスワードの確認は必須です' }),

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -18,11 +18,31 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
   sidebar,
   header,
 }) => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  // 画面幅に応じてサイドバーの初期状態を決定
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  useEffect(() => {
+    const checkSize = () => {
+      // サーバーサイドでは常にfalse、クライアントでの初回マウント時に判定
+      setIsSidebarOpen(window.innerWidth >= 1024); // lgブレークポイント
+    };
+
+    if (typeof window !== 'undefined') {
+      checkSize();
+    }
+    setIsInitialLoad(false);
+  }, []);
+
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
+
+  // 初期読み込み時はちらつき防止のため何も表示しない
+  if (isInitialLoad && typeof window !== 'undefined') {
+    return null;
+  }
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
@@ -44,6 +64,7 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
           className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
           onClick={toggleSidebar}
           aria-hidden="true"
+          data-testid="sidebar-overlay"
         />
       )}
 

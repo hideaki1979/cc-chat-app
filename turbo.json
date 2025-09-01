@@ -1,11 +1,16 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "ui": "tui",
-  "globalEnv": ["BACKEND_INTERNAL_URL"],
-  "globalPassThroughEnv": [
-    "NODE_ENV",
-    "CI"
+  "globalEnv": [
+    "BACKEND_INTERNAL_URL",
+    "TEST_USER_EMAIL",
+    "TEST_USER_PASSWORD",
+    "USE_COMPOSE_V1",
+    "PLAYWRIGHT_BUILD_IMAGES",
+    "FRONTEND_URL",
+    "BACKEND_URL"
   ],
+  "globalPassThroughEnv": ["NODE_ENV", "CI"],
   "globalDependencies": ["package.json", "pnpm-lock.yaml"],
   "tasks": {
     "build": {

@@ -2,20 +2,7 @@
 
 import React from 'react';
 import { Button } from '@repo/ui/button';
-
-// チャットルーム型定義（将来のAPI連携用）
-export interface ChatRoom {
-  id: string;
-  name: string;
-  is_group_chat: boolean;
-  member_count?: number;
-  last_message?: {
-    content: string;
-    sender_name: string;
-    created_at: string;
-  };
-  updated_at: string;
-}
+import type { ChatRoom } from '../../types/chat';
 
 interface SidebarProps {
   rooms?: ChatRoom[];
@@ -43,7 +30,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const hours = Math.floor(diff / (1000 * 60 * 60));
-    
+
     if (hours < 1) {
       const minutes = Math.floor(diff / (1000 * 60));
       return `${minutes}分前`;
@@ -58,7 +45,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-800">
+    <div
+      className="flex flex-col h-full bg-white dark:bg-gray-800"
+      data-testid="test-sidebar"
+    >
       {/* ヘッダー部分 */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-4">
@@ -74,7 +64,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             新規ルーム
           </Button>
         </div>
-        
+
         {/* ユーザー情報 */}
         {user && (
           <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
@@ -124,10 +114,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className={`
                   w-full text-left p-3 rounded-lg transition-colors duration-200
                   hover:bg-gray-100 dark:hover:bg-gray-700
-                  ${
-                    currentRoomId === room.id
-                      ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500'
-                      : ''
+                  ${currentRoomId === room.id
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500'
+                    : ''
                   }
                 `}
               >
@@ -143,7 +132,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         </span>
                       )}
                     </div>
-                    
+
                     {room.last_message ? (
                       <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
                         {room.last_message.sender_name}: {room.last_message.content}
@@ -154,7 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </p>
                     )}
                   </div>
-                  
+
                   <div className="flex flex-col items-end ml-2">
                     <span className="text-xs text-gray-500 dark:text-gray-400">
                       {formatTime(room.updated_at)}

@@ -36,7 +36,7 @@ export const FormHeader: React.FC<FormHeaderProps> = ({
 }) => {
     return (
         <div className="text-center mb-6">
-            <div className="mx-auto h-14 w-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mb-4">
+            <div className="mx-auto h-10 w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mb-4">
                 {icon}
             </div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
