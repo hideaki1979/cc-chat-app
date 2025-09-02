@@ -1,4 +1,3 @@
-import { time } from 'console';
 import { NextResponse } from 'next/server';
 
 const BACKEND_URL = process.env.BACKEND_INTERNAL_URL || 'http://backend:8080';
