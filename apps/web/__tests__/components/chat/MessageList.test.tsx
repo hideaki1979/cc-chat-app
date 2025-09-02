@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { MessageList, type Message } from '../../../app/components/chat/MessageList';
+import { MessageList } from '../../../app/components/chat/MessageList';
+import { Message } from '../../../app/types/chat';
 
 // モックデータ
 const mockMessages: Message[] = [
@@ -62,7 +63,7 @@ describe('MessageList', () => {
 
   test('メッセージが正しく表示される', () => {
     render(<MessageList messages={mockMessages} currentUserId="current_user" />);
-    
+
     expect(screen.getByText('こんにちは！')).toBeInTheDocument();
     expect(screen.getAllByText((_, element) => {
       return element?.textContent === 'お疲れ様です。\n今日はいい天気ですね。';
@@ -73,14 +74,14 @@ describe('MessageList', () => {
 
   test('送信者名が正しく表示される', () => {
     render(<MessageList messages={mockMessages} currentUserId="current_user" />);
-    
+
     expect(screen.getAllByText('田中さん')).toHaveLength(2);
     expect(screen.queryByText('あなた')).not.toBeInTheDocument(); // 自分のメッセージには送信者名が表示されない
   });
 
   test('自分のメッセージが右側に表示される', () => {
     render(<MessageList messages={mockMessages} currentUserId="current_user" />);
-    
+
     // 自分のメッセージを含む要素を探す
     const myMessage = screen.getByText('お疲れ様です。').closest('.flex');
     expect(myMessage).toHaveClass('justify-end');
@@ -88,7 +89,7 @@ describe('MessageList', () => {
 
   test('他人のメッセージが左側に表示される', () => {
     render(<MessageList messages={mockMessages} currentUserId="current_user" />);
-    
+
     // 他人のメッセージを含む要素を探す
     const otherMessage = screen.getByText('こんにちは！').closest('.flex');
     expect(otherMessage).toHaveClass('justify-start');
@@ -96,7 +97,7 @@ describe('MessageList', () => {
 
   test('システムメッセージが中央に表示される', () => {
     render(<MessageList messages={mockMessages} currentUserId="current_user" />);
-    
+
     // システムメッセージを含む要素を探す
     const systemMessage = screen.getByText('システムメッセージです').closest('.flex');
     expect(systemMessage).toHaveClass('justify-center');
@@ -104,13 +105,13 @@ describe('MessageList', () => {
 
   test('編集済みマークが表示される', () => {
     render(<MessageList messages={mockMessages} currentUserId="current_user" />);
-    
+
     expect(screen.getByText('編集済み')).toBeInTheDocument();
   });
 
   test('時刻フォーマットが正しく表示される', () => {
     render(<MessageList messages={mockMessages} currentUserId="current_user" />);
-    
+
     // 時刻表示を確認（正確な値は動的なので存在確認のみ）
     expect(screen.getByText('1時間前')).toBeInTheDocument();
     expect(screen.getByText('30分前')).toBeInTheDocument();
@@ -120,7 +121,7 @@ describe('MessageList', () => {
 
   test('メッセージがない場合の表示', () => {
     render(<MessageList messages={[]} currentUserId="current_user" />);
-    
+
     expect(screen.getByText('メッセージはまだありません')).toBeInTheDocument();
     expect(screen.getByText('最初のメッセージを送信してチャットを開始しましょう')).toBeInTheDocument();
   });
@@ -136,7 +137,7 @@ describe('MessageList', () => {
         hasMore={true}
       />
     );
-    
+
     expect(screen.getByText('読み込み中...')).toBeInTheDocument();
   });
 
@@ -150,17 +151,17 @@ describe('MessageList', () => {
         hasMore={true}
       />
     );
-    
+
     const loadMoreButton = screen.getByText('過去のメッセージを読み込む');
     expect(loadMoreButton).toBeInTheDocument();
-    
+
     loadMoreButton.click();
     expect(mockOnLoadMore).toHaveBeenCalledTimes(1);
   });
 
   test('アバターが正しく表示される', () => {
     render(<MessageList messages={mockMessages} currentUserId="current_user" />);
-    
+
     // 田中さんのアバター（名前の最初の文字）
     const avatars = screen.getAllByText('田');
     expect(avatars.length).toBeGreaterThan(0);
@@ -168,7 +169,7 @@ describe('MessageList', () => {
 
   test('改行が正しく処理される', () => {
     render(<MessageList messages={mockMessages} currentUserId="current_user" />);
-    
+
     // 改行を含むメッセージが存在することを確認
     expect(screen.getByText((_, element) => {
       return Boolean(element?.textContent?.includes('お疲れ様です。') && element?.textContent?.includes('今日はいい天気ですね。'));
@@ -178,16 +179,16 @@ describe('MessageList', () => {
   test('ref callbackによる自動スクロール', async () => {
     const firstMessage = mockMessages[0];
     if (!firstMessage) throw new Error('Test message not found');
-    
+
     const { rerender } = render(
       <MessageList messages={[firstMessage]} currentUserId="current_user" />
     );
-    
+
     // 新しいメッセージを追加して再レンダリング
     rerender(
       <MessageList messages={mockMessages} currentUserId="current_user" />
     );
-    
+
     // scrollIntoView が呼ばれることを確認
     await waitFor(() => {
       expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
