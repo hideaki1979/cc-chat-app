@@ -46,7 +46,7 @@ export async function proxyRequest(request: Request, backendPath: string): Promi
 
         // URL生成
         const backendUrl = `${BACKEND_URL}${backendPath}${incomingUrl.search}`
-        const backendRes = await fetch(backendUrl, {...fetchOptions, signal: controller.signal});
+        const backendRes = await fetch(backendUrl, { ...fetchOptions, signal: controller.signal });
         clearTimeout(timeoutId);
         const bodyText = await backendRes.text();
         const response = new NextResponse(bodyText, {
@@ -92,9 +92,9 @@ export async function proxyRequest(request: Request, backendPath: string): Promi
         return response;
     } catch (err) {
         if (err instanceof DOMException && err.name === 'AbortError') {
-            return new NextResponse(JSON.stringify({message: "Upstream timeout."}), {
+            return new NextResponse(JSON.stringify({ message: "Upstream timeout." }), {
                 status: 504,
-                headers: {'Content-Type': 'applicaiton/json'},
+                headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
             });
         }
         console.error(`Proxy request to ${backendPath} failed:`, err);
