@@ -91,7 +91,7 @@ export async function proxyRequest(request: Request, backendPath: string): Promi
 
         return response;
     } catch (err) {
-        if ((err as any)?.name === 'AbortError') {
+        if (err instanceof DOMException && err.name === 'AbortError') {
             return new NextResponse(JSON.stringify({message: "Upstream timeout."}), {
                 status: 504,
                 headers: {'Content-Type': 'applicaiton/json'},
