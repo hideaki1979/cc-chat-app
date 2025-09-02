@@ -1,4 +1,4 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useChat } from '../../app/hooks/useChat';
 import { useChatStore } from '../../app/stores/chat';
 import { api } from '../../app/lib/api';
@@ -20,6 +20,8 @@ const mockStoreState = {
   setMessages: jest.fn(),
   addMessage: jest.fn(),
   setLoading: jest.fn(),
+  beginLoading: jest.fn(),
+  endLoading: jest.fn(),
   getCurrentRoomMessages: jest.fn(() => []),
 };
 
@@ -57,9 +59,9 @@ describe('useChat', () => {
       });
 
       expect(mockedApi.get).toHaveBeenCalledWith('/api/backend/chatrooms');
-      expect(mockStoreState.setLoading).toHaveBeenCalledWith(true);
+      expect(mockStoreState.beginLoading).toHaveBeenCalled();
       expect(mockStoreState.setRooms).toHaveBeenCalledWith(mockRooms);
-      expect(mockStoreState.setLoading).toHaveBeenCalledWith(false);
+      expect(mockStoreState.endLoading).toHaveBeenCalled();
     });
 
     it('should handle fetch rooms error', async () => {
@@ -73,17 +75,46 @@ describe('useChat', () => {
       })).rejects.toThrow('Network error');
 
       expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch rooms:', expect.any(Error));
-      expect(mockStoreState.setLoading).toHaveBeenCalledWith(true);
-      expect(mockStoreState.setLoading).toHaveBeenCalledWith(false);
+      expect(mockStoreState.beginLoading).toHaveBeenCalled();
+      expect(mockStoreState.endLoading).toHaveBeenCalled();
 
       consoleSpy.mockRestore();
     });
   });
 
   describe('fetchMessages', () => {
-    it('should fetch messages successfully', async () => {
+    it('should fetch messages successfully and sort them by created_at', async () => {
       const roomId = 'room1';
+      // 意図的にソートされていない順序のテストデータ
       const mockMessages = [
+        {
+          id: '3',
+          content: 'Latest message',
+          sender_id: 'user3',
+          sender_name: 'User 3',
+          room_id: roomId,
+          created_at: '2024-01-01T00:02:00Z' // 最新
+        },
+        {
+          id: '1',
+          content: 'Hello',
+          sender_id: 'user1',
+          sender_name: 'User 1',
+          room_id: roomId,
+          created_at: '2024-01-01T00:00:00Z' // 最古
+        },
+        {
+          id: '2',
+          content: 'Hi',
+          sender_id: 'user2',
+          sender_name: 'User 2',
+          room_id: roomId,
+          created_at: '2024-01-01T00:01:00Z' // 中間
+        }
+      ];
+
+      // ソート後の期待される順序（created_atの昇順）
+      const expectedSortedMessages = [
         {
           id: '1',
           content: 'Hello',
@@ -99,12 +130,21 @@ describe('useChat', () => {
           sender_name: 'User 2',
           room_id: roomId,
           created_at: '2024-01-01T00:01:00Z'
+        },
+        {
+          id: '3',
+          content: 'Latest message',
+          sender_id: 'user3',
+          sender_name: 'User 3',
+          room_id: roomId,
+          created_at: '2024-01-01T00:02:00Z'
         }
       ];
+
       const mockResponse = {
         data: {
           messages: mockMessages,
-          pagination: { page: 1, page_size: 50, total: 2 }
+          pagination: { page: 1, page_size: 50, total: 3 }
         }
       };
 
@@ -119,7 +159,8 @@ describe('useChat', () => {
       expect(mockedApi.get).toHaveBeenCalledWith(`/api/backend/chatrooms/${roomId}/messages`, {
         params: { page: 1, page_size: 50 }
       });
-      expect(mockStoreState.setMessages).toHaveBeenCalledWith(roomId, mockMessages);
+      // ソートされた順序でsetMessagesが呼ばれることを確認
+      expect(mockStoreState.setMessages).toHaveBeenCalledWith(roomId, expectedSortedMessages);
     });
 
     it('should handle fetch messages error', async () => {
@@ -188,22 +229,52 @@ describe('useChat', () => {
   });
 
   describe('selectRoom', () => {
-    it('should select room and fetch messages', async () => {
+    it('should select room and fetch messages with proper sorting', async () => {
       const roomId = 'room1';
+      // 意図的にソートされていない順序のテストデータ
       const mockMessages = [
         {
+          id: '2',
+          content: 'Second message',
+          sender_id: 'user2',
+          sender_name: 'User 2',
+          room_id: roomId,
+          created_at: '2024-01-01T00:01:00Z'
+        },
+        {
           id: '1',
-          content: 'Hello',
+          content: 'First message',
           sender_id: 'user1',
           sender_name: 'User 1',
           room_id: roomId,
-          created_at: '2024-01-01T00:00:00Z'
+          created_at: '2023-12-31T00:00:00Z'
         }
       ];
+
+      // ソート後の期待される順序（時系列順・古い順）
+      const expectedSortedMessages = [
+        {
+          id: '1',
+          content: 'First message',
+          sender_id: 'user1',
+          sender_name: 'User 1',
+          room_id: roomId,
+          created_at: '2023-12-31T00:00:00Z'
+        },
+        {
+          id: '2',
+          content: 'Second message',
+          sender_id: 'user2',
+          sender_name: 'User 2',
+          room_id: roomId,
+          created_at: '2024-01-01T00:01:00Z'
+        }
+      ];
+
       const mockResponse = {
         data: {
           messages: mockMessages,
-          pagination: { page: 1, page_size: 50, total: 1 }
+          pagination: { page: 1, page_size: 50, total: 2 }
         }
       };
 
@@ -219,7 +290,8 @@ describe('useChat', () => {
       expect(mockedApi.get).toHaveBeenCalledWith(`/api/backend/chatrooms/${roomId}/messages`, {
         params: { page: 1, page_size: 50 }
       });
-      expect(mockStoreState.setMessages).toHaveBeenCalledWith(roomId, mockMessages);
+      // ソートされた順序でsetMessagesが呼ばれることを確認
+      expect(mockStoreState.setMessages).toHaveBeenCalledWith(roomId, expectedSortedMessages);
     });
   });
 });

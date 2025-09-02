@@ -33,17 +33,17 @@ export const useChat = () => {
     setCurrentRoom,
     setMessages,
     addMessage,
-    setLoading,
-    getCurrentRoomMessages,
+    beginLoading,
+    endLoading,
   } = useChatStore();
 
   // チャットルーム一覧取得
   const fetchRooms = useCallback(async () => {
     try {
-      setLoading(true);
+      beginLoading();
       const response = await api.get('/api/backend/chatrooms');
       const data: GetRoomsResponse = response.data;
-      
+
       if (data && Array.isArray(data.rooms)) {
         setRooms(data.rooms);
       }
@@ -51,22 +51,22 @@ export const useChat = () => {
       console.error('Failed to fetch rooms:', error);
       throw error;
     } finally {
-      setLoading(false);
+      endLoading();
     }
-  }, [setRooms, setLoading]);
+  }, [setRooms, beginLoading, endLoading]);
 
   // メッセージ一覧取得
   const fetchMessages = useCallback(async (roomId: string, page = 1) => {
     try {
-      setLoading(true);
+      beginLoading();
       const response = await api.get(`/api/backend/chatrooms/${roomId}/messages`, {
         params: { page, page_size: 50 }
       });
       const data: GetMessagesResponse = response.data;
-      
+
       if (data && Array.isArray(data.messages)) {
         // メッセージを時系列順（古い順）に並べ替え
-        const sortedMessages = data.messages.sort((a, b) => 
+        const sortedMessages = [...data.messages].sort((a, b) =>
           new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         );
         setMessages(roomId, sortedMessages);
@@ -75,9 +75,9 @@ export const useChat = () => {
       console.error('Failed to fetch messages:', error);
       throw error;
     } finally {
-      setLoading(false);
+      endLoading();
     }
-  }, [setMessages, setLoading]);
+  }, [setMessages, beginLoading, endLoading]);
 
   // メッセージ送信
   const sendMessage = useCallback(async (roomId: string, content: string): Promise<Message | null> => {
@@ -85,7 +85,7 @@ export const useChat = () => {
       const response = await api.post(`/api/backend/chatrooms/${roomId}/messages`, {
         content,
       });
-      
+
       const message: Message = response.data;
       if (message) {
         addMessage(message);
@@ -111,7 +111,7 @@ export const useChat = () => {
     currentRoomId,
     messages,
     isLoading,
-    currentRoomMessages: getCurrentRoomMessages(),
+    currentRoomMessages: (currentRoomId && messages[currentRoomId]) || [],
 
     // Actions
     fetchRooms,

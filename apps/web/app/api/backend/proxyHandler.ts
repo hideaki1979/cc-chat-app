@@ -38,7 +38,9 @@ export async function proxyRequest(request: Request, backendPath: string): Promi
     }
 
     try {
-        const backendRes = await fetch(`${BACKEND_URL}${backendPath}`, fetchOptions);
+        const incomingUrl = new URL(request.url);
+        const backendUrl = `${BACKEND_URL}${backendPath}${incomingUrl.search}`
+        const backendRes = await fetch(backendUrl, fetchOptions);
         const bodyText = await backendRes.text();
         const response = new NextResponse(bodyText, {
             status: backendRes.status,

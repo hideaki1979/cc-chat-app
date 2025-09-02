@@ -72,6 +72,8 @@ const mockUseChatReturn = {
   fetchMessages: jest.fn(),
   fetchRooms: jest.fn(),
   selectRoom: jest.fn(),
+  beginLoading: jest.fn(),
+  endLoading: jest.fn(),
 };
 
 describe('ChatArea', () => {
@@ -325,7 +327,6 @@ describe('ChatArea', () => {
       <ChatArea
         roomId="room1"
         roomName="テストルーム"
-        messages={[]}
         currentUserId="current_user"
         onSendMessage={mockOnSendMessage}
       />

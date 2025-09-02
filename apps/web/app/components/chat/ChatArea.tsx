@@ -12,7 +12,7 @@ export type { Message };
 interface ChatAreaProps {
   roomId?: string;
   roomName?: string;
-  messages: Message[];
+  messages?: Message[];
   currentUserId?: string;
   onSendMessage?: (content: string) => void;
   isLoading?: boolean;
