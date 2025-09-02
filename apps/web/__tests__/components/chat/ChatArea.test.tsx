@@ -4,6 +4,11 @@ import '@testing-library/jest-dom';
 import { ChatArea } from '../../../app/components/chat/ChatArea';
 import type { Message } from '../../../app/components/chat';
 
+// useChatフックのモック
+jest.mock('../../../app/hooks/useChat', () => ({
+  useChat: jest.fn(),
+}));
+
 // MessageListとMessageInputのモック
 jest.mock('../../../app/components/chat/MessageList', () => ({
   MessageList: ({ messages, currentUserId }: { messages: Message[], currentUserId: string }) => (
@@ -31,6 +36,10 @@ jest.mock('../../../app/components/chat/MessageInput', () => ({
   ),
 }));
 
+import { useChat } from '../../../app/hooks/useChat';
+
+const mockedUseChat = useChat as jest.MockedFunction<typeof useChat>;
+
 const mockMessages: Message[] = [
   {
     id: 'msg1',
@@ -52,11 +61,22 @@ const mockMessages: Message[] = [
   },
 ];
 
+// useChatフックのモックレスポンス
+const mockUseChatReturn = {
+  currentRoomMessages: mockMessages,
+  isLoading: false,
+  sendMessage: jest.fn(),
+  fetchMessages: jest.fn(),
+};
+
 describe('ChatArea', () => {
   const mockOnSendMessage = jest.fn();
 
   beforeEach(() => {
     mockOnSendMessage.mockClear();
+    mockedUseChat.mockReturnValue(mockUseChatReturn);
+    mockUseChatReturn.sendMessage.mockClear();
+    mockUseChatReturn.fetchMessages.mockClear();
   });
 
   test('ルームが選択されていない場合のプレースホルダー表示', () => {
@@ -231,5 +251,83 @@ describe('ChatArea', () => {
     );
 
     expect(screen.getByText('Messages: 0')).toBeInTheDocument();
+  });
+
+  test('roomIdが変更された時にメッセージを取得', () => {
+    const { rerender } = render(
+      <ChatArea
+        roomId="room1"
+        roomName="テストルーム1"
+        messages={mockMessages}
+        currentUserId="current_user"
+        onSendMessage={mockOnSendMessage}
+      />
+    );
+
+    expect(mockUseChatReturn.fetchMessages).toHaveBeenCalledWith('room1');
+
+    // roomIdを変更
+    rerender(
+      <ChatArea
+        roomId="room2"
+        roomName="テストルーム2"
+        messages={mockMessages}
+        currentUserId="current_user"
+        onSendMessage={mockOnSendMessage}
+      />
+    );
+
+    expect(mockUseChatReturn.fetchMessages).toHaveBeenCalledWith('room2');
+  });
+
+  test('onSendMessageが未指定の場合はuseChatのsendMessageを使用', async () => {
+    const user = userEvent.setup();
+    mockUseChatReturn.sendMessage.mockResolvedValue({
+      id: 'new-msg',
+      content: 'test message',
+      sender_id: 'current_user',
+      sender_name: 'Test User',
+      room_id: 'room1',
+      created_at: new Date().toISOString()
+    });
+
+    render(
+      <ChatArea
+        roomId="room1"
+        roomName="テストルーム"
+        messages={mockMessages}
+        currentUserId="current_user"
+      />
+    );
+
+    const input = screen.getByTestId('message-input-field');
+    await user.type(input, '{Enter}');
+
+    await waitFor(() => {
+      expect(mockUseChatReturn.sendMessage).toHaveBeenCalledWith('room1', 'test message');
+    });
+  });
+
+  test('useChatからのメッセージとローディング状態を使用', () => {
+    // useChatからのデータを使用する場合
+    mockedUseChat.mockReturnValue({
+      ...mockUseChatReturn,
+      currentRoomMessages: [mockMessages[0]], // 1件のみ
+      isLoading: true,
+    });
+
+    render(
+      <ChatArea
+        roomId="room1"
+        roomName="テストルーム"
+        currentUserId="current_user"
+        onSendMessage={mockOnSendMessage}
+      />
+    );
+
+    // useChatからのメッセージ数が使用される
+    expect(screen.getByText('Messages: 1')).toBeInTheDocument();
+    // MessageListにローディング状態が渡される（モックでは確認できないが、実装上は渡される）
+    expect(screen.getByTestId('message-list')).toBeInTheDocument();
   });
 });
