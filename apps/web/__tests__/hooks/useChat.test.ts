@@ -22,7 +22,6 @@ const mockStoreState = {
   setLoading: jest.fn(),
   beginLoading: jest.fn(),
   endLoading: jest.fn(),
-  getCurrentRoomMessages: jest.fn(() => []),
 };
 
 const mockedUseChatStore = useChatStore as jest.MockedFunction<typeof useChatStore>;

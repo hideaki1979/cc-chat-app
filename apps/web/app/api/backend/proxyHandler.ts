@@ -1,3 +1,4 @@
+import { time } from 'console';
 import { NextResponse } from 'next/server';
 
 const BACKEND_URL = process.env.BACKEND_INTERNAL_URL || 'http://backend:8080';
@@ -39,8 +40,14 @@ export async function proxyRequest(request: Request, backendPath: string): Promi
 
     try {
         const incomingUrl = new URL(request.url);
+        // Abort制御（10秒）
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10_000);
+
+        // URL生成
         const backendUrl = `${BACKEND_URL}${backendPath}${incomingUrl.search}`
-        const backendRes = await fetch(backendUrl, fetchOptions);
+        const backendRes = await fetch(backendUrl, {...fetchOptions, signal: controller.signal});
+        clearTimeout(timeoutId);
         const bodyText = await backendRes.text();
         const response = new NextResponse(bodyText, {
             status: backendRes.status,
@@ -84,6 +91,12 @@ export async function proxyRequest(request: Request, backendPath: string): Promi
 
         return response;
     } catch (err) {
+        if ((err as any)?.name === 'AbortError') {
+            return new NextResponse(JSON.stringify({message: "Upstream timeout."}), {
+                status: 504,
+                headers: {'Content-Type': 'applicaiton/json'},
+            });
+        }
         console.error(`Proxy request to ${backendPath} failed:`, err);
         return new NextResponse(JSON.stringify({ message: 'サーバーエラー発生' }), {
             status: 500,
