@@ -11,6 +11,7 @@ interface ChatState {
   // メッセージ関連
   messages: Record<string, Message[]>; // roomId -> Message[]のマッピング
   isLoading: boolean;
+  pendingCount: number;
 
   // WebSocket接続状態
   isConnected: boolean;
@@ -31,6 +32,8 @@ interface ChatState {
 
   // 読み込み状態
   setLoading: (loading: boolean) => void;
+  beginLoading: () => void;
+  endLoading: () => void;
 
   // ユーティリティ
   getCurrentRoomMessages: () => Message[];
@@ -43,6 +46,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   currentRoomId: null,
   messages: {},
   isLoading: false,
+  pendingCount: 0,
   isConnected: false,
   connectionStatus: 'disconnected',
 
@@ -114,6 +118,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   // 読み込み状態
   setLoading: (loading) => set({ isLoading: loading }),
+  beginLoading: () => set((state) => ({
+    pendingCount: state.pendingCount + 1,
+    isLoading: true
+  })),
+  endLoading: () => set((state) => {
+    const nextCount = Math.max(0, state.pendingCount - 1);
+    return {
+      pendingCount: nextCount,
+      isLoading: nextCount > 0
+    };
+  }),
 
   // ユーティリティ関数
   getCurrentRoomMessages: () => {

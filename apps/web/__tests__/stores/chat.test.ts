@@ -231,6 +231,71 @@ describe('useChatStore', () => {
 
       expect(result.current.isLoading).toBe(false);
     });
+
+    test('beginLoading/endLoadingでペンディングカウント管理ができる', () => {
+      const { result } = renderHook(() => useChatStore());
+
+      // 初期状態
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.pendingCount).toBe(0);
+
+      // 最初のローディング開始
+      act(() => {
+        result.current.beginLoading();
+      });
+
+      expect(result.current.isLoading).toBe(true);
+      expect(result.current.pendingCount).toBe(1);
+
+      // 2つ目のローディング開始
+      act(() => {
+        result.current.beginLoading();
+      });
+
+      expect(result.current.isLoading).toBe(true);
+      expect(result.current.pendingCount).toBe(2);
+
+      // 1つ目のローディング終了
+      act(() => {
+        result.current.endLoading();
+      });
+
+      expect(result.current.isLoading).toBe(true);
+      expect(result.current.pendingCount).toBe(1);
+
+      // 2つ目のローディング終了
+      act(() => {
+        result.current.endLoading();
+      });
+
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.pendingCount).toBe(0);
+    });
+
+    test('endLoadingでペンディングカウントが負にならない', () => {
+      const { result } = renderHook(() => useChatStore());
+
+      // ローディングが開始されていない状態でendLoadingを呼び出し
+      act(() => {
+        result.current.endLoading();
+      });
+
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.pendingCount).toBe(0);
+
+      // 一度beginLoadingしてからendLoadingを複数回呼び出し
+      act(() => {
+        result.current.beginLoading();
+      });
+
+      act(() => {
+        result.current.endLoading();
+        result.current.endLoading(); // 余分な呼び出し
+      });
+
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.pendingCount).toBe(0);
+    });
   });
 
   describe('ユーティリティ関数', () => {

@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { MessageInput } from './MessageInput';
 import { MessageList } from './MessageList';
+import { useChat } from '../../hooks/useChat';
 import type { Message } from '../../types/chat';
 
 export { MessageInput, MessageList };
@@ -11,7 +12,7 @@ export type { Message };
 interface ChatAreaProps {
   roomId?: string;
   roomName?: string;
-  messages: Message[];
+  messages?: Message[];
   currentUserId?: string;
   onSendMessage?: (content: string) => void;
   isLoading?: boolean;
@@ -23,29 +24,46 @@ interface ChatAreaProps {
 export const ChatArea: React.FC<ChatAreaProps> = ({
   roomId,
   roomName,
-  messages,
+  messages: propMessages,
   currentUserId,
   onSendMessage,
-  isLoading = false,
+  isLoading: propIsLoading = false,
   onLoadMore,
   hasMore = false,
   disabled = false,
 }) => {
   const [isSending, setIsSending] = useState(false);
+  const { currentRoomMessages, isLoading, sendMessage, fetchMessages } = useChat();
+
+  // roomIdが変更された時にメッセージを取得
+  useEffect(() => {
+    if (roomId) {
+      fetchMessages(roomId);
+    }
+  }, [roomId, fetchMessages]);
+
+  // 実際に使用するメッセージとローディング状態
+  const actualMessages = propMessages || currentRoomMessages;
+  const actualIsLoading = propIsLoading || isLoading;
 
   const handleSendMessage = useCallback(async (content: string) => {
-    if (!onSendMessage || isSending || disabled) return;
+    if (!roomId || isSending || disabled) return;
 
     setIsSending(true);
     try {
-      await onSendMessage(content);
+      // カスタムのonSendMessageがある場合はそれを使用、なければuseChatのsendMessageを使用
+      if (onSendMessage) {
+        await onSendMessage(content);
+      } else {
+        await sendMessage(roomId, content);
+      }
     } catch (error) {
       console.error('メッセージ送信エラー:', error);
       // TODO: エラートーストを表示
     } finally {
       setIsSending(false);
     }
-  }, [onSendMessage, isSending, disabled]);
+  }, [roomId, onSendMessage, sendMessage, isSending, disabled]);
 
   // ルームが選択されていない場合の表示
   if (!roomId) {
@@ -74,9 +92,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     <div className="relative flex-1 flex flex-col h-full">
       {/* メッセージリスト */}
       <MessageList
-        messages={messages}
+        messages={actualMessages}
         currentUserId={currentUserId}
-        isLoading={isLoading}
+        isLoading={actualIsLoading}
         onLoadMore={onLoadMore}
         hasMore={hasMore}
       />
