@@ -21,6 +21,13 @@ export interface Message {
     sender_name?: string;
 }
 
+export interface ChatRoomMember {
+    user_id: string;
+    name: string;
+    email: string;
+    joined_at: string;
+}
+
 export interface ChatRoom {
     id: string;
     name: string;
@@ -32,4 +39,5 @@ export interface ChatRoom {
         created_at: string;
     };
     updated_at: string;
+    members?: ChatRoomMember[];
 }

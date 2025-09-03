@@ -43,6 +43,20 @@ func (crc *ChatRoomCreate) SetNillableIsGroupChat(b *bool) *ChatRoomCreate {
 	return crc
 }
 
+// SetDmKey sets the "dm_key" field.
+func (crc *ChatRoomCreate) SetDmKey(s string) *ChatRoomCreate {
+	crc.mutation.SetDmKey(s)
+	return crc
+}
+
+// SetNillableDmKey sets the "dm_key" field if the given value is not nil.
+func (crc *ChatRoomCreate) SetNillableDmKey(s *string) *ChatRoomCreate {
+	if s != nil {
+		crc.SetDmKey(*s)
+	}
+	return crc
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (crc *ChatRoomCreate) SetCreatedAt(t time.Time) *ChatRoomCreate {
 	crc.mutation.SetCreatedAt(t)
@@ -229,6 +243,10 @@ func (crc *ChatRoomCreate) createSpec() (*ChatRoom, *sqlgraph.CreateSpec) {
 	if value, ok := crc.mutation.IsGroupChat(); ok {
 		_spec.SetField(chatroom.FieldIsGroupChat, field.TypeBool, value)
 		_node.IsGroupChat = value
+	}
+	if value, ok := crc.mutation.DmKey(); ok {
+		_spec.SetField(chatroom.FieldDmKey, field.TypeString, value)
+		_node.DmKey = &value
 	}
 	if value, ok := crc.mutation.CreatedAt(); ok {
 		_spec.SetField(chatroom.FieldCreatedAt, field.TypeTime, value)

@@ -42,11 +42,11 @@ func init() {
 	// chatroom.DefaultIsGroupChat holds the default value on creation for the is_group_chat field.
 	chatroom.DefaultIsGroupChat = chatroomDescIsGroupChat.Default.(bool)
 	// chatroomDescCreatedAt is the schema descriptor for created_at field.
-	chatroomDescCreatedAt := chatroomFields[3].Descriptor()
+	chatroomDescCreatedAt := chatroomFields[4].Descriptor()
 	// chatroom.DefaultCreatedAt holds the default value on creation for the created_at field.
 	chatroom.DefaultCreatedAt = chatroomDescCreatedAt.Default.(func() time.Time)
 	// chatroomDescUpdatedAt is the schema descriptor for updated_at field.
-	chatroomDescUpdatedAt := chatroomFields[4].Descriptor()
+	chatroomDescUpdatedAt := chatroomFields[5].Descriptor()
 	// chatroom.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	chatroom.DefaultUpdatedAt = chatroomDescUpdatedAt.Default.(func() time.Time)
 	// chatroom.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

@@ -66,6 +66,11 @@ func IsGroupChat(v bool) predicate.ChatRoom {
 	return predicate.ChatRoom(sql.FieldEQ(FieldIsGroupChat, v))
 }
 
+// DmKey applies equality check predicate on the "dm_key" field. It's identical to DmKeyEQ.
+func DmKey(v string) predicate.ChatRoom {
+	return predicate.ChatRoom(sql.FieldEQ(FieldDmKey, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.ChatRoom {
 	return predicate.ChatRoom(sql.FieldEQ(FieldCreatedAt, v))
@@ -149,6 +154,81 @@ func IsGroupChatEQ(v bool) predicate.ChatRoom {
 // IsGroupChatNEQ applies the NEQ predicate on the "is_group_chat" field.
 func IsGroupChatNEQ(v bool) predicate.ChatRoom {
 	return predicate.ChatRoom(sql.FieldNEQ(FieldIsGroupChat, v))
+}
+
+// DmKeyEQ applies the EQ predicate on the "dm_key" field.
+func DmKeyEQ(v string) predicate.ChatRoom {
+	return predicate.ChatRoom(sql.FieldEQ(FieldDmKey, v))
+}
+
+// DmKeyNEQ applies the NEQ predicate on the "dm_key" field.
+func DmKeyNEQ(v string) predicate.ChatRoom {
+	return predicate.ChatRoom(sql.FieldNEQ(FieldDmKey, v))
+}
+
+// DmKeyIn applies the In predicate on the "dm_key" field.
+func DmKeyIn(vs ...string) predicate.ChatRoom {
+	return predicate.ChatRoom(sql.FieldIn(FieldDmKey, vs...))
+}
+
+// DmKeyNotIn applies the NotIn predicate on the "dm_key" field.
+func DmKeyNotIn(vs ...string) predicate.ChatRoom {
+	return predicate.ChatRoom(sql.FieldNotIn(FieldDmKey, vs...))
+}
+
+// DmKeyGT applies the GT predicate on the "dm_key" field.
+func DmKeyGT(v string) predicate.ChatRoom {
+	return predicate.ChatRoom(sql.FieldGT(FieldDmKey, v))
+}
+
+// DmKeyGTE applies the GTE predicate on the "dm_key" field.
+func DmKeyGTE(v string) predicate.ChatRoom {
+	return predicate.ChatRoom(sql.FieldGTE(FieldDmKey, v))
+}
+
+// DmKeyLT applies the LT predicate on the "dm_key" field.
+func DmKeyLT(v string) predicate.ChatRoom {
+	return predicate.ChatRoom(sql.FieldLT(FieldDmKey, v))
+}
+
+// DmKeyLTE applies the LTE predicate on the "dm_key" field.
+func DmKeyLTE(v string) predicate.ChatRoom {
+	return predicate.ChatRoom(sql.FieldLTE(FieldDmKey, v))
+}
+
+// DmKeyContains applies the Contains predicate on the "dm_key" field.
+func DmKeyContains(v string) predicate.ChatRoom {
+	return predicate.ChatRoom(sql.FieldContains(FieldDmKey, v))
+}
+
+// DmKeyHasPrefix applies the HasPrefix predicate on the "dm_key" field.
+func DmKeyHasPrefix(v string) predicate.ChatRoom {
+	return predicate.ChatRoom(sql.FieldHasPrefix(FieldDmKey, v))
+}
+
+// DmKeyHasSuffix applies the HasSuffix predicate on the "dm_key" field.
+func DmKeyHasSuffix(v string) predicate.ChatRoom {
+	return predicate.ChatRoom(sql.FieldHasSuffix(FieldDmKey, v))
+}
+
+// DmKeyIsNil applies the IsNil predicate on the "dm_key" field.
+func DmKeyIsNil() predicate.ChatRoom {
+	return predicate.ChatRoom(sql.FieldIsNull(FieldDmKey))
+}
+
+// DmKeyNotNil applies the NotNil predicate on the "dm_key" field.
+func DmKeyNotNil() predicate.ChatRoom {
+	return predicate.ChatRoom(sql.FieldNotNull(FieldDmKey))
+}
+
+// DmKeyEqualFold applies the EqualFold predicate on the "dm_key" field.
+func DmKeyEqualFold(v string) predicate.ChatRoom {
+	return predicate.ChatRoom(sql.FieldEqualFold(FieldDmKey, v))
+}
+
+// DmKeyContainsFold applies the ContainsFold predicate on the "dm_key" field.
+func DmKeyContainsFold(v string) predicate.ChatRoom {
+	return predicate.ChatRoom(sql.FieldContainsFold(FieldDmKey, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

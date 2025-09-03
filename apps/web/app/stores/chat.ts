@@ -76,12 +76,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((state) => ({
       rooms: state.rooms.filter(room => room.id !== roomId),
       currentRoomId: state.currentRoomId === roomId ? null : state.currentRoomId,
+      messages: Object.fromEntries(
+        Object.entries(state.messages).filter(([rid]) => rid !== roomId)
+      )
     })),
 
   loadRooms: async () => {
     try {
       set({ isLoading: true });
-      const rooms = await getChatRooms();
+      const rooms = await getChatRooms(); // 既にChatroom[]型
       set({ rooms, isLoading: false });
     } catch (error) {
       console.error('ルーム読み込みエラー:', error);

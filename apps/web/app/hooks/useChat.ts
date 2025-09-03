@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import { apiProxy } from '../lib/api';
 import { useChatStore } from '../stores/chat';
 import type { Message, ChatRoom } from '../types/chat';
+import axios from 'axios';
 
 interface GetRoomsResponse {
   rooms: ChatRoom[];
@@ -52,9 +53,7 @@ export const useChat = () => {
     } catch (error) {
       console.error('Failed to fetch rooms:', error);
       // 404エラーの場合は空の配列を設定
-      if (error && typeof error === 'object' && 'response' in error && 
-          error.response && typeof error.response === 'object' && 
-          'status' in error.response && error.response.status === 404) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
         setRooms([]);
         return; // エラーを再スローしない
       }

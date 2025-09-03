@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/roommember"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/user"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/services"
 	"github.com/labstack/echo/v4"
 )
 
@@ -44,7 +44,11 @@ func (h *ChatRoomHandler) CreateChatRoom(c echo.Context) error {
 	}
 
 	// 現在のユーザーIDを取得（JWTミドルウェアから）
-	userID := c.Get("user_id").(string)
+	v := c.Get("user_id")
+	userID, ok := v.(string)
+	if !ok || userID == "" {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+	}
 	currentUserUUID, err := uuid.Parse(userID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
@@ -63,12 +67,12 @@ func (h *ChatRoomHandler) CreateChatRoom(c echo.Context) error {
 	memberSet := make(map[uuid.UUID]struct{})
 	memberSet[currentUserUUID] = struct{}{}
 	for _, memberID := range req.MemberIDs {
-		memberUUID, _ := uuid.Parse(memberID)	// バリデーション済のため、エラーは無視
+		memberUUID, _ := uuid.Parse(memberID) // バリデーション済のため、エラーは無視
 		memberSet[memberUUID] = struct{}{}
 	}
 
 	memberUUIDs := make([]uuid.UUID, 0, len(memberSet))
-	
+
 	for u := range memberSet {
 		memberUUIDs = append(memberUUIDs, u)
 	}
@@ -129,7 +133,11 @@ func (h *ChatRoomHandler) CreateChatRoom(c echo.Context) error {
 // GetChatRooms ユーザーが参加しているチャットルーム一覧取得
 // GET /api/chatrooms
 func (h *ChatRoomHandler) GetChatRooms(c echo.Context) error {
-	userID := c.Get("user_id").(string)
+	v := c.Get("user_id")
+	userID, ok := v.(string)
+	if !ok || userID == "" {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+	}
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
@@ -191,7 +199,11 @@ func (h *ChatRoomHandler) GetChatRoom(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid room ID")
 	}
 
-	userID := c.Get("user_id").(string)
+	v := c.Get("user_id")
+	userID, ok := v.(string)
+	if !ok || userID == "" {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+	}
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
@@ -254,7 +266,11 @@ func (h *ChatRoomHandler) UpdateChatRoom(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
-	userID := c.Get("user_id").(string)
+	v := c.Get("user_id")
+	userID, ok := v.(string)
+	if !ok || userID == "" {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+	}
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
@@ -333,7 +349,11 @@ func (h *ChatRoomHandler) AddMember(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
 	}
 
-	userID := c.Get("user_id").(string)
+	v := c.Get("user_id")
+	userID, ok := v.(string)
+	if !ok || userID == "" {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+	}
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
@@ -407,8 +427,12 @@ func (h *ChatRoomHandler) CreateDMRoom(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
-	// 現在のユーザーIDを取得
-	userID := c.Get("user_id").(string)
+	// 現在のユーザーを取得
+	v := c.Get("user_id")
+	userID, ok := v.(string)
+	if !ok || userID == "" {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+	}
 	currentUserUUID, err := uuid.Parse(userID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
@@ -425,105 +449,23 @@ func (h *ChatRoomHandler) CreateDMRoom(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Cannot create DM with yourself")
 	}
 
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
-	// ターゲットユーザーの存在確認
-	targetUser, err := h.client.User.Query().
-		Where(user.ID(targetUserUUID)).
-		Only(ctx)
+	svc := services.NewChatRoomService(h.client)
+
+	room, created, err := svc.EnsureDMRoom(ctx, currentUserUUID, targetUserUUID)
 	if err != nil {
-		if ent.IsNotFound(err) {
+		if err == services.ErrTargetUserNotFound {
 			return echo.NewHTTPError(http.StatusNotFound, "Target user not found")
 		}
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find target user")
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to ensure DM room")
 	}
 
-	// 既存のDMルームを検索
-	// ユーザー1とユーザー2が両方メンバーで、かつis_group_chat=falseのルームを検索
-	existingRoom, err := h.client.ChatRoom.Query().
-		Where(chatroom.IsGroupChat(false)).
-		Where(chatroom.HasRoomMembersWith(roommember.UserID(currentUserUUID))).
-		Where(chatroom.HasRoomMembersWith(roommember.UserID(targetUserUUID))).
-		WithRoomMembers(func(q *ent.RoomMemberQuery) {
-			q.WithUser()
-		}).
-		WithMessages(func(q *ent.MessageQuery) {
-			q.WithSender().
-				Order(ent.Desc("created_at")).
-				Limit(1)
-		}).
-		First(ctx)
-
-	if err != nil && !ent.IsNotFound(err) {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to check existing DM room")
+	response := models.ConvertToChatRoomResponse(room)
+	if created {
+		return c.JSON(http.StatusCreated, response)
 	}
-
-	// 既存のDMルームが存在する場合、それを返す
-	if existingRoom != nil {
-		response := models.ConvertToChatRoomResponse(existingRoom)
-		return c.JSON(http.StatusOK, response)
-	}
-
-	// 既存のDMルームが存在しない場合、新規作成
-	tx, err := h.client.Tx(ctx)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to start transaction")
-	}
-	defer tx.Rollback()
-
-	// DM用のルーム名を生成（2人のユーザー名から）
-	currentUser, err := tx.User.Query().Where(user.ID(currentUserUUID)).Only(ctx)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get current user")
-	}
-
-	roomName := fmt.Sprintf("DM: %s, %s", currentUser.Name, targetUser.Name)
-
-	// DMルームを作成
-	newRoom, err := tx.ChatRoom.Create().
-		SetName(roomName).
-		SetIsGroupChat(false).
-		Save(ctx)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create DM room")
-	}
-
-	// 両方のユーザーをメンバーとして追加
-	members := []uuid.UUID{currentUserUUID, targetUserUUID}
-	for _, memberUUID := range members {
-		_, err := tx.RoomMember.Create().
-			SetRoomID(newRoom.ID).
-			SetUserID(memberUUID).
-			SetJoinedAt(time.Now()).
-			Save(ctx)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to add room member")
-		}
-	}
-
-	// トランザクションをコミット
-	if err := tx.Commit(); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
-	}
-
-	// 作成されたルームの詳細を取得
-	createdRoom, err := h.client.ChatRoom.Query().
-		Where(chatroom.ID(newRoom.ID)).
-		WithRoomMembers(func(q *ent.RoomMemberQuery) {
-			q.WithUser()
-		}).
-		WithMessages(func(q *ent.MessageQuery) {
-			q.WithSender().
-				Order(ent.Desc("created_at")).
-				Limit(1)
-		}).
-		Only(ctx)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get created room")
-	}
-
-	response := models.ConvertToChatRoomResponse(createdRoom)
-	return c.JSON(http.StatusCreated, response)
+	return c.JSON(http.StatusOK, response)
 }
 
 // RemoveMember チャットルームからメンバー削除
@@ -541,7 +483,11 @@ func (h *ChatRoomHandler) RemoveMember(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
 	}
 
-	userID := c.Get("user_id").(string)
+	v := c.Get("user_id")
+	userID, ok := v.(string)
+	if !ok || userID == "" {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+	}
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")

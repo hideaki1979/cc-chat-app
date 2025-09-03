@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../stores/auth';
 import { ChatLayout, Sidebar, ChatHeader } from '../components/layout';
@@ -9,36 +9,27 @@ import type { ChatRoom } from '../types/chat';
 
 export default function ChatPage() {
   const router = useRouter();
-  const { user, isLoading, logout, loadCurrentUser } = useAuthStore();
-  const didLoadRef = useRef(false);
+  const { user, isLoading, isInitialized, logout } = useAuthStore();
 
   // ルーム関連のローカル状態（将来のAPI接続を想定しつつプレースホルダー）
   const [rooms] = useState<ChatRoom[]>([]);
   const [currentRoomId] = useState<string | undefined>(undefined);
 
-  // 初回マウント時にユーザー取得（StrictModeの二重実行防止）
-  useEffect(() => {
-    if (didLoadRef.current) return;
-    didLoadRef.current = true;
-    if (!user) {
-      loadCurrentUser().catch(() => { });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // 認証初期化完了後、未ログインならログインへ
 
   // 未ログインならログインへ
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (isInitialized && !user) {
       router.replace('/login');
     }
-  }, [isLoading, user, router]);
+  }, [isInitialized, user, router]);
 
   const handleLogout = async () => {
     await logout();
     router.push('/login');
   };
 
-  if (isLoading || !user) {
+  if (!isInitialized || isLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>ユーザー情報を読み込み中...</p>

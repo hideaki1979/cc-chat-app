@@ -6,24 +6,23 @@ import { useAuthStore } from '../../stores/auth';
 import { useChatStore } from '../../stores/chat';
 import { ChatArea } from '../../components/chat';
 import { Button } from '@repo/ui/button';
+import { getChatRoom } from '../../lib/api';
 
 export default function DMPage() {
   const params = useParams();
   const router = useRouter();
   const roomId = params.roomId as string;
-  
-  const { user, isLoading: authLoading, loadCurrentUser } = useAuthStore();
-  const { rooms, currentRoomId, setCurrentRoom, loadRooms } = useChatStore();
-  const didLoadRef = useRef(false);
 
-  // 認証状態をロード
+  const { user, isLoading: authLoading, isInitialized, initializeAuth } = useAuthStore();
+  const { rooms, currentRoomId, setCurrentRoom, loadRooms, updateRoom } = useChatStore();
+  const fetchedRef = useRef<string | null>(null);
+
+  // 認証初期化(1度だけ)
   useEffect(() => {
-    if (didLoadRef.current) return;
-    didLoadRef.current = true;
-    if (!user) {
-      loadCurrentUser().catch(() => {});
+    if (!isInitialized) {
+      initializeAuth().catch(() => {})
     }
-  }, [user, loadCurrentUser]);
+  }, [isInitialized, initializeAuth]);
 
   // ルーム情報をロード
   useEffect(() => {
@@ -48,28 +47,41 @@ export default function DMPage() {
 
   // 現在のルーム情報を取得
   const currentRoom = rooms.find(room => room.id === roomId);
-  
+
   // 1対1チャットかどうかを確認
   const isDM = currentRoom && !currentRoom.is_group_chat;
-  
-  // 相手のユーザー情報を推定（ルーム名から）
+
+  // DM詳細（members）未取得時のみフェッチしてストアを更新
+  useEffect(() => {
+    if (!user?.id || !roomId || !isDM) return;
+    if (currentRoom?.members?.length) return;
+    if (fetchedRef.current === roomId) return;
+
+    fetchedRef.current = roomId;
+    let cancelled = false;
+    (async () => {
+      try {
+        const detail = await getChatRoom(roomId);
+        if (!cancelled && detail?.members?.length) {
+          updateRoom(roomId, { members: detail.members });
+        }
+      } catch (e) {
+        console.error('ルーム詳細取得に失敗しました', e);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [user?.id, roomId, isDM, currentRoom?.members?.length, updateRoom]);
+
+  // 相手のユーザー名（membersベース、フォールバックはルーム名）
   const getOtherUserName = () => {
-    if (!isDM || !currentRoom.name.startsWith('DM: ') || !user) {
-      return currentRoom?.name || 'チャットルーム';
+    if (isDM && currentRoom?.members && user) {
+      const other = currentRoom.members.find(m => m.user_id !== user.id);
+      return other?.name || '相手';
     }
-    
-    // "DM: ユーザー1, ユーザー2" から相手の名前を抽出
-    const names = currentRoom.name.replace('DM: ', '').split(', ');
-    console.log('Room name:', currentRoom.name);
-    console.log('Current user name:', user.name);
-    console.log('Names in room:', names);
-    
-    const otherName = names.find(name => name.trim() !== user.name.trim());
-    console.log('Other user name:', otherName);
-    
-    return otherName || '相手';
+    return currentRoom?.name || 'チャットルーム';
   };
-  
+
   const otherUserName = getOtherUserName();
 
   if (authLoading || !user) {
@@ -114,14 +126,14 @@ export default function DMPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </Button>
-          
+
           {/* ユーザーアバター */}
           <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
             <span className="text-white text-sm font-bold">
               {otherUserName.charAt(0).toUpperCase()}
             </span>
           </div>
-          
+
           {/* ユーザー名とステータス */}
           <div className="flex-1">
             <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -145,7 +157,7 @@ export default function DMPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
             </svg>
           </Button>
-          
+
           <Button
             variant="ghost"
             size="sm"
@@ -156,7 +168,7 @@ export default function DMPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
           </Button>
-          
+
           <Button
             variant="ghost"
             size="sm"
@@ -167,7 +179,7 @@ export default function DMPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </Button>
-          
+
           <Button
             variant="ghost"
             size="sm"

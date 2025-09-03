@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@repo/ui/button';
 import { Input } from '@repo/ui/input';
@@ -29,31 +29,39 @@ export const UserSearch: React.FC<UserSearchProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isStartingDM, setIsStartingDM] = useState(false);
+  const lastRequestIdRef = useRef(0);
   
   // チャットストアのアクションを取得
   const addRoom = useChatStore((state) => state.addRoom);
 
   // 検索実行
   const performUserSearch = useCallback(async (query: string) => {
-    if (!query.trim()) {
+    const trimmed = query.trim();
+    if (!trimmed) {
       setUsers([]);
       return;
     }
 
     setIsSearching(true);
+    const requestId = ++lastRequestIdRef.current;
+    setIsSearching(true);
     setError(null);
 
     try {
-      const data = await searchUsers(query);
+      const data = await searchUsers(trimmed);
+      if (requestId !== lastRequestIdRef.current) return; // stale 応答は破棄
       // 自分を除外
       const filteredUsers = data.users?.filter((user: User) => user.id !== currentUserId) || [];
       setUsers(filteredUsers);
     } catch (err) {
+      if (requestId !== lastRequestIdRef.current) return; // stale エラーも破棄
       console.error('ユーザー検索エラー:', err);
       setError(err instanceof Error ? err.message : 'ユーザー検索に失敗しました');
       setUsers([]);
     } finally {
-      setIsSearching(false);
+      if(requestId === lastRequestIdRef.current) {
+        setIsSearching(false);
+      }
     }
   }, [currentUserId]);
 

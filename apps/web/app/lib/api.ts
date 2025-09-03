@@ -2,6 +2,7 @@ import axios from 'axios';
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import type { UseBoundStore, StoreApi } from 'zustand';
 import type { AuthStore } from '../types/auth';
+import { ChatRoom } from '../types/chat';
 
 declare global {
   interface Window {
@@ -70,6 +71,13 @@ export interface CreateChatRoomRequest {
   member_ids: string[];
 }
 
+export interface ChatRoomMember {
+  user_id: string;
+  name: string;
+  email: string;
+  joined_at: string;
+}
+
 export interface ChatRoomResponse {
   id: string;
   name: string;
@@ -82,6 +90,7 @@ export interface ChatRoomResponse {
   };
   updated_at: string;
   created_at: string;
+  members?: ChatRoomMember[];
 }
 
 export interface UserSearchResult {
@@ -120,9 +129,24 @@ export const searchUsers = async (query: string): Promise<UserSearchResponse> =>
 /**
  * チャットルーム一覧を取得する
  */
-export const getChatRooms = async (): Promise<ChatRoomResponse[]> => {
-  const { data } = await apiProxy.get('/chatrooms');
-  return data.rooms || [];
+export const getChatRooms = async (): Promise<ChatRoom[]> => {
+  const { data } = await apiProxy.get<{ rooms: ChatRoomResponse[] }>('/chatrooms');
+
+  // ChatRoomResponse[] から ChatRoom[] への変換
+  const chatRooms: ChatRoom[] = (data.rooms || []).map((apiRoom): ChatRoom => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { created_at, ...chatRoom } = apiRoom;
+    return chatRoom
+  })
+  return chatRooms;
+};
+
+/**
+ * チャットルーム詳細を取得する
+ */
+export const getChatRoom = async (roomId: string): Promise<ChatRoomResponse> => {
+  const { data } = await apiProxy.get(`/chatrooms/${roomId}`);
+  return data;
 };
 
 

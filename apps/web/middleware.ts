@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // 認証が必要なパス（保護されたルート）
-const protectedRoutes = ['/dashboard', '/chat', '/profile'];
+const protectedRoutes = ['/dashboard', '/chat', '/dm', '/profile'];
 
 // 認証済みユーザーがアクセスできないパス（ゲストのみ）
 const guestOnlyRoutes = ['/login', '/register'];
