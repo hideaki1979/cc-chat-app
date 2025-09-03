@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -392,6 +393,137 @@ func (h *ChatRoomHandler) AddMember(c echo.Context) error {
 	return c.JSON(http.StatusCreated, map[string]string{
 		"message": "Member added successfully",
 	})
+}
+
+// CreateDMRoom DM（1対1）ルーム作成または取得
+// POST /api/chatrooms/dm
+func (h *ChatRoomHandler) CreateDMRoom(c echo.Context) error {
+	var req models.CreateDMRoomRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
+	}
+
+	if err := c.Validate(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	// 現在のユーザーIDを取得
+	userID := c.Get("user_id").(string)
+	currentUserUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
+	}
+
+	// ターゲットユーザーIDを検証
+	targetUserUUID, err := uuid.Parse(req.TargetUserID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid target user ID")
+	}
+
+	// 自分自身とのDMは作成できない
+	if currentUserUUID == targetUserUUID {
+		return echo.NewHTTPError(http.StatusBadRequest, "Cannot create DM with yourself")
+	}
+
+	ctx := context.Background()
+
+	// ターゲットユーザーの存在確認
+	targetUser, err := h.client.User.Query().
+		Where(user.ID(targetUserUUID)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return echo.NewHTTPError(http.StatusNotFound, "Target user not found")
+		}
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find target user")
+	}
+
+	// 既存のDMルームを検索
+	// ユーザー1とユーザー2が両方メンバーで、かつis_group_chat=falseのルームを検索
+	existingRoom, err := h.client.ChatRoom.Query().
+		Where(chatroom.IsGroupChat(false)).
+		Where(chatroom.HasRoomMembersWith(roommember.UserID(currentUserUUID))).
+		Where(chatroom.HasRoomMembersWith(roommember.UserID(targetUserUUID))).
+		WithRoomMembers(func(q *ent.RoomMemberQuery) {
+			q.WithUser()
+		}).
+		WithMessages(func(q *ent.MessageQuery) {
+			q.WithSender().
+				Order(ent.Desc("created_at")).
+				Limit(1)
+		}).
+		First(ctx)
+
+	if err != nil && !ent.IsNotFound(err) {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to check existing DM room")
+	}
+
+	// 既存のDMルームが存在する場合、それを返す
+	if existingRoom != nil {
+		response := models.ConvertToChatRoomResponse(existingRoom)
+		return c.JSON(http.StatusOK, response)
+	}
+
+	// 既存のDMルームが存在しない場合、新規作成
+	tx, err := h.client.Tx(ctx)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to start transaction")
+	}
+	defer tx.Rollback()
+
+	// DM用のルーム名を生成（2人のユーザー名から）
+	currentUser, err := tx.User.Query().Where(user.ID(currentUserUUID)).Only(ctx)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get current user")
+	}
+
+	roomName := fmt.Sprintf("DM: %s, %s", currentUser.Name, targetUser.Name)
+
+	// DMルームを作成
+	newRoom, err := tx.ChatRoom.Create().
+		SetName(roomName).
+		SetIsGroupChat(false).
+		Save(ctx)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create DM room")
+	}
+
+	// 両方のユーザーをメンバーとして追加
+	members := []uuid.UUID{currentUserUUID, targetUserUUID}
+	for _, memberUUID := range members {
+		_, err := tx.RoomMember.Create().
+			SetRoomID(newRoom.ID).
+			SetUserID(memberUUID).
+			SetJoinedAt(time.Now()).
+			Save(ctx)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to add room member")
+		}
+	}
+
+	// トランザクションをコミット
+	if err := tx.Commit(); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit transaction")
+	}
+
+	// 作成されたルームの詳細を取得
+	createdRoom, err := h.client.ChatRoom.Query().
+		Where(chatroom.ID(newRoom.ID)).
+		WithRoomMembers(func(q *ent.RoomMemberQuery) {
+			q.WithUser()
+		}).
+		WithMessages(func(q *ent.MessageQuery) {
+			q.WithSender().
+				Order(ent.Desc("created_at")).
+				Limit(1)
+		}).
+		Only(ctx)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get created room")
+	}
+
+	response := models.ConvertToChatRoomResponse(createdRoom)
+	return c.JSON(http.StatusCreated, response)
 }
 
 // RemoveMember チャットルームからメンバー削除

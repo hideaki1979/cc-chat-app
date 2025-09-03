@@ -1,14 +1,24 @@
+export interface MessageSender {
+    id: string;
+    name: string;
+    profile_image_url?: string;
+}
+
 export interface Message {
     id: string;
     content: string;
-    sender_id: string;
-    sender_name: string;
     room_id: string;
+    user_id: string;
+    file_url?: string;
     created_at: string;
-    updated_at?: string;
+    updated_at: string;
+    deleted_at?: string;
+    sender?: MessageSender;
     message_type?: 'text' | 'image' | 'file' | 'system';
     is_edited?: boolean;
-    reply_to_message_id?: string;
+    // 後方互換性のため
+    sender_id?: string;
+    sender_name?: string;
 }
 
 export interface ChatRoom {

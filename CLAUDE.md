@@ -10,227 +10,139 @@ CC Chat App is a Turborepo monorepo containing a real-time chat application with
 - **Backend**: Go API using Echo framework and Ent ORM
 - **Database**: PostgreSQL with containerized development environment
 
-## Development Commands
+## Key Development Commands
 
-### Build Commands
-
+### Quick Start
 ```bash
-# Build all apps and packages
-pnpm build
-
-# Build specific app
-turbo build --filter=web
-turbo build --filter=api
-turbo build --filter=docs
+pnpm dev                    # Start all development servers
+docker-compose up           # Full stack with database (PostgreSQL on 5433)
 ```
 
-### Development Server
-
+### Build & Test
 ```bash
-# Start all development servers
-pnpm dev
+# Build
+pnpm build                  # Build all apps and packages
+turbo build --filter=web    # Build specific app
 
-# Start specific app
-turbo dev --filter=web     # Next.js on port 3003
-turbo dev --filter=docs    # Docs on default port
+# Test
+pnpm test                   # Frontend Jest tests
+pnpm test:e2e              # Playwright E2E tests
+go test ./...              # Go backend tests (from apps/api/)
+
+# Quality
+pnpm lint                  # ESLint all packages
+pnpm check-types          # TypeScript type checking
+pnpm format              # Prettier formatting
 ```
 
-### Go Backend Development
-
+### Backend Development (Go)
 ```bash
-# Run Go API server (from apps/api directory)
 cd apps/api
-pnpm dev          # Uses Air for hot reload via .air.toml
-# OR
-go run main.go    # Direct Go execution
-air               # Air hot reload directly
-
-# Go testing
-go test ./...                    # Run all tests
-go test ./internal/handlers      # Run specific package tests
-go test -v -run TestAuthHandler  # Run specific test with verbose output
-go test -cover ./...            # Run tests with coverage
-
-# Go build
-go build -o ./tmp/main .        # Build binary
-go mod tidy                     # Clean up dependencies
-go mod download                 # Download dependencies
-
-# Environment setup required:
-# DATABASE_URL=postgres://user:password@localhost:5433/dbname?sslmode=disable
-# RUN_MIGRATIONS=true  # For automatic schema creation
-# JWT_SECRET=your-secret-key
+pnpm dev                   # Uses Air hot reload (.air.toml config)
+go run main.go            # Direct execution
+go test -v ./internal/handlers  # Test specific package
+go test -cover ./...      # Coverage report
 ```
 
-### Docker Development
-
+### Frontend Development
 ```bash
-# Full stack with database
-docker-compose up
-
-# Services:
-# - PostgreSQL on port 5433
-# - Go API on port 8080
-# - Next.js on port 3003
-```
-
-### Testing
-
-```bash
-# Frontend tests
 cd apps/web
-pnpm test                           # Jest unit tests
-pnpm test:watch                     # Watch mode
-pnpm test:coverage                  # Coverage report
-pnpm test -- LoginForm.test.tsx     # Run specific test file
-pnpm test:e2e                       # Playwright E2E tests
-pnpm test:e2e:ui                    # Playwright UI mode
-pnpm test:e2e -- auth.spec.ts       # Run specific E2E test
-
-# Backend tests (from apps/api)
-cd apps/api
-go test ./...                       # Run all Go tests
-go test -v ./internal/handlers      # Run specific package with verbose
-go test -cover ./...               # Run with coverage report
+pnpm dev                  # Next.js dev server (port 3003)
+pnpm test:watch          # Jest watch mode
+pnpm test -- LoginForm.test.tsx  # Run specific test
 ```
 
-### Linting and Type Checking
-
+### Turborepo Filtering
 ```bash
-pnpm lint              # ESLint all packages
-pnpm check-types       # TypeScript type checking
-pnpm format           # Prettier formatting
+turbo dev --filter=web                    # Only frontend
+turbo build --filter=api                  # Only backend
+turbo test --filter="web" --filter="api"  # Multiple workspaces
 ```
 
-## Architecture
+## Critical Architecture Patterns
 
-### Monorepo Structure
+### API Proxy System
+The frontend uses Next.js API routes to proxy requests to the Go backend:
+```
+Frontend: /api/backend/login → proxyHandler.ts → Go backend: /auth/login
+```
 
+This pattern handles:
+- **Cookie Management**: Fixes domain issues for refresh tokens
+- **Request Timeout**: 10-second timeout with abort controller
+- **CORS Headers**: Forwards authentication and content-type headers
+- **Error Handling**: Structured error responses with Japanese messages
+
+### Database Schema & Migration
+- **Ent ORM**: Schema-first approach with generated code
+- **Auto Migration**: Controlled by `RUN_MIGRATIONS=true` environment variable
+- **Connection Pooling**: MaxIdleConns(10), MaxOpenConns(100), ConnMaxLifetime(1h)
+
+### Authentication Flow
+1. **Registration/Login**: POST to `/auth/register` or `/auth/login`
+2. **JWT Tokens**: Access token + HTTP-only refresh token cookie
+3. **Protected Routes**: `/api` group uses JWT middleware
+4. **Token Refresh**: Automatic refresh via `/auth/refresh`
+5. **Frontend State**: Zustand auth store with token management
+
+### Project Structure
 ```
 apps/
-├── web/          # Next.js frontend (port 3003)
-├── api/          # Go backend (port 8080)
-└── docs/         # Documentation site
+├── web/                # Next.js frontend (port 3003)
+│   ├── app/api/backend/    # Proxy routes to Go backend
+│   ├── app/components/     # UI components
+│   ├── app/stores/        # Zustand state management
+│   └── app/lib/           # API client & utilities
+├── api/                # Go backend (port 8080)
+│   ├── main.go            # Entry point with Echo setup
+│   ├── internal/handlers/  # HTTP handlers
+│   ├── internal/middleware/# JWT auth middleware
+│   └── ent/schema/        # Database schema definitions
+└── packages/ui/        # Shared React components
 
-packages/
-├── ui/                    # Shared React components
-├── eslint-config/         # ESLint configurations
-├── typescript-config/     # TypeScript configurations
-└── tailwind-config/       # TailwindCSS configurations
+Key Routes:
+- Frontend: http://localhost:3003
+- Backend: http://localhost:8080
+- Database: postgres://localhost:5433
 ```
 
-### Backend Architecture (Go)
+## Environment Setup
 
-- **Framework**: Echo v4 for HTTP routing and middleware
-- **ORM**: Ent for database schema and operations
-- **Database**: PostgreSQL with connection pooling
-- **Auth**: JWT-based authentication with middleware
-- **Structure**:
-  ```
-  apps/api/
-  ├── main.go              # Application entry point
-  ├── internal/
-  │   ├── handlers/        # HTTP request handlers
-  │   ├── middleware/      # JWT auth middleware
-  │   ├── auth/           # Authentication logic
-  │   └── models/         # Data models
-  └── ent/                # Generated ORM code
-      └── schema/         # Database schema definitions
-  ```
-
-### Frontend Architecture (Next.js)
-
-- **Framework**: Next.js 15 with App Router
-- **State Management**: Zustand for client state
-- **Forms**: React Hook Form with Zod validation
-- **Styling**: TailwindCSS with shared design system
-- **API**: Axios client with centralized configuration
-- **Structure**:
-  ```
-  apps/web/app/
-  ├── components/         # Reusable UI components
-  ├── stores/            # Zustand stores
-  ├── lib/              # Utilities and API client
-  ├── types/            # TypeScript type definitions
-  └── (routes)/         # App Router pages
-  ```
-
-## Key Technologies
-
-### Frontend Stack
-
-- **Next.js 15.3.0**: React framework with App Router
-- **React 19.1.0**: UI library with modern features
-- **TailwindCSS 4.1.11**: Utility-first CSS framework
-- **TypeScript 5.8.x**: Type-safe development
-- **Zustand 5.0.6**: Lightweight state management
-- **React Hook Form 7.60.0**: Form handling with validation
-- **Zod 4.0.5**: Schema validation
-- **Axios 1.10.0**: HTTP client
-
-### Backend Stack
-
-- **Go 1.24.5**: Backend language
-- **Echo v4.13.4**: HTTP web framework
-- **Ent v0.14.4**: Entity framework (ORM)
-- **JWT v5.3.0**: Authentication tokens
-- **PostgreSQL**: Database via lib/pq driver
-- **Air**: Hot reload for development
-- **UUID**: Google UUID package for IDs
-
-### Development Tools
-
-- **Turborepo 2.5.5**: Monorepo build system
-- **pnpm 9.0.0**: Package manager
-- **ESLint 9.31.0**: Code linting
-- **Prettier 3.6.2**: Code formatting
-- **Jest 30.0.4**: Unit testing
-- **Playwright**: E2E testing
-
-## Authentication Flow
-
-1. **Registration**: POST `auth/register`
-2. **Login**: POST `auth/login` → Returns JWT token
-3. **Protected Routes**: Use JWT middleware on `/api` group
-4. **Frontend State**: Managed via Zustand auth store
-5. **Token Storage**: Client-side token management
-
-## Development Workflow
-
-### Environment Setup
+### Required Environment Variables
 
 ```bash
-# Backend environment variables (apps/api/.env)
+# Backend (apps/api/.env)
 DATABASE_URL=postgres://user:password@localhost:5433/cc_chat_db?sslmode=disable
 RUN_MIGRATIONS=true
 JWT_SECRET=your-super-secret-jwt-key-here
 PORT=8080
 
-# Frontend environment variables (apps/web/.env.local)
+# Frontend (apps/web/.env.local)
 BACKEND_INTERNAL_URL=http://localhost:8080
 NEXT_PUBLIC_API_URL=http://localhost:3003/api/backend
+
+# Docker Compose (.env)
+POSTGRES_USER=user
+POSTGRES_PASSWORD=password
+POSTGRES_DB=cc_chat_db
+JWT_SECRET=your-super-secret-jwt-key-here
 ```
 
-### Turborepo Filtering
+## Tech Stack Summary
 
-```bash
-# Run commands for specific workspaces
-turbo dev --filter=web                    # Only frontend
-turbo build --filter=api                  # Only backend
-turbo lint --filter="./packages/*"        # Only packages
-turbo test --filter="web" --filter="api"  # Multiple workspaces
-```
+- **Frontend**: Next.js 15 + React 19 + TypeScript + TailwindCSS + Zustand + React Hook Form + Zod
+- **Backend**: Go + Echo v4 + Ent ORM + JWT + PostgreSQL
+- **Development**: Turborepo + pnpm + Docker Compose + Air (Go hot reload)
+- **Testing**: Jest + Playwright + Go test
 
-## Development Notes
+## Key Development Notes
 
-- **Language**: Interface supports Japanese (ログイン, チャットアプリ, etc.)
-- **Ports**: Web (3003), API (8080), PostgreSQL (5433)
-- **Hot Reload**: Frontend via Turbopack, Backend via Air
-- **Type Safety**: Full TypeScript coverage across frontend
-- **Component Library**: Shared UI components in `@repo/ui`
-- **Testing**: Comprehensive Jest + Playwright setup
-- **Docker**: Multi-service development environment ready
-- **Proxy Setup**: Next.js API routes proxy to Go backend for seamless development
+- **Bilingual**: Interface supports Japanese (ログイン, チャットアプリ)
+- **Proxy Architecture**: Frontend API routes proxy to Go backend via proxyHandler.ts
+- **Hot Reload**: Frontend via Next.js dev server, Backend via Air (.air.toml)
+- **Database**: PostgreSQL on port 5433 with auto-migrations in dev
+- **Shared Components**: `@repo/ui` package for consistent design system
+- **Type Safety**: Full TypeScript coverage with strict mode enabled
 
 ## コーディング規約
 
@@ -293,7 +205,7 @@ turbo test --filter="web" --filter="api"  # Multiple workspaces
 
 #### 責務分散（Separation of Concerns）
 
-**Frontend責務分散**
+##### Frontend責務分散
 
 ```text
 app/
@@ -306,7 +218,7 @@ app/
 └── (routes)/            # ルーティング・ページ構成
 ```
 
-**Backend責務分散**
+##### Backend責務分散
 
 ```text
 internal/
@@ -319,7 +231,7 @@ internal/
 
 #### スパゲッティコード防止規則
 
-**Frontend アンチパターン禁止**
+##### Frontend アンチパターン禁止
 
 - **巨大コンポーネント**: 200行超のコンポーネント分割必須
 - **Props drilling**: 3階層超の場合はContext/Zustandを使用
@@ -329,7 +241,7 @@ internal/
 - **マジックナンバー**: 定数定義なしの数値使用禁止
 - **グローバル状態乱用**: ローカル状態で済む場合のグローバル化禁止
 
-**Backend アンチパターン禁止**
+##### Backend アンチパターン禁止
 
 - **巨大関数**: 50行超の関数分割必須
 - **God Object**: 複数責務を持つ構造体作成禁止
@@ -341,7 +253,7 @@ internal/
 
 #### ファイル責務定義
 
-**Frontend ファイル責務**
+##### Frontend ファイル責務
 
 - **Page Component**: ルーティング・レイアウト・データフェッチのみ
 - **Feature Component**: 特定機能のUI・ユーザーインタラクションのみ
@@ -351,7 +263,7 @@ internal/
 - **API Client**: HTTP通信・レスポンス変換のみ
 - **Utility**: 純粋関数・汎用的な計算処理のみ
 
-**Backend ファイル責務**
+##### Backend ファイル責務
 
 - **Handler**: HTTPリクエスト解析・レスポンス生成のみ
 - **Service**: ビジネスルール・ドメインロジックのみ
@@ -362,7 +274,7 @@ internal/
 
 #### 依存関係管理
 
-**依存方向の原則**
+##### 依存方向の原則
 
 ```text
 Frontend: Page → Feature → UI Component
@@ -374,7 +286,7 @@ Backend:  Handler → Service → Repository
           Handler → Middleware
 ```
 
-**禁止依存パターン**
+##### 禁止依存パターン
 
 - **逆依存**: 下位層から上位層への依存禁止
 - **横断依存**: 同階層間の直接依存禁止（共通層経由）

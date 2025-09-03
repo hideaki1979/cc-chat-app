@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import type { Message, ChatRoom } from '../types/chat';
+import { getChatRooms } from '../lib/api';
 
 interface ChatState {
   // チャットルーム関連
@@ -20,6 +21,10 @@ interface ChatState {
   // アクション
   setRooms: (rooms: ChatRoom[]) => void;
   setCurrentRoom: (roomId: string | null) => void;
+  addRoom: (room: ChatRoom) => void;
+  updateRoom: (roomId: string, updates: Partial<ChatRoom>) => void;
+  removeRoom: (roomId: string) => void;
+  loadRooms: () => Promise<void>;
 
   // メッセージ操作
   setMessages: (roomId: string, messages: Message[]) => void;
@@ -50,9 +55,39 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isConnected: false,
   connectionStatus: 'disconnected',
 
-  // チャットルーム管理
+  // チャットルーム管理（純粋な状態管理のみ）
   setRooms: (rooms) => set({ rooms }),
   setCurrentRoom: (roomId) => set({ currentRoomId: roomId }),
+  
+  addRoom: (room) => 
+    set((state) => ({
+      rooms: [...state.rooms, room],
+      currentRoomId: room.id,
+    })),
+  
+  updateRoom: (roomId, updates) =>
+    set((state) => ({
+      rooms: state.rooms.map(room => 
+        room.id === roomId ? { ...room, ...updates } : room
+      ),
+    })),
+  
+  removeRoom: (roomId) =>
+    set((state) => ({
+      rooms: state.rooms.filter(room => room.id !== roomId),
+      currentRoomId: state.currentRoomId === roomId ? null : state.currentRoomId,
+    })),
+
+  loadRooms: async () => {
+    try {
+      set({ isLoading: true });
+      const rooms = await getChatRooms();
+      set({ rooms, isLoading: false });
+    } catch (error) {
+      console.error('ルーム読み込みエラー:', error);
+      set({ isLoading: false });
+    }
+  },
 
   // メッセージ管理
   setMessages: (roomId, messages) =>

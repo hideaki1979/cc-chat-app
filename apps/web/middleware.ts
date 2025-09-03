@@ -9,7 +9,7 @@ const guestOnlyRoutes = ['/login', '/register'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
+
   // 静的ファイルやAPIルートは除外
   if (
     pathname.startsWith('/_next') ||
@@ -39,10 +39,10 @@ export async function middleware(request: NextRequest) {
     if (isAuthenticated) {
       // 認証済みの場合、ダッシュボードにリダイレクト
       const redirectParam = request.nextUrl.searchParams.get('redirect');
-      const redirectTo = redirectParam && protectedRoutes.some(route => 
+      const redirectTo = redirectParam && protectedRoutes.some(route =>
         redirectParam.startsWith(route)
       ) ? redirectParam : '/dashboard';
-      
+
       return NextResponse.redirect(new URL(redirectTo, request.url));
     }
     return NextResponse.next();

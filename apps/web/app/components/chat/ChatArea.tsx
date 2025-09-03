@@ -90,38 +90,39 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
   return (
     <div className="relative flex-1 flex flex-col h-full">
-      {/* メッセージリスト */}
-      <MessageList
-        messages={actualMessages}
-        currentUserId={currentUserId}
-        isLoading={actualIsLoading}
-        onLoadMore={onLoadMore}
-        hasMore={hasMore}
-      />
+      {/* メッセージリスト（flex-1で残り空間を全て使用） */}
+      <div className="flex-1 min-h-0">
+        <MessageList
+          messages={actualMessages}
+          currentUserId={currentUserId}
+          isLoading={actualIsLoading}
+          onLoadMore={onLoadMore}
+          hasMore={hasMore}
+        />
+      </div>
 
-      {/* メッセージ入力 */}
-      <MessageInput
-        onSendMessage={handleSendMessage}
-        disabled={disabled || isSending}
-        placeholder={
-          isSending
-            ? '送信中...'
-            : roomName
-              ? `${roomName}にメッセージを送信...`
-              : 'メッセージを入力してください...'
-        }
-      />
+      {/* メッセージ入力（下部固定） */}
+      <div className="flex-shrink-0">
+        <MessageInput
+          onSendMessage={handleSendMessage}
+          disabled={disabled || isSending}
+          placeholder={
+            isSending
+              ? '送信中...'
+              : roomName
+                ? `${roomName}にメッセージを送信...`
+                : 'メッセージを入力してください...'
+          }
+        />
+      </div>
 
       {/* 送信中のローディング表示 */}
-      <div className="flex-1 flex flex-col h-full relative">
-
-        {isSending && (
-          <div className="absolute bottom-20 right-4 bg-blue-500 text-white px-3 py-1 rounded-full text-sm flex items-center space-x-2">
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            <span>送信中...</span>
-          </div>
-        )}
-      </div>
+      {isSending && (
+        <div className="absolute bottom-20 right-4 bg-blue-500 text-white px-3 py-1 rounded-full text-sm flex items-center space-x-2">
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          <span>送信中...</span>
+        </div>
+      )}
     </div>
   );
 };

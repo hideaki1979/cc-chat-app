@@ -146,6 +146,7 @@ func main() {
 
 	// チャットルーム関連
 	protectedGroup.POST("/chatrooms", chatRoomHandler.CreateChatRoom)
+	protectedGroup.POST("/chatrooms/dm", chatRoomHandler.CreateDMRoom)
 	protectedGroup.GET("/chatrooms", chatRoomHandler.GetChatRooms)
 	protectedGroup.GET("/chatrooms/:id", chatRoomHandler.GetChatRoom)
 	protectedGroup.PUT("/chatrooms/:id", chatRoomHandler.UpdateChatRoom)
