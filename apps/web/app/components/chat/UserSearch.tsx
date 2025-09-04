@@ -2,12 +2,13 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Button } from '@repo/ui/button';
 import { Input } from '@repo/ui/input';
 import { searchUsers, createDirectMessage, type UserSearchResult, type ChatRoomResponse } from '../../lib/api';
 import { useChatStore } from '../../stores/chat';
 
-export interface User extends UserSearchResult {}
+export type User = UserSearchResult;
 
 interface UserSearchProps {
   onUserSelect?: (user: User) => void;
@@ -30,7 +31,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isStartingDM, setIsStartingDM] = useState(false);
   const lastRequestIdRef = useRef(0);
-  
+
   // チャットストアのアクションを取得
   const addRoom = useChatStore((state) => state.addRoom);
 
@@ -59,7 +60,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
       setError(err instanceof Error ? err.message : 'ユーザー検索に失敗しました');
       setUsers([]);
     } finally {
-      if(requestId === lastRequestIdRef.current) {
+      if (requestId === lastRequestIdRef.current) {
         setIsSearching(false);
       }
     }
@@ -82,7 +83,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
     try {
       // APIクライアントを使用してDMを作成（既存があれば取得、なければ作成）
       const room: ChatRoomResponse = await createDirectMessage(user.id);
-      
+
       // ストアに新しいルームを追加
       addRoom({
         id: room.id,
@@ -123,10 +124,13 @@ export const UserSearch: React.FC<UserSearchProps> = ({
   const getUserAvatar = (user: User) => {
     if (user.profile_image_url) {
       return (
-        <img
+        <Image
           src={user.profile_image_url}
           alt={`${user.name}のアバター`}
+          width={40}
+          height={40}
           className="w-10 h-10 rounded-full object-cover"
+          unoptimized
         />
       );
     }

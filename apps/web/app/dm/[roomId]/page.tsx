@@ -14,13 +14,13 @@ export default function DMPage() {
   const roomId = params.roomId as string;
 
   const { user, isLoading: authLoading, isInitialized, initializeAuth } = useAuthStore();
-  const { rooms, currentRoomId, setCurrentRoom, loadRooms, updateRoom } = useChatStore();
+  const { rooms, currentRoomId, setCurrentRoom, loadRooms, updateRoom, isLoading } = useChatStore();
   const fetchedRef = useRef<string | null>(null);
 
   // 認証初期化(1度だけ)
   useEffect(() => {
     if (!isInitialized) {
-      initializeAuth().catch(() => {})
+      initializeAuth().catch(() => { })
     }
   }, [isInitialized, initializeAuth]);
 
@@ -84,7 +84,7 @@ export default function DMPage() {
 
   const otherUserName = getOtherUserName();
 
-  if (authLoading || !user) {
+  if (!isInitialized || authLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>読み込み中...</p>
@@ -93,6 +93,13 @@ export default function DMPage() {
   }
 
   if (!currentRoom) {
+    if (isLoading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <p>読み込み中...</p>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center p-8">

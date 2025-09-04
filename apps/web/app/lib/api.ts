@@ -39,10 +39,16 @@ const attachAuthHeader = (config: InternalAxiosRequestConfig) => {
       const authState = window.authStore?.getState?.();
       const token = authState?.accessToken;
       if (token) {
-        config.headers = {
-          ...(config.headers || {}),
-          Authorization: `Bearer ${token}`,
-        } as typeof config.headers;
+        const headers = config.headers;
+        // Axios v1: AxiosHeaders の場合は set を使う
+        if (headers && typeof headers.set === 'function') {
+          headers.set('Authorization', `Bearer ${token}`);
+        } else {
+          config.headers = { 
+            ...(headers || {}), 
+            Authorization: `Bearer ${token}` 
+          } as InternalAxiosRequestConfig['headers'];
+        }
       }
     } catch (error) {
       console.error('Auth store not yet initialized:', error);
