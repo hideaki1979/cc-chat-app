@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '../stores/auth';
 import { ChatLayout, Sidebar, ChatHeader } from '../components/layout';
 // import { ChatArea } from '../components/chat';
@@ -15,17 +15,18 @@ export default function ChatPage() {
   const [rooms] = useState<ChatRoom[]>([]);
   const [currentRoomId] = useState<string | undefined>(undefined);
 
-  // 認証初期化完了後、未ログインならログインへ
+  const pathname = usePathname();
 
-  // 未ログインならログインへ
+  // 初期化完了後、未ログインならログインへ（元URLを保持）
   useEffect(() => {
     if (isInitialized && !user) {
-      router.replace('/login');
+      const redirectTo = encodeURIComponent(pathname);
+      router.replace(`/login?redirect=${redirectTo}`);
     }
-  }, [isInitialized, user, router]);
+  }, [isInitialized, user, router, pathname]);
 
-  const handleLogout = async () => {
-    await logout();
+  const handleLogout = () => {
+    logout();
     router.push('/login');
   };
 

@@ -4,15 +4,17 @@ import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@repo/ui/button';
 import { Input } from '@repo/ui/input';
 import { FormCard, FormHeader, FormContainer, FormFields, FormFooter } from '@repo/ui/form-card';
 import { useAuthStore } from '../stores/auth';
 import { loginSchema, type LoginFormData } from '../lib/validations';
+import { DEFAULT_LOGIN_REDIRECT } from '../constants/constants';
 
 export const LoginForm: React.FC = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, isLoading, error, clearError } = useAuthStore();
 
   // 画面遷移後の古いエラーを初期化
@@ -33,7 +35,9 @@ export const LoginForm: React.FC = () => {
     clearError();
     const ok = await login(data);
     if (ok) {
-      router.push('/dashboard');
+      const redirect = searchParams.get('redirect');
+      const nextPath = redirect && redirect.startsWith('/') ? redirect : DEFAULT_LOGIN_REDIRECT;
+      router.push(nextPath);
     }
   };
 

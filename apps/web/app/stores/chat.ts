@@ -59,33 +59,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // チャットルーム管理（純粋な状態管理のみ）
   setRooms: (rooms) => set({ rooms }),
   setCurrentRoom: (roomId) => set({ currentRoomId: roomId }),
-  
-  addRoom: (room) => 
+
+  addRoom: (room) =>
     set((state) => ({
       rooms: [...state.rooms, room],
       currentRoomId: room.id,
     })),
-  
+
   upsertRoom: (room) =>
     set((state) => {
       const existingIndex = state.rooms.findIndex((r) => r.id === room.id);
       const updateRooms = existingIndex === -1
         ? [...state.rooms, room]  // 新規追加
-        : state.rooms.map((r, i) => i === existingIndex ? {...r, ...room} : r); // 既存を更新
-      
+        : state.rooms.map((r, i) => i === existingIndex ? { ...r, ...room } : r); // 既存を更新
+
       return {
         rooms: updateRooms,
         currentRoomId: room.id,   // 追加/更新したルームを現在のルームに設定
       }
     }),
-  
+
   updateRoom: (roomId, updates) =>
     set((state) => ({
-      rooms: state.rooms.map(room => 
+      rooms: state.rooms.map(room =>
         room.id === roomId ? { ...room, ...updates } : room
       ),
     })),
-  
+
   removeRoom: (roomId) =>
     set((state) => ({
       rooms: state.rooms.filter(room => room.id !== roomId),

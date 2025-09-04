@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 import { useAuthStore } from '../../stores/auth';
 import { useChatStore } from '../../stores/chat';
@@ -16,6 +16,8 @@ export default function DMPage() {
   const { user, isLoading: authLoading, isInitialized, initializeAuth } = useAuthStore();
   const { rooms, currentRoomId, setCurrentRoom, loadRooms, updateRoom, isLoading } = useChatStore();
   const fetchedRef = useRef<string | null>(null);
+
+  const pathname = usePathname();
 
   // 認証初期化(1度だけ)
   useEffect(() => {
@@ -38,12 +40,13 @@ export default function DMPage() {
     }
   }, [roomId, currentRoomId, setCurrentRoom]);
 
-  // 未ログイン時はログイン画面へ
+  // 初期化完了後も未ログインならログインへ（元URLを保持）
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace('/login');
+    if (isInitialized && !authLoading && !user) {
+      const redirectTo = encodeURIComponent(pathname);
+      router.replace(`/login?redirect=${redirectTo}`);
     }
-  }, [authLoading, user, router]);
+  }, [isInitialized, authLoading, user, roomId, router, pathname]);
 
   // 現在のルーム情報を取得
   const currentRoom = rooms.find(room => room.id === roomId);
