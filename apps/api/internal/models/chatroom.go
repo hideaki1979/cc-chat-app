@@ -24,6 +24,11 @@ type AddMemberRequest struct {
 	UserID string `json:"user_id" validate:"required,uuid"`
 }
 
+// CreateDMRoomRequest DM（1対1）ルーム作成リクエスト
+type CreateDMRoomRequest struct {
+	TargetUserID string `json:"target_user_id" validate:"required,uuid"`
+}
+
 // ChatRoomResponse チャットルーム詳細レスポンス
 type ChatRoomResponse struct {
 	ID          string              `json:"id"`

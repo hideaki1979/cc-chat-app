@@ -134,7 +134,6 @@ export const useAuthStore = create<AuthStore>()(
           const { token: accessToken } = data as { token: string };
           set({ accessToken });
         } catch (error) {
-          console.log('リフレッシュトークンが無効です');
           // リフレッシュ失敗時はログアウト状態にする（ログアウトAPIは呼ばない）
           set({
             user: null,
@@ -196,7 +195,6 @@ export const useAuthStore = create<AuthStore>()(
               const parsedAuth = JSON.parse(storedAuth);
               if (parsedAuth.state && parsedAuth.state.user && parsedAuth.state.isInitialized) {
                 // テスト用の認証データが存在する場合はそれを使用
-                console.log('テスト用認証データを使用中...');
                 set({
                   user: parsedAuth.state.user,
                   accessToken: parsedAuth.state.accessToken,
@@ -207,21 +205,17 @@ export const useAuthStore = create<AuthStore>()(
                 return;
               }
             }
-          } catch (error) {
+          } catch {
             // localStorage解析エラーは無視して通常の初期化を続行
-            console.log('localStorage解析エラー:', error);
           }
         }
 
         try {
-          console.log('認証状態を初期化中...');
           set({ isLoading: true });
 
           const user = await get()._fetchUserProfileAfterRefresh();
-          console.log('認証状態の初期化完了:', user);
           set({ user, isInitialized: true, isLoading: false, error: null });
-        } catch (error) {
-          console.log('初期化時の認証確認: ログイン状態ではありません', error);
+        } catch {
           set({
             user: null,
             accessToken: null,

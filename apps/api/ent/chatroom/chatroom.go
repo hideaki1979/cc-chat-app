@@ -19,6 +19,8 @@ const (
 	FieldName = "name"
 	// FieldIsGroupChat holds the string denoting the is_group_chat field in the database.
 	FieldIsGroupChat = "is_group_chat"
+	// FieldDmKey holds the string denoting the dm_key field in the database.
+	FieldDmKey = "dm_key"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -50,6 +52,7 @@ var Columns = []string{
 	FieldID,
 	FieldName,
 	FieldIsGroupChat,
+	FieldDmKey,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -69,6 +72,8 @@ var (
 	NameValidator func(string) error
 	// DefaultIsGroupChat holds the default value on creation for the "is_group_chat" field.
 	DefaultIsGroupChat bool
+	// DmKeyValidator is a validator for the "dm_key" field. It is called by the builders before save.
+	DmKeyValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -95,6 +100,11 @@ func ByName(opts ...sql.OrderTermOption) OrderOption {
 // ByIsGroupChat orders the results by the is_group_chat field.
 func ByIsGroupChat(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIsGroupChat, opts...).ToFunc()
+}
+
+// ByDmKey orders the results by the dm_key field.
+func ByDmKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDmKey, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

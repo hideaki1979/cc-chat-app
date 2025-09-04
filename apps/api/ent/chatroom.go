@@ -22,6 +22,8 @@ type ChatRoom struct {
 	Name string `json:"name,omitempty"`
 	// グループチャットかどうか
 	IsGroupChat bool `json:"is_group_chat,omitempty"`
+	// DM識別キー（非グループチャット専用）
+	DmKey *string `json:"dm_key,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -68,7 +70,7 @@ func (*ChatRoom) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case chatroom.FieldIsGroupChat:
 			values[i] = new(sql.NullBool)
-		case chatroom.FieldName:
+		case chatroom.FieldName, chatroom.FieldDmKey:
 			values[i] = new(sql.NullString)
 		case chatroom.FieldCreatedAt, chatroom.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -106,6 +108,13 @@ func (cr *ChatRoom) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field is_group_chat", values[i])
 			} else if value.Valid {
 				cr.IsGroupChat = value.Bool
+			}
+		case chatroom.FieldDmKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field dm_key", values[i])
+			} else if value.Valid {
+				cr.DmKey = new(string)
+				*cr.DmKey = value.String
 			}
 		case chatroom.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -170,6 +179,11 @@ func (cr *ChatRoom) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("is_group_chat=")
 	builder.WriteString(fmt.Sprintf("%v", cr.IsGroupChat))
+	builder.WriteString(", ")
+	if v := cr.DmKey; v != nil {
+		builder.WriteString("dm_key=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(cr.CreatedAt.Format(time.ANSIC))

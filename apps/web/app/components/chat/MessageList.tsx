@@ -56,13 +56,14 @@ export const MessageList: React.FC<MessageListProps> = ({
   };
 
   const isMyMessage = (message: Message) => {
-    return message.sender_id === currentUserId;
+    return (message.sender?.id || message.sender_id || message.user_id) === currentUserId;
   };
 
   const renderMessage = (message: Message, index: number) => {
     const isOwn = isMyMessage(message);
     const prevMessage = index > 0 ? messages[index - 1] : null;
-    const showSender = !prevMessage || prevMessage.sender_id !== message.sender_id;
+    const getSenderId = (msg: Message) => msg.sender?.id || msg.sender_id || msg.user_id;
+    const showSender = !prevMessage || getSenderId(prevMessage) !== getSenderId(message);
     const isSystemMessage = message.message_type === 'system';
 
     if (isSystemMessage) {
@@ -84,7 +85,7 @@ export const MessageList: React.FC<MessageListProps> = ({
           {/* アバター（自分のメッセージでない場合のみ表示） */}
           {!isOwn && showSender && (
             <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-              {message.sender_name.charAt(0).toUpperCase()}
+              {(message.sender?.name || message.sender_name || '?').charAt(0).toUpperCase()}
             </div>
           )}
           {!isOwn && !showSender && <div className="w-8 h-8" />}
@@ -93,7 +94,7 @@ export const MessageList: React.FC<MessageListProps> = ({
           <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
             {/* 送信者名（自分のメッセージでない場合のみ表示） */}
             {!isOwn && showSender && (
-              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 px-2">{message.sender_name}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 px-2">{message.sender?.name || message.sender_name || '不明なユーザー'}</div>
             )}
 
             {/* メッセージバブル */}

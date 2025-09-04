@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback } from 'react';
-import { api } from '../lib/api';
+import { apiProxy } from '../lib/api';
 import { useChatStore } from '../stores/chat';
 import type { Message, ChatRoom } from '../types/chat';
+import axios from 'axios';
 
 interface GetRoomsResponse {
   rooms: ChatRoom[];
@@ -41,14 +42,21 @@ export const useChat = () => {
   const fetchRooms = useCallback(async () => {
     try {
       beginLoading();
-      const response = await api.get('/api/backend/chatrooms');
+      const response = await apiProxy.get('/chatrooms');
       const data: GetRoomsResponse = response.data;
 
       if (data && Array.isArray(data.rooms)) {
         setRooms(data.rooms);
+      } else {
+        setRooms([]);
       }
     } catch (error) {
       console.error('Failed to fetch rooms:', error);
+      // 404エラーの場合は空の配列を設定
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        setRooms([]);
+        return; // エラーを再スローしない
+      }
       throw error;
     } finally {
       endLoading();
@@ -59,7 +67,7 @@ export const useChat = () => {
   const fetchMessages = useCallback(async (roomId: string, page = 1) => {
     try {
       beginLoading();
-      const response = await api.get(`/api/backend/chatrooms/${roomId}/messages`, {
+      const response = await apiProxy.get(`/chatrooms/${roomId}/messages`, {
         params: { page, page_size: 50 }
       });
       const data: GetMessagesResponse = response.data;
@@ -70,9 +78,18 @@ export const useChat = () => {
           new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         );
         setMessages(roomId, sortedMessages);
+      } else {
+        setMessages(roomId, []);
       }
     } catch (error) {
       console.error('Failed to fetch messages:', error);
+      // 404エラーの場合は空の配列を設定
+      if (error && typeof error === 'object' && 'response' in error && 
+          error.response && typeof error.response === 'object' && 
+          'status' in error.response && error.response.status === 404) {
+        setMessages(roomId, []);
+        return; // エラーを再スローしない
+      }
       throw error;
     } finally {
       endLoading();
@@ -82,7 +99,7 @@ export const useChat = () => {
   // メッセージ送信
   const sendMessage = useCallback(async (roomId: string, content: string): Promise<Message | null> => {
     try {
-      const response = await api.post(`/api/backend/chatrooms/${roomId}/messages`, {
+      const response = await apiProxy.post(`/chatrooms/${roomId}/messages`, {
         content,
       });
 
@@ -99,7 +116,7 @@ export const useChat = () => {
   }, [addMessage]);
 
   // ルーム選択
-  const selectRoom = useCallback(async (roomId: string) => {
+  const selectRoom = useCallback(async (roomId: string): Promise<void> => {
     setCurrentRoom(roomId);
     // ルーム選択時にメッセージも取得
     await fetchMessages(roomId);

@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@repo/ui/button';
 import type { ChatRoom } from '../../types/chat';
+import { UserSearch } from '../chat/UserSearch';
 
 interface SidebarProps {
   rooms?: ChatRoom[];
@@ -25,6 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   user,
   onLogout,
 }) => {
+  const [isUserSearchOpen, setIsUserSearchOpen] = useState(false);
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -55,14 +57,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">
             CC Chat
           </h1>
-          <Button
-            onClick={onCreateRoom}
-            size="sm"
-            variant="primary"
-            className="text-sm"
-          >
-            新規ルーム
-          </Button>
+          <div className="flex space-x-2">
+            <Button
+              onClick={() => setIsUserSearchOpen(true)}
+              size="sm"
+              variant="secondary"
+              className="text-sm"
+              title="ユーザーを検索してDMを開始"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              DM
+            </Button>
+            <Button
+              onClick={onCreateRoom}
+              size="sm"
+              variant="primary"
+              className="text-sm"
+            >
+              ルーム
+            </Button>
+          </div>
         </div>
 
         {/* ユーザー情報 */}
@@ -167,6 +183,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           CC Chat App v1.0
         </div>
       </div>
+
+      {/* ユーザー検索モーダル */}
+      <UserSearch
+        isOpen={isUserSearchOpen}
+        onClose={() => setIsUserSearchOpen(false)}
+        currentUserId={user?.id}
+        onUserSelect={(user) => {
+          // ユーザー選択時の処理（必要に応じてコールバックを追加）
+          console.log('Selected user for DM:', user);
+        }}
+      />
     </div>
   );
 };

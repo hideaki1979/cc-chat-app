@@ -42,6 +42,7 @@ type ChatRoomMutation struct {
 	id                  *uuid.UUID
 	name                *string
 	is_group_chat       *bool
+	dm_key              *string
 	created_at          *time.Time
 	updated_at          *time.Time
 	clearedFields       map[string]struct{}
@@ -230,6 +231,55 @@ func (m *ChatRoomMutation) OldIsGroupChat(ctx context.Context) (v bool, err erro
 // ResetIsGroupChat resets all changes to the "is_group_chat" field.
 func (m *ChatRoomMutation) ResetIsGroupChat() {
 	m.is_group_chat = nil
+}
+
+// SetDmKey sets the "dm_key" field.
+func (m *ChatRoomMutation) SetDmKey(s string) {
+	m.dm_key = &s
+}
+
+// DmKey returns the value of the "dm_key" field in the mutation.
+func (m *ChatRoomMutation) DmKey() (r string, exists bool) {
+	v := m.dm_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDmKey returns the old "dm_key" field's value of the ChatRoom entity.
+// If the ChatRoom object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChatRoomMutation) OldDmKey(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDmKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDmKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDmKey: %w", err)
+	}
+	return oldValue.DmKey, nil
+}
+
+// ClearDmKey clears the value of the "dm_key" field.
+func (m *ChatRoomMutation) ClearDmKey() {
+	m.dm_key = nil
+	m.clearedFields[chatroom.FieldDmKey] = struct{}{}
+}
+
+// DmKeyCleared returns if the "dm_key" field was cleared in this mutation.
+func (m *ChatRoomMutation) DmKeyCleared() bool {
+	_, ok := m.clearedFields[chatroom.FieldDmKey]
+	return ok
+}
+
+// ResetDmKey resets all changes to the "dm_key" field.
+func (m *ChatRoomMutation) ResetDmKey() {
+	m.dm_key = nil
+	delete(m.clearedFields, chatroom.FieldDmKey)
 }
 
 // SetCreatedAt sets the "created_at" field.
@@ -446,12 +496,15 @@ func (m *ChatRoomMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChatRoomMutation) Fields() []string {
-	fields := make([]string, 0, 4)
+	fields := make([]string, 0, 5)
 	if m.name != nil {
 		fields = append(fields, chatroom.FieldName)
 	}
 	if m.is_group_chat != nil {
 		fields = append(fields, chatroom.FieldIsGroupChat)
+	}
+	if m.dm_key != nil {
+		fields = append(fields, chatroom.FieldDmKey)
 	}
 	if m.created_at != nil {
 		fields = append(fields, chatroom.FieldCreatedAt)
@@ -471,6 +524,8 @@ func (m *ChatRoomMutation) Field(name string) (ent.Value, bool) {
 		return m.Name()
 	case chatroom.FieldIsGroupChat:
 		return m.IsGroupChat()
+	case chatroom.FieldDmKey:
+		return m.DmKey()
 	case chatroom.FieldCreatedAt:
 		return m.CreatedAt()
 	case chatroom.FieldUpdatedAt:
@@ -488,6 +543,8 @@ func (m *ChatRoomMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldName(ctx)
 	case chatroom.FieldIsGroupChat:
 		return m.OldIsGroupChat(ctx)
+	case chatroom.FieldDmKey:
+		return m.OldDmKey(ctx)
 	case chatroom.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case chatroom.FieldUpdatedAt:
@@ -514,6 +571,13 @@ func (m *ChatRoomMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetIsGroupChat(v)
+		return nil
+	case chatroom.FieldDmKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDmKey(v)
 		return nil
 	case chatroom.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -558,7 +622,11 @@ func (m *ChatRoomMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *ChatRoomMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(chatroom.FieldDmKey) {
+		fields = append(fields, chatroom.FieldDmKey)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -571,6 +639,11 @@ func (m *ChatRoomMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *ChatRoomMutation) ClearField(name string) error {
+	switch name {
+	case chatroom.FieldDmKey:
+		m.ClearDmKey()
+		return nil
+	}
 	return fmt.Errorf("unknown ChatRoom nullable field %s", name)
 }
 
@@ -583,6 +656,9 @@ func (m *ChatRoomMutation) ResetField(name string) error {
 		return nil
 	case chatroom.FieldIsGroupChat:
 		m.ResetIsGroupChat()
+		return nil
+	case chatroom.FieldDmKey:
+		m.ResetDmKey()
 		return nil
 	case chatroom.FieldCreatedAt:
 		m.ResetCreatedAt()

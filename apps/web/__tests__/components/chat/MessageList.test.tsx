@@ -11,7 +11,9 @@ const mockMessages: Message[] = [
     sender_id: 'user1',
     sender_name: '田中さん',
     room_id: 'room1',
+    user_id: 'user1',
     created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(), // 1時間前
+    updated_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
     message_type: 'text',
   },
   {
@@ -20,7 +22,9 @@ const mockMessages: Message[] = [
     sender_id: 'current_user',
     sender_name: 'あなた',
     room_id: 'room1',
+    user_id: 'current_user',
     created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30分前
+    updated_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
     message_type: 'text',
   },
   {
@@ -29,7 +33,9 @@ const mockMessages: Message[] = [
     sender_id: 'system',
     sender_name: 'システム',
     room_id: 'room1',
+    user_id: 'system',
     created_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(), // 10分前
+    updated_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
     message_type: 'system',
   },
   {
@@ -38,7 +44,9 @@ const mockMessages: Message[] = [
     sender_id: 'user1',
     sender_name: '田中さん',
     room_id: 'room1',
+    user_id: 'user1',
     created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(), // 5分前
+    updated_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
     message_type: 'text',
     is_edited: true,
   },

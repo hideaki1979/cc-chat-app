@@ -48,7 +48,7 @@ export default function DashboardPage() {
             <h1 className="text-3xl font-bold text-gray-900">
               ダッシュボード
             </h1>
-            <Button onClick={handleLogout} variant="secondary">
+            <Button onClick={handleLogout} variant="secondary" className="mr-2 px-8">
               ログアウト
             </Button>
           </div>
@@ -71,13 +71,37 @@ export default function DashboardPage() {
 
             <div className="mt-8">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
-                チャット機能（開発予定）
+                利用可能な機能
               </h3>
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-                <p className="text-blue-700">
-                  チャット機能はまだ実装されていません。
-                  バックエンドAPI実装後に利用可能になります。
-                </p>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="bg-green-50 border border-green-200 rounded-md p-4">
+                  <h4 className="font-medium text-green-800 mb-2">リアルタイムチャット</h4>
+                  <p className="text-green-700 text-sm mb-3">
+                    グループチャットや個人チャットが利用できます。
+                  </p>
+                  <Button
+                    onClick={() => {
+                      router.push('/chat');
+                    }}
+                    className="w-full"
+                  >
+                    チャットを開始
+                  </Button>
+                </div>
+
+                <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
+                  <h4 className="font-medium text-gray-800 mb-2">プロフィール設定</h4>
+                  <p className="text-gray-700 text-sm mb-3">
+                    ユーザー名やアバター画像を変更できます。
+                  </p>
+                  <Button
+                    variant="secondary"
+                    className="w-full"
+                    disabled
+                  >
+                    近日公開
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

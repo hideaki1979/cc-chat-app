@@ -59,6 +59,26 @@ func (cru *ChatRoomUpdate) SetNillableIsGroupChat(b *bool) *ChatRoomUpdate {
 	return cru
 }
 
+// SetDmKey sets the "dm_key" field.
+func (cru *ChatRoomUpdate) SetDmKey(s string) *ChatRoomUpdate {
+	cru.mutation.SetDmKey(s)
+	return cru
+}
+
+// SetNillableDmKey sets the "dm_key" field if the given value is not nil.
+func (cru *ChatRoomUpdate) SetNillableDmKey(s *string) *ChatRoomUpdate {
+	if s != nil {
+		cru.SetDmKey(*s)
+	}
+	return cru
+}
+
+// ClearDmKey clears the value of the "dm_key" field.
+func (cru *ChatRoomUpdate) ClearDmKey() *ChatRoomUpdate {
+	cru.mutation.ClearDmKey()
+	return cru
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (cru *ChatRoomUpdate) SetUpdatedAt(t time.Time) *ChatRoomUpdate {
 	cru.mutation.SetUpdatedAt(t)
@@ -185,6 +205,11 @@ func (cru *ChatRoomUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "ChatRoom.name": %w`, err)}
 		}
 	}
+	if v, ok := cru.mutation.DmKey(); ok {
+		if err := chatroom.DmKeyValidator(v); err != nil {
+			return &ValidationError{Name: "dm_key", err: fmt.Errorf(`ent: validator failed for field "ChatRoom.dm_key": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -205,6 +230,12 @@ func (cru *ChatRoomUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := cru.mutation.IsGroupChat(); ok {
 		_spec.SetField(chatroom.FieldIsGroupChat, field.TypeBool, value)
+	}
+	if value, ok := cru.mutation.DmKey(); ok {
+		_spec.SetField(chatroom.FieldDmKey, field.TypeString, value)
+	}
+	if cru.mutation.DmKeyCleared() {
+		_spec.ClearField(chatroom.FieldDmKey, field.TypeString)
 	}
 	if value, ok := cru.mutation.UpdatedAt(); ok {
 		_spec.SetField(chatroom.FieldUpdatedAt, field.TypeTime, value)
@@ -347,6 +378,26 @@ func (cruo *ChatRoomUpdateOne) SetNillableIsGroupChat(b *bool) *ChatRoomUpdateOn
 	return cruo
 }
 
+// SetDmKey sets the "dm_key" field.
+func (cruo *ChatRoomUpdateOne) SetDmKey(s string) *ChatRoomUpdateOne {
+	cruo.mutation.SetDmKey(s)
+	return cruo
+}
+
+// SetNillableDmKey sets the "dm_key" field if the given value is not nil.
+func (cruo *ChatRoomUpdateOne) SetNillableDmKey(s *string) *ChatRoomUpdateOne {
+	if s != nil {
+		cruo.SetDmKey(*s)
+	}
+	return cruo
+}
+
+// ClearDmKey clears the value of the "dm_key" field.
+func (cruo *ChatRoomUpdateOne) ClearDmKey() *ChatRoomUpdateOne {
+	cruo.mutation.ClearDmKey()
+	return cruo
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (cruo *ChatRoomUpdateOne) SetUpdatedAt(t time.Time) *ChatRoomUpdateOne {
 	cruo.mutation.SetUpdatedAt(t)
@@ -486,6 +537,11 @@ func (cruo *ChatRoomUpdateOne) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "ChatRoom.name": %w`, err)}
 		}
 	}
+	if v, ok := cruo.mutation.DmKey(); ok {
+		if err := chatroom.DmKeyValidator(v); err != nil {
+			return &ValidationError{Name: "dm_key", err: fmt.Errorf(`ent: validator failed for field "ChatRoom.dm_key": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -523,6 +579,12 @@ func (cruo *ChatRoomUpdateOne) sqlSave(ctx context.Context) (_node *ChatRoom, er
 	}
 	if value, ok := cruo.mutation.IsGroupChat(); ok {
 		_spec.SetField(chatroom.FieldIsGroupChat, field.TypeBool, value)
+	}
+	if value, ok := cruo.mutation.DmKey(); ok {
+		_spec.SetField(chatroom.FieldDmKey, field.TypeString, value)
+	}
+	if cruo.mutation.DmKeyCleared() {
+		_spec.ClearField(chatroom.FieldDmKey, field.TypeString)
 	}
 	if value, ok := cruo.mutation.UpdatedAt(); ok {
 		_spec.SetField(chatroom.FieldUpdatedAt, field.TypeTime, value)

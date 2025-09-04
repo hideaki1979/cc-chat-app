@@ -19,22 +19,29 @@ jest.mock('../../../app/components/chat/MessageList', () => ({
   ),
 }));
 
-jest.mock('../../../app/components/chat/MessageInput', () => ({
-  MessageInput: ({ onSendMessage, disabled, placeholder }: any) => (
-    <div data-testid="message-input">
-      <input
-        data-testid="message-input-field"
-        placeholder={placeholder}
-        disabled={disabled}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            onSendMessage('test message');
-          }
-        }}
-      />
-    </div>
-  ),
-}));
+jest.mock('../../../app/components/chat/MessageInput', () => {
+  interface MockMessageInputProps {
+    onSendMessage: (content: string) => void | Promise<void>;
+    disabled?: boolean;
+    placeholder?: string;
+  }
+  return {
+    MessageInput: ({ onSendMessage, disabled, placeholder }: MockMessageInputProps) => (
+      <div data-testid="message-input">
+        <input
+          data-testid="message-input-field"
+          placeholder={placeholder}
+          disabled={disabled}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              onSendMessage('test message');
+            }
+          }}
+        />
+      </div>
+    ),
+  };
+});
 
 import { useChat } from '../../../app/hooks/useChat';
 
@@ -47,7 +54,9 @@ const mockMessages: Message[] = [
     sender_id: 'user1',
     sender_name: '田中さん',
     room_id: 'room1',
+    user_id: 'user1',
     created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
     message_type: 'text',
   },
   {
@@ -56,7 +65,9 @@ const mockMessages: Message[] = [
     sender_id: 'current_user',
     sender_name: 'あなた',
     room_id: 'room1',
+    user_id: 'current_user',
     created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
     message_type: 'text',
   },
 ];
