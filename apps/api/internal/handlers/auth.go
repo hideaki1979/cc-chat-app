@@ -21,6 +21,8 @@ import (
 // AuthHandler 認証関連のハンドラー構造体
 type AuthHandler struct{}
 
+const refreshTokenRotationThreshold = 24 * time.Hour
+
 // NewAuthHandler 新しいAuthHandlerインスタンスを作成
 func NewAuthHandler() *AuthHandler {
 	return &AuthHandler{}
@@ -407,7 +409,7 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 	// 残存期間が短い場合のみrefresh_tokenをローテーション（例: 24時間未満）
 	shouldRotate := false
 	if existingUser.RefreshTokenExpiresAt != nil {
-		if time.Until(*existingUser.RefreshTokenExpiresAt) < 24*time.Hour {
+		if time.Until(*existingUser.RefreshTokenExpiresAt) < refreshTokenRotationThreshold {
 			shouldRotate = true
 		}
 	}
@@ -431,7 +433,7 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 			Save(ctx)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-				Message: "Failed to update refresh token",
+				Message: "リフレッシュトークンの更新に失敗しました",
 				Code:    "UPDATE_ERROR",
 			})
 		}

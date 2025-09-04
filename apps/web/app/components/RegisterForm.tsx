@@ -10,7 +10,7 @@ import { Input } from '@repo/ui/input';
 import { FormCard, FormHeader, FormContainer, FormFields, FormFooter } from '@repo/ui/form-card';
 import { useAuthStore } from '../stores/auth';
 import { registerSchema, type RegisterFormData } from '../lib/validations';
-import { HTTP_STATUS, REDIRECT_DELAY_MS } from '../constants/constants';
+import { DEFAULT_LOGIN_REDIRECT, HTTP_STATUS, REDIRECT_DELAY_MS } from '../constants/constants';
 
 export const RegisterForm: React.FC = () => {
   const router = useRouter();
@@ -37,7 +37,7 @@ export const RegisterForm: React.FC = () => {
       const result = await registerUser(data);
       if (result.ok) {
         const redirect = searchParams.get('redirect');
-        const nextPath = redirect && redirect.startsWith('/') ? redirect : '/dashboard';
+        const nextPath = redirect && redirect.startsWith('/') ? redirect : DEFAULT_LOGIN_REDIRECT;
         router.push(nextPath);
         return;
       }

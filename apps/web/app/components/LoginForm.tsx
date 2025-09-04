@@ -10,6 +10,7 @@ import { Input } from '@repo/ui/input';
 import { FormCard, FormHeader, FormContainer, FormFields, FormFooter } from '@repo/ui/form-card';
 import { useAuthStore } from '../stores/auth';
 import { loginSchema, type LoginFormData } from '../lib/validations';
+import { DEFAULT_LOGIN_REDIRECT } from '../constants/constants';
 
 export const LoginForm: React.FC = () => {
   const router = useRouter();
@@ -35,7 +36,7 @@ export const LoginForm: React.FC = () => {
     const ok = await login(data);
     if (ok) {
       const redirect = searchParams.get('redirect');
-      const nextPath = redirect && redirect.startsWith('/') ? redirect : '/dashboard';
+      const nextPath = redirect && redirect.startsWith('/') ? redirect : DEFAULT_LOGIN_REDIRECT;
       router.push(nextPath);
     }
   };

@@ -11,6 +11,7 @@ import type {
 } from '../types/auth';
 // import { isAxiosError } from 'axios';
 import type { User } from '../types/auth';
+import { LOGIN_PAGE_PATH, REGISTER_PAGE_PATH } from '../constants/constants';
 
 // 同一タブ内でのrefresh多重実行を防止するシンプルなsingleflightロック
 let refreshPromise: Promise<void> | null = null;
@@ -232,7 +233,7 @@ export const useAuthStore = create<AuthStore>()(
           // ゲストページ（/login, /register）では自動リフレッシュを行わず初期化のみ行う
           try {
             const path = window.location.pathname || '';
-            const guestOnly = ['/login', '/register'];
+            const guestOnly = [LOGIN_PAGE_PATH, REGISTER_PAGE_PATH];
             if (guestOnly.some((p) => path.startsWith(p))) {
               set({ isInitialized: true, isLoading: false, error: null });
               return;
