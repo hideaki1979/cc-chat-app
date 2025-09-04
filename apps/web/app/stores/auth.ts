@@ -12,6 +12,9 @@ import type {
 // import { isAxiosError } from 'axios';
 import type { User } from '../types/auth';
 
+// 同一タブ内でのrefresh多重実行を防止するシンプルなsingleflightロック
+let refreshPromise: Promise<void> | null = null;
+
 export const useAuthStore = create<AuthStore>()(
   devtools(
     // persist機能を削除してメモリ内のみに変更（セキュリティ向上）
@@ -125,14 +128,37 @@ export const useAuthStore = create<AuthStore>()(
 
       refreshAccessToken: async () => {
         try {
-          // Next.js Route Handler 経由でバックエンドへ
-          const response = await fetch('/api/backend/refresh', { method: 'POST', credentials: 'include' });
-          if (!response.ok) {
-            throw new Error(`Failed to refresh token: ${response.status}`);
+          // 既に実行中ならそれを待つ
+          if (refreshPromise) {
+            await refreshPromise;
+            return;
           }
-          const data = await response.json();
-          const { token: accessToken } = data as { token: string };
-          set({ accessToken });
+
+          refreshPromise = (async () => {
+            // Next.js Route Handler 経由でバックエンドへ
+            const response = await fetch('/api/backend/refresh', { method: 'POST', credentials: 'include' });
+            if (!response.ok) {
+              // 401 の場合は即ログアウトし、ログインへ誘導
+              if (response.status === 401) {
+                try {
+                  const { logout } = get();
+                  await logout();
+                } finally {
+                  if (typeof window !== 'undefined') {
+                    const currentPath = window.location.pathname || '/';
+                    const redirectParam = encodeURIComponent(currentPath);
+                    window.location.href = `/login?redirect=${redirectParam}`;
+                  }
+                }
+              }
+              throw new Error(`Failed to refresh token: ${response.status}`);
+            }
+            const data = await response.json();
+            const { token: accessToken } = data as { token: string };
+            set({ accessToken });
+          })();
+
+          await refreshPromise;
         } catch (error) {
           // リフレッシュ失敗時はログアウト状態にする（ログアウトAPIは呼ばない）
           set({
@@ -142,6 +168,8 @@ export const useAuthStore = create<AuthStore>()(
             error: null,
           });
           throw error;
+        } finally {
+          refreshPromise = null;
         }
       },
 
@@ -165,19 +193,31 @@ export const useAuthStore = create<AuthStore>()(
         return (await res.json()) as User;
       },
 
-      // 手動でのユーザー情報再取得（リトライ機能付き）
+      // 手動でのユーザー情報再取得（AuthInitがrefreshを担当する前提で、プロフィール取得のみ）
       loadCurrentUser: async () => {
-        const { setLoading, _fetchUserProfileAfterRefresh } = get();
+        const { setLoading } = get();
         try {
           setLoading(true);
-          // セッションを確立するために、まずトークンをリフレッシュする
-          const user = await _fetchUserProfileAfterRefresh();
+
+          const { accessToken } = get();
+          if (!accessToken) {
+            set({ isLoading: false, isInitialized: true });
+            throw new Error('Access token is not available');
+          }
+
+          const headers: HeadersInit = { Authorization: `Bearer ${accessToken}` };
+          const res = await fetch('/api/backend/profile', {
+            headers,
+            credentials: 'include',
+          });
+          if (!res.ok) {
+            throw new Error(`プロファイルの取得に失敗しました：${res.status}`);
+          }
+          const user = (await res.json()) as User;
           set({ user, isLoading: false, error: null, isInitialized: true });
         } catch (error) {
           console.error('Load current user failed:', error);
-          // エラー時はローディング状態を解除（ユーザーとトークンはrefreshAccessTokenでクリア済み）
           set({ isLoading: false, isInitialized: true });
-          // エラーを再スローして呼び出し元で適切に処理できるようにする
           throw error;
         }
       },
@@ -189,6 +229,17 @@ export const useAuthStore = create<AuthStore>()(
 
         // テスト環境での認証データチェック
         if (typeof window !== 'undefined') {
+          // ゲストページ（/login, /register）では自動リフレッシュを行わず初期化のみ行う
+          try {
+            const path = window.location.pathname || '';
+            const guestOnly = ['/login', '/register'];
+            if (guestOnly.some((p) => path.startsWith(p))) {
+              set({ isInitialized: true, isLoading: false, error: null });
+              return;
+            }
+          } catch {
+            // no-op
+          }
           try {
             const storedAuth = localStorage.getItem('auth-storage');
             if (storedAuth) {

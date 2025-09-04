@@ -7,25 +7,26 @@ import { Button } from '@repo/ui/button';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, isLoading, logout, loadCurrentUser } = useAuthStore();
+  const { user, isLoading, isInitialized, logout, loadCurrentUser } = useAuthStore();
   const didLoadRef = useRef(false);
 
   // 初回マウント時にユーザー取得（React StrictModeの二重実行を防止）
   useEffect(() => {
     if (didLoadRef.current) return;
+    if (!isInitialized) return; // 初期化が完了してからユーザー取得を試みる
     didLoadRef.current = true;
     if (!user) {
       loadCurrentUser().catch(() => { });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isInitialized, user, loadCurrentUser]);
 
-  // 未ログインならログインページへ遷移
+  // 初期化完了後、未ログインならログインページへ（元URLを保持）
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.replace('/login');
+    if (isInitialized && !isLoading && !user) {
+      const redirectTo = encodeURIComponent('/dashboard');
+      router.replace(`/login?redirect=${redirectTo}`);
     }
-  }, [isLoading, user, router]);
+  }, [isInitialized, isLoading, user, router]);
 
   const handleLogout = () => {
     logout();

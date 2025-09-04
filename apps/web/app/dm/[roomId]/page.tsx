@@ -38,12 +38,13 @@ export default function DMPage() {
     }
   }, [roomId, currentRoomId, setCurrentRoom]);
 
-  // 未ログイン時はログイン画面へ
+  // 初期化完了後も未ログインならログインへ（元URLを保持）
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace('/login');
+    if (isInitialized && !authLoading && !user) {
+      const redirectTo = encodeURIComponent(`/dm/${roomId}`);
+      router.replace(`/login?redirect=${redirectTo}`);
     }
-  }, [authLoading, user, router]);
+  }, [isInitialized, authLoading, user, roomId, router]);
 
   // 現在のルーム情報を取得
   const currentRoom = rooms.find(room => room.id === roomId);

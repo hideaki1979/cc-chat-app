@@ -17,10 +17,11 @@ export default function ChatPage() {
 
   // 認証初期化完了後、未ログインならログインへ
 
-  // 未ログインならログインへ
+  // 初期化完了後、未ログインならログインへ（元URLを保持）
   useEffect(() => {
     if (isInitialized && !user) {
-      router.replace('/login');
+      const redirectTo = encodeURIComponent('/chat');
+      router.replace(`/login?redirect=${redirectTo}`);
     }
   }, [isInitialized, user, router]);
 

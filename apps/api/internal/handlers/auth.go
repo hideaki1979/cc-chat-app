@@ -270,8 +270,8 @@ func (h *AuthHandler) Logout(c echo.Context) error {
 		Name:     "refresh_token",
 		Value:    "",
 		Path:     "/",
-		Domain:   "",           // 空文字でcurrent hostに設定
-		MaxAge:   -1,           // 即座に削除
+		Domain:   "", // 空文字でcurrent hostに設定
+		MaxAge:   -1, // 即座に削除
 		HttpOnly: true,
 		Secure:   util.IsProduction(),
 		SameSite: http.SameSiteLaxMode, // 開発環境でのクロスサイト許可
@@ -404,42 +404,51 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 		})
 	}
 
-	// 新しいリフレッシュトークンを生成（トークンローテーション）
-	newRefreshToken, err := auth.GenerateRefreshToken()
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Message: "リフレッシュトークンの生成中にエラーが発生しました",
-			Code:    "REFRESH_TOKEN_ERROR",
-		})
+	// 残存期間が短い場合のみrefresh_tokenをローテーション（例: 24時間未満）
+	shouldRotate := false
+	if existingUser.RefreshTokenExpiresAt != nil {
+		if time.Until(*existingUser.RefreshTokenExpiresAt) < 24*time.Hour {
+			shouldRotate = true
+		}
 	}
 
-	// データベースのリフレッシュトークンを更新
-	// 新しいリフレッシュトークンをハッシュ化
-	newHashedRefreshToken := auth.HashRefreshToken(newRefreshToken)
-	refreshTokenExpiry := auth.GetRefreshTokenExpiry()
-	_, err = client.User.UpdateOne(existingUser).
-		SetRefreshTokenHash(newHashedRefreshToken).
-		SetRefreshTokenExpiresAt(refreshTokenExpiry).
-		Save(ctx)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Message: "Failed to update refresh token",
-			Code:    "UPDATE_ERROR",
-		})
-	}
+	if shouldRotate {
+		// 新しいリフレッシュトークンを生成（トークンローテーション）
+		newRefreshToken, err := auth.GenerateRefreshToken()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+				Message: "リフレッシュトークンの生成中にエラーが発生しました",
+				Code:    "REFRESH_TOKEN_ERROR",
+			})
+		}
 
-	// 新しいリフレッシュトークンをhttpOnly Cookieに設定(平文を使用)
-	newCookie := &http.Cookie{
-		Name:     "refresh_token",
-		Value:    newRefreshToken,
-		Path:     "/",
-		Domain:   "",                   // 空文字でcurrent hostに設定
-		MaxAge:   7 * 24 * 60 * 60,     // 7日間（秒単位）
-		HttpOnly: true,                 // XSS攻撃を防ぐ
-		Secure:   util.IsProduction(),  // 本番環境のみHTTPS必須
-		SameSite: http.SameSiteLaxMode, // 開発環境でのクロスサイト許可
+		// データベースのリフレッシュトークンを更新
+		newHashedRefreshToken := auth.HashRefreshToken(newRefreshToken)
+		refreshTokenExpiry := auth.GetRefreshTokenExpiry()
+		_, err = client.User.UpdateOne(existingUser).
+			SetRefreshTokenHash(newHashedRefreshToken).
+			SetRefreshTokenExpiresAt(refreshTokenExpiry).
+			Save(ctx)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+				Message: "Failed to update refresh token",
+				Code:    "UPDATE_ERROR",
+			})
+		}
+
+		// 新しいリフレッシュトークンをhttpOnly Cookieに設定(平文を使用)
+		newCookie := &http.Cookie{
+			Name:     "refresh_token",
+			Value:    newRefreshToken,
+			Path:     "/",
+			Domain:   "",                   // 空文字でcurrent hostに設定
+			MaxAge:   7 * 24 * 60 * 60,     // 7日間（秒単位）
+			HttpOnly: true,                 // XSS攻撃を防ぐ
+			Secure:   util.IsProduction(),  // 本番環境のみHTTPS必須
+			SameSite: http.SameSiteLaxMode, // 開発環境でのクロスサイト許可
+		}
+		c.SetCookie(newCookie)
 	}
-	c.SetCookie(newCookie)
 
 	// レスポンス作成（access_tokenのみ、refresh_tokenはCookieに保存）
 	response := models.RefreshTokenResponse{
