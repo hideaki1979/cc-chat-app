@@ -41,3 +41,33 @@ export interface ChatRoom {
     updated_at: string;
     members?: ChatRoomMember[];
 }
+
+// チャットルーム関連のAPI関数
+export interface CreateChatRoomRequest {
+    name: string;
+    is_group_chat: boolean;
+    member_ids: string[];
+}
+
+export interface ChatRoomMember {
+    user_id: string;
+    name: string;
+    email: string;
+    joined_at: string;
+}
+
+export interface ChatRoomResponse {
+    id: string;
+    name: string;
+    is_group_chat: boolean;
+    member_count?: number;
+    last_message?: {
+        content: string;
+        sender_name: string;
+        created_at: string;
+    };
+    updated_at: string;
+    created_at: string;
+    members?: ChatRoomMember[];
+}
+

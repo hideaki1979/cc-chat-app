@@ -1,8 +1,9 @@
-import axios from 'axios';
+import axios, { AxiosHeaders } from 'axios';
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import type { UseBoundStore, StoreApi } from 'zustand';
 import type { AuthStore } from '../types/auth';
-import { ChatRoom } from '../types/chat';
+import { ChatRoom, ChatRoomResponse } from '../types/chat';
+import { UserSearchResponse } from '../types/user';
 
 declare global {
   interface Window {
@@ -39,16 +40,9 @@ const attachAuthHeader = (config: InternalAxiosRequestConfig) => {
       const authState = window.authStore?.getState?.();
       const token = authState?.accessToken;
       if (token) {
-        const headers = config.headers;
-        // Axios v1: AxiosHeaders の場合は set を使う
-        if (headers && typeof headers.set === 'function') {
-          headers.set('Authorization', `Bearer ${token}`);
-        } else {
-          config.headers = { 
-            ...(headers || {}), 
-            Authorization: `Bearer ${token}` 
-          } as InternalAxiosRequestConfig['headers'];
-        }
+        const headers = AxiosHeaders.from(config.headers);
+        headers.set('Authorization', `Bearer ${token}`);
+        config.headers = headers;
       }
     } catch (error) {
       console.error('Auth store not yet initialized:', error);
@@ -69,47 +63,6 @@ apiProxy.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => Promise.reject(error)
 );
-
-// チャットルーム関連のAPI関数
-export interface CreateChatRoomRequest {
-  name: string;
-  is_group_chat: boolean;
-  member_ids: string[];
-}
-
-export interface ChatRoomMember {
-  user_id: string;
-  name: string;
-  email: string;
-  joined_at: string;
-}
-
-export interface ChatRoomResponse {
-  id: string;
-  name: string;
-  is_group_chat: boolean;
-  member_count?: number;
-  last_message?: {
-    content: string;
-    sender_name: string;
-    created_at: string;
-  };
-  updated_at: string;
-  created_at: string;
-  members?: ChatRoomMember[];
-}
-
-export interface UserSearchResult {
-  id: string;
-  name: string;
-  email: string;
-  profile_image_url?: string;
-}
-
-export interface UserSearchResponse {
-  users: UserSearchResult[];
-  total: number;
-}
 
 /**
  * ダイレクトメッセージ（1対1チャット）を開始する

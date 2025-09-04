@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@repo/ui/button';
 import { Input } from '@repo/ui/input';
-import { searchUsers, createDirectMessage, type UserSearchResult, type ChatRoomResponse } from '../../lib/api';
+import { searchUsers, createDirectMessage } from '../../lib/api';
 import { useChatStore } from '../../stores/chat';
+import { UserSearchResult } from '../../types/user';
+import { ChatRoomResponse } from '../../types/chat';
 
 export type User = UserSearchResult;
 
