@@ -72,6 +72,8 @@ var (
 	NameValidator func(string) error
 	// DefaultIsGroupChat holds the default value on creation for the "is_group_chat" field.
 	DefaultIsGroupChat bool
+	// DmKeyValidator is a validator for the "dm_key" field. It is called by the builders before save.
+	DmKeyValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.

@@ -31,6 +31,7 @@ func (ChatRoom) Fields() []ent.Field {
 		field.String("dm_key").
 			Optional().
 			Nillable().
+			MaxLen(128).
 			Comment("DM識別キー（非グループチャット専用）"),
 		field.Time("created_at").
 			Default(time.Now).

@@ -195,6 +195,11 @@ func (crc *ChatRoomCreate) check() error {
 	if _, ok := crc.mutation.IsGroupChat(); !ok {
 		return &ValidationError{Name: "is_group_chat", err: errors.New(`ent: missing required field "ChatRoom.is_group_chat"`)}
 	}
+	if v, ok := crc.mutation.DmKey(); ok {
+		if err := chatroom.DmKeyValidator(v); err != nil {
+			return &ValidationError{Name: "dm_key", err: fmt.Errorf(`ent: validator failed for field "ChatRoom.dm_key": %w`, err)}
+		}
+	}
 	if _, ok := crc.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "ChatRoom.created_at"`)}
 	}

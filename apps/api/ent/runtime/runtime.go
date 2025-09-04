@@ -41,6 +41,10 @@ func init() {
 	chatroomDescIsGroupChat := chatroomFields[2].Descriptor()
 	// chatroom.DefaultIsGroupChat holds the default value on creation for the is_group_chat field.
 	chatroom.DefaultIsGroupChat = chatroomDescIsGroupChat.Default.(bool)
+	// chatroomDescDmKey is the schema descriptor for dm_key field.
+	chatroomDescDmKey := chatroomFields[3].Descriptor()
+	// chatroom.DmKeyValidator is a validator for the "dm_key" field. It is called by the builders before save.
+	chatroom.DmKeyValidator = chatroomDescDmKey.Validators[0].(func(string) error)
 	// chatroomDescCreatedAt is the schema descriptor for created_at field.
 	chatroomDescCreatedAt := chatroomFields[4].Descriptor()
 	// chatroom.DefaultCreatedAt holds the default value on creation for the created_at field.

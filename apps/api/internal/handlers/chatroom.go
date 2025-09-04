@@ -67,7 +67,10 @@ func (h *ChatRoomHandler) CreateChatRoom(c echo.Context) error {
 	memberSet := make(map[uuid.UUID]struct{})
 	memberSet[currentUserUUID] = struct{}{}
 	for _, memberID := range req.MemberIDs {
-		memberUUID, _ := uuid.Parse(memberID) // バリデーション済のため、エラーは無視
+		memberUUID, err := uuid.Parse(memberID)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "Invalid UUID in member_ids")
+		}
 		memberSet[memberUUID] = struct{}{}
 	}
 

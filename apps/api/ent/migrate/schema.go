@@ -13,7 +13,7 @@ var (
 		{Name: "id", Type: field.TypeUUID, Unique: true},
 		{Name: "name", Type: field.TypeString, Size: 100},
 		{Name: "is_group_chat", Type: field.TypeBool, Default: false},
-		{Name: "dm_key", Type: field.TypeString, Nullable: true},
+		{Name: "dm_key", Type: field.TypeString, Nullable: true, Size: 128},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}

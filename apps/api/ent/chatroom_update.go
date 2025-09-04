@@ -205,6 +205,11 @@ func (cru *ChatRoomUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "ChatRoom.name": %w`, err)}
 		}
 	}
+	if v, ok := cru.mutation.DmKey(); ok {
+		if err := chatroom.DmKeyValidator(v); err != nil {
+			return &ValidationError{Name: "dm_key", err: fmt.Errorf(`ent: validator failed for field "ChatRoom.dm_key": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -530,6 +535,11 @@ func (cruo *ChatRoomUpdateOne) check() error {
 	if v, ok := cruo.mutation.Name(); ok {
 		if err := chatroom.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "ChatRoom.name": %w`, err)}
+		}
+	}
+	if v, ok := cruo.mutation.DmKey(); ok {
+		if err := chatroom.DmKeyValidator(v); err != nil {
+			return &ValidationError{Name: "dm_key", err: fmt.Errorf(`ent: validator failed for field "ChatRoom.dm_key": %w`, err)}
 		}
 	}
 	return nil
