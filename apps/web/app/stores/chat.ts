@@ -22,6 +22,7 @@ interface ChatState {
   setRooms: (rooms: ChatRoom[]) => void;
   setCurrentRoom: (roomId: string | null) => void;
   addRoom: (room: ChatRoom) => void;
+  upsertRoom: (room: ChatRoom) => void;
   updateRoom: (roomId: string, updates: Partial<ChatRoom>) => void;
   removeRoom: (roomId: string) => void;
   loadRooms: () => Promise<void>;
@@ -64,6 +65,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
       rooms: [...state.rooms, room],
       currentRoomId: room.id,
     })),
+  
+  upsertRoom: (room) =>
+    set((state) => {
+      const existingIndex = state.rooms.findIndex((r) => r.id === room.id);
+      const updateRooms = existingIndex === -1
+        ? [...state.rooms, room]  // 新規追加
+        : state.rooms.map((r, i) => i === existingIndex ? {...r, ...room} : r); // 既存を更新
+      
+      return {
+        rooms: updateRooms,
+        currentRoomId: room.id,   // 追加/更新したルームを現在のルームに設定
+      }
+    }),
   
   updateRoom: (roomId, updates) =>
     set((state) => ({

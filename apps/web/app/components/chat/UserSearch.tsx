@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@repo/ui/button';
 import { Input } from '@repo/ui/input';
-import { searchUsers, createDirectMessage } from '../../lib/api';
-import { useChatStore } from '../../stores/chat';
+import { searchUsers } from '../../lib/api';
 import { UserSearchResult } from '../../types/user';
 import { ChatRoomResponse } from '../../types/chat';
+import { useDirectMessage } from '../../hooks/useDirectMessage';
 
 export type User = UserSearchResult;
 
@@ -33,9 +33,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isStartingDM, setIsStartingDM] = useState(false);
   const lastRequestIdRef = useRef(0);
-
-  // チャットストアのアクションを取得
-  const addRoom = useChatStore((state) => state.addRoom);
+  const { startDM } = useDirectMessage();
 
   // 検索実行
   const performUserSearch = useCallback(async (query: string) => {
@@ -83,19 +81,8 @@ export const UserSearch: React.FC<UserSearchProps> = ({
     setSelectedUser(user);
 
     try {
-      // APIクライアントを使用してDMを作成（既存があれば取得、なければ作成）
-      const room: ChatRoomResponse = await createDirectMessage(user.id);
 
-      // ストアに新しいルームを追加
-      addRoom({
-        id: room.id,
-        name: room.name,
-        is_group_chat: room.is_group_chat,
-        member_count: room.member_count || 2, // DMの場合は2人
-        last_message: room.last_message,
-        updated_at: room.updated_at,
-      });
-
+      const room: ChatRoomResponse = await startDM(user.id);
       // ユーザー選択コールバックがあれば実行
       if (onUserSelect) {
         onUserSelect(user);

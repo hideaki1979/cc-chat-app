@@ -49,13 +49,6 @@ export interface CreateChatRoomRequest {
     member_ids: string[];
 }
 
-export interface ChatRoomMember {
-    user_id: string;
-    name: string;
-    email: string;
-    joined_at: string;
-}
-
 export interface ChatRoomResponse {
     id: string;
     name: string;
