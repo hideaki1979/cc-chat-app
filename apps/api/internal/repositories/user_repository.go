@@ -9,9 +9,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/user"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/apperrors"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/services"
-	"github.com/hideaki1979/cc-chat-app/apps/api/internal/apperrors"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -45,6 +45,9 @@ func (r *UserRepository) CreateUser(ctx context.Context, req models.RegisterRequ
 		SetPasswordHash(hashedPassword).
 		Save(ctx)
 	if err != nil {
+		if ent.IsConstraintError(err) {
+			return nil, apperrors.ErrEmailExists
+		}
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
@@ -58,7 +61,7 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*ent
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
-			return  nil, apperrors.ErrUserNotFound	// 正規化されたエラー
+			return nil, apperrors.ErrUserNotFound // 正規化されたエラー
 		}
 		return nil, fmt.Errorf("failed to get user by email: %w", err)
 	}
@@ -89,10 +92,8 @@ func (r *UserRepository) UpdateUser(ctx context.Context, userID uuid.UUID, req m
 	}
 
 	// Bioの更新
-	if req.Bio != "" {
+	if req.Bio == "" {
 		update = update.SetBio(req.Bio)
-	} else if req.Bio == "" {
-		update = update.ClearBio()
 	}
 
 	// プロフィール画像URLの更新
@@ -157,9 +158,12 @@ func (r *UserRepository) GetUserByRefreshTokenHash(ctx context.Context, refreshT
 		Where(
 			user.RefreshTokenHash(refreshTokenHash),
 			user.RefreshTokenExpiresAtGT(time.Now()),
-			).
+		).
 		Only(ctx)
 	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, apperrors.ErrUserNotFound
+		}
 		return nil, fmt.Errorf("user not found by refresh token: %w", err)
 	}
 

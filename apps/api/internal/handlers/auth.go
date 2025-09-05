@@ -251,6 +251,17 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 	tokens, err := h.tokenService.RefreshTokens(ctx, refreshTokenValue)
 	if err != nil {
 		c.Logger().Errorf("token refresh failed: %v", err)
+		// 失敗時はクッキーを無効化
+		c.SetCookie(&http.Cookie{
+			Name: "refresh_token",
+			Value: "",
+			Path: "/",
+			Domain: "",
+			MaxAge: -1,
+			HttpOnly: true,
+			Secure: util.IsProduction(),
+			SameSite: http.SameSiteLaxMode,
+		})
 		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Message: "リフレッシュトークンが無効です",
 			Code:    "INVALID_REFRESH_TOKEN",
