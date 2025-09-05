@@ -47,7 +47,7 @@ export const storage = new SafeLocalStorage();
 // 型安全なJSON操作
 export function getStorageJson<T>(key: string, defaultValue: T): T {
   const item = storage.getItem(key);
-  if (!item) return defaultValue;
+  if (item === null) return defaultValue;
   
   try {
     return JSON.parse(item) as T;
@@ -59,8 +59,20 @@ export function getStorageJson<T>(key: string, defaultValue: T): T {
 
 export function setStorageJson<T>(key: string, value: T): void {
   try {
+    if (value === undefined) {
+      removeStorageJson(key);
+      return;
+    }
     storage.setItem(key, JSON.stringify(value));
   } catch (error) {
     console.warn(`Failed to stringify JSON for localStorage: ${key}`, error);
+  }
+}
+
+export function removeStorageJson(key: string): void {
+  try {
+    storage.removeItem(key);
+  } catch(error) {
+    console.warn(`Failed to remove JSON from localStorage: ${key}`, error);
   }
 }

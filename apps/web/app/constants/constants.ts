@@ -7,3 +7,5 @@ export const REDIRECT_DELAY_MS = 3000;
 export const DEFAULT_LOGIN_REDIRECT = '/dashboard';
 export const LOGIN_PAGE_PATH = '/login';
 export const REGISTER_PAGE_PATH = '/register';
+
+export const AUTH_STORAGE_KEY = "auth-storage";

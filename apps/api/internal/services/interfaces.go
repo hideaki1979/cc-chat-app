@@ -11,8 +11,8 @@ import (
 
 // AuthServiceInterface 認証サービスのインターフェース
 type AuthServiceInterface interface {
-	RegisterUser(ctx context.Context, req models.RegisterRequest) (*models.AuthResponse, error)
-	AuthenticateUser(ctx context.Context, req models.LoginRequest) (*models.AuthResponse, error)
+	RegisterUser(ctx context.Context, req models.RegisterRequest) (*models.AuthResult, error)
+	AuthenticateUser(ctx context.Context, req models.LoginRequest) (*models.AuthResult, error)
 	GetUserProfile(ctx context.Context, userID uuid.UUID) (*models.UserResponse, error)
 	UpdateUserProfile(ctx context.Context, userID uuid.UUID, req models.UpdateProfileRequest) (*models.UserResponse, error)
 	SearchUsers(ctx context.Context, query string, currentUserID uuid.UUID) (*models.UserSearchResponse, error)
@@ -21,7 +21,7 @@ type AuthServiceInterface interface {
 
 // TokenServiceInterface トークンサービスのインターフェース
 type TokenServiceInterface interface {
-	GenerateTokens(userID uuid.UUID, email string) (*models.TokenPair, error)
+	GenerateTokens(ctx context.Context, userID uuid.UUID, email string) (*models.TokenPair, error)
 	RefreshTokens(ctx context.Context, refreshToken string) (*models.TokenPair, error)
 	ValidateAccessToken(tokenString string) (*models.TokenClaims, error)
 	ValidateRefreshToken(ctx context.Context, tokenString string) (*models.TokenClaims, error)
@@ -54,7 +54,7 @@ type ChatRoomServiceInterface interface {
 
 // MessageServiceInterface メッセージサービスのインターフェース
 type MessageServiceInterface interface {
-	SendMessage(ctx context.Context, req models.SendMessageRequest, senderID uuid.UUID) (*models.MessageResponse, error)
+	SendMessage(ctx context.Context, req models.SendMessageRequest, senderID uuid.UUID, roomID uuid.UUID) (*models.MessageResponse, error)
 	GetRoomMessages(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, limit int, offset int) (*models.MessagesResponse, error)
 	GetMessage(ctx context.Context, messageID uuid.UUID, userID uuid.UUID) (*models.MessageResponse, error)
 	UpdateMessage(ctx context.Context, messageID uuid.UUID, req models.UpdateMessageRequest, userID uuid.UUID) (*models.MessageResponse, error)

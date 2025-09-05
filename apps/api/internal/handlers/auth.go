@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -21,7 +22,7 @@ import (
 
 // AuthHandler 認証関連のハンドラー構造体
 type AuthHandler struct {
-	authService services.AuthServiceInterface
+	authService  services.AuthServiceInterface
 	tokenService services.TokenServiceInterface
 }
 
@@ -47,19 +48,40 @@ func (h *AuthHandler) Register(c echo.Context) error {
 
 	ctx := c.Request().Context()
 
-	// サービス層でユーザー登録処理
-	response, err := h.authService.RegisterUser(ctx, req)
+	// サービス層でユーザー登録処理（ユーザー情報とトークンを取得）
+	result, err := h.authService.RegisterUser(ctx, req)
 	if err != nil {
 		c.Logger().Errorf("user registration failed: %v", err)
+		if errors.Is(err, services.ErrEmailExists) {
+			return c.JSON(http.StatusConflict, models.ErrorResponse{
+				Message: "このメールアドレスは既に使用されています",
+				Code:    "EMAIL_ALREADY_EXISTS",
+			})
+		}
 		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
 			Message: "ユーザー登録に失敗しました",
 			Code:    "REGISTRATION_FAILED",
 		})
 	}
 
-	// TODO: リフレッシュトークンのCookie設定は後で実装
-	// 現在は簡略化してレスポンスのみ返す
-	return c.JSON(http.StatusCreated, response)
+	// リフレッシュトークンをhttpOnly Cookieに設定
+	cookie := &http.Cookie{
+		Name:     "refresh_token",
+		Value:    result.Tokens.RefreshToken,
+		Path:     "/",
+		Domain:   "",                                // 空文字でcurrent hostに設定
+		MaxAge:   int(7 * 24 * time.Hour.Seconds()), // 7日間（秒単位）
+		HttpOnly: true,                              // XSS攻撃を防ぐ
+		Secure:   util.IsProduction(),               // 本番環境のみHTTPS必須
+		SameSite: http.SameSiteLaxMode,              // 開発環境でのクロスサイト許可
+	}
+	c.SetCookie(cookie)
+
+	// レスポンス作成（access_tokenのみ、refresh_tokenはCookieに保存）
+	return c.JSON(http.StatusCreated, models.AuthResponse{
+		Token: result.Tokens.AccessToken,
+		User:  result.User,
+	})
 }
 
 // Login ユーザーログインハンドラー
@@ -76,8 +98,8 @@ func (h *AuthHandler) Login(c echo.Context) error {
 
 	ctx := c.Request().Context()
 
-	// サービス層でユーザー認証処理
-	response, err := h.authService.AuthenticateUser(ctx, req)
+	// サービス層でユーザー認証処理（ユーザー情報とトークンを取得）
+	result, err := h.authService.AuthenticateUser(ctx, req)
 	if err != nil {
 		c.Logger().Errorf("user authentication failed: %v", err)
 		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
@@ -86,29 +108,10 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		})
 	}
 
-	// トークンサービスでトークンペア生成（リフレッシュトークン含む）
-	userID, err := uuid.Parse(response.User.ID)
-	if err != nil {
-		c.Logger().Errorf("invalid user ID: %v", err)
-		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Message: "内部エラーが発生しました",
-			Code:    "INTERNAL_ERROR",
-		})
-	}
-
-	tokens, err := h.tokenService.GenerateTokens(userID, response.User.Email)
-	if err != nil {
-		c.Logger().Errorf("token generation failed: %v", err)
-		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Message: "トークンの生成に失敗しました",
-			Code:    "TOKEN_ERROR",
-		})
-	}
-
 	// リフレッシュトークンをhttpOnly Cookieに設定
 	cookie := &http.Cookie{
 		Name:     "refresh_token",
-		Value:    tokens.RefreshToken,
+		Value:    result.Tokens.RefreshToken,
 		Path:     "/",
 		Domain:   "",                                // 空文字でcurrent hostに設定
 		MaxAge:   int(7 * 24 * time.Hour.Seconds()), // 7日間（秒単位）
@@ -120,8 +123,8 @@ func (h *AuthHandler) Login(c echo.Context) error {
 
 	// レスポンス作成（refresh_tokenはCookieに保存されるのでレスポンスに含めない）
 	return c.JSON(http.StatusOK, models.AuthResponse{
-		Token: tokens.AccessToken, // access_tokenのみレスポンスに含める
-		User:  response.User,
+		Token: result.Tokens.AccessToken, // access_tokenのみレスポンスに含める
+		User:  result.User,
 	})
 }
 

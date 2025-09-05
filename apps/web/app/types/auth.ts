@@ -42,12 +42,12 @@ export interface AuthActions {
   login: (credentials: LoginCredentials) => Promise<boolean>;
   register: (credentials: RegisterCredentials) => Promise<RegisterResult>;
   logout: () => void;
-  refreshAccessToken: (onUnauthorized?: (currentPath: string) => void, currentPath?: string) => Promise<void>;
+  refreshAccessToken: (currentPath?: string, onUnauthorized?: (currentPath: string) => void) => Promise<void>;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
   setUser: (user: User | null) => void;
-  _fetchUserProfileAfterRefresh: (onUnauthorized?: (currentPath: string) => void, currentPath?: string) => Promise<User>;
+  _fetchUserProfileAfterRefresh: (currentPath?: string, onUnauthorized?: (currentPath: string) => void) => Promise<User>;
   loadCurrentUser: () => Promise<void>;
   initializeAuth: (currentPath?: string, onUnauthorized?: (currentPath: string) => void) => Promise<void>;
 }

@@ -2,19 +2,27 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
 	"golang.org/x/crypto/bcrypt"
 )
 
+var validate = validator.New()
+
+const (
+	MaxAvatarSizeBytes = 5 * 1024 * 1024 // 5MB
+)
+
 // AuthService 認証サービスの実装
 type AuthService struct {
-	client      *ent.Client
-	userRepo    UserRepositoryInterface
-	tokenSvc    TokenServiceInterface
+	client   *ent.Client
+	userRepo UserRepositoryInterface
+	tokenSvc TokenServiceInterface
 }
 
 // NewAuthService 新しいAuthServiceインスタンスを作成
@@ -27,40 +35,46 @@ func NewAuthService(client *ent.Client, userRepo UserRepositoryInterface, tokenS
 }
 
 // RegisterUser ユーザー登録処理
-func (s *AuthService) RegisterUser(ctx context.Context, req models.RegisterRequest) (*models.AuthResponse, error) {
+func (s *AuthService) RegisterUser(ctx context.Context, req models.RegisterRequest) (*models.AuthResult, error) {
 	// バリデーション
-	if err := s.validateRegisterRequest(req); err != nil {
+	if err := validate.Struct(req); err != nil {
 		return nil, fmt.Errorf("validation error: %w", err)
 	}
 
 	// 重複チェック
 	existingUser, err := s.userRepo.GetUserByEmail(ctx, req.Email)
 	if err == nil && existingUser != nil {
-		return nil, fmt.Errorf("email already exists")
+		return nil, ErrEmailExists
+	}
+
+	// ユーザーが見つからない以外のエラーは伝播させる
+	if err != nil && !errors.Is(err, ErrUserNotFound) {
+		return nil, fmt.Errorf("failed to check existing user: %w", err)
 	}
 
 	// ユーザー作成
 	newUser, err := s.userRepo.CreateUser(ctx, req)
 	if err != nil {
+		// entの一意制約違反を明示的エラーへ正規化
+		if ent.IsConstraintError(err) {
+			return nil, ErrEmailExists
+		}
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
 	// トークン生成
-	tokens, err := s.tokenSvc.GenerateTokens(newUser.ID, newUser.Email)
+	tokens, err := s.tokenSvc.GenerateTokens(ctx, newUser.ID, newUser.Email)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate tokens: %w", err)
 	}
 
 	// レスポンス作成
 	userInfo := s.convertToUserInfo(newUser)
-	return &models.AuthResponse{
-		Token: tokens.AccessToken,
-		User:  userInfo,
-	}, nil
+	return &models.AuthResult{User: userInfo, Tokens: tokens}, nil
 }
 
 // AuthenticateUser ユーザー認証処理
-func (s *AuthService) AuthenticateUser(ctx context.Context, req models.LoginRequest) (*models.AuthResponse, error) {
+func (s *AuthService) AuthenticateUser(ctx context.Context, req models.LoginRequest) (*models.AuthResult, error) {
 	// ユーザー取得
 	user, err := s.userRepo.GetUserByEmail(ctx, req.Email)
 	if err != nil {
@@ -73,17 +87,14 @@ func (s *AuthService) AuthenticateUser(ctx context.Context, req models.LoginRequ
 	}
 
 	// トークン生成
-	tokens, err := s.tokenSvc.GenerateTokens(user.ID, user.Email)
+	tokens, err := s.tokenSvc.GenerateTokens(ctx, user.ID, user.Email)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate tokens: %w", err)
 	}
 
 	// レスポンス作成
 	userInfo := s.convertToUserInfo(user)
-	return &models.AuthResponse{
-		Token: tokens.AccessToken,
-		User:  userInfo,
-	}, nil
+	return &models.AuthResult{User: userInfo, Tokens: tokens}, nil
 }
 
 // GetUserProfile ユーザープロフィール取得
@@ -100,7 +111,7 @@ func (s *AuthService) GetUserProfile(ctx context.Context, userID uuid.UUID) (*mo
 // UpdateUserProfile ユーザープロフィール更新
 func (s *AuthService) UpdateUserProfile(ctx context.Context, userID uuid.UUID, req models.UpdateProfileRequest) (*models.UserResponse, error) {
 	// バリデーション
-	if err := s.validateUpdateProfileRequest(req); err != nil {
+	if err := validate.Struct(req); err != nil {
 		return nil, fmt.Errorf("validation error: %w", err)
 	}
 
@@ -146,7 +157,7 @@ func (s *AuthService) SearchUsers(ctx context.Context, query string, currentUser
 // UploadUserAvatar ユーザーアバター画像アップロード
 func (s *AuthService) UploadUserAvatar(ctx context.Context, userID uuid.UUID, imageData []byte, contentType string) (*models.UserResponse, error) {
 	// ファイルサイズチェック（5MB制限）
-	if len(imageData) > 5*1024*1024 {
+	if len(imageData) > MaxAvatarSizeBytes {
 		return nil, fmt.Errorf("file too large")
 	}
 
@@ -171,28 +182,6 @@ func (s *AuthService) UploadUserAvatar(ctx context.Context, userID uuid.UUID, im
 
 	userInfo := s.convertToUserInfo(updatedUser)
 	return &userInfo, nil
-}
-
-// validateRegisterRequest 登録リクエストのバリデーション
-func (s *AuthService) validateRegisterRequest(req models.RegisterRequest) error {
-	if len(req.Name) < 2 || len(req.Name) > 30 {
-		return fmt.Errorf("name must be between 2 and 30 characters")
-	}
-	if len(req.Password) < 8 {
-		return fmt.Errorf("password must be at least 8 characters")
-	}
-	return nil
-}
-
-// validateUpdateProfileRequest プロフィール更新リクエストのバリデーション
-func (s *AuthService) validateUpdateProfileRequest(req models.UpdateProfileRequest) error {
-	if req.Name != "" && (len(req.Name) < 2 || len(req.Name) > 30) {
-		return fmt.Errorf("name must be between 2 and 30 characters")
-	}
-	if len(req.Bio) > 500 {
-		return fmt.Errorf("bio must be less than 500 characters")
-	}
-	return nil
 }
 
 // convertToUserInfo EntユーザーをUserInfoに変換

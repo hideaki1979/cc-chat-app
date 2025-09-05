@@ -11,7 +11,7 @@ import type {
 } from '../types/auth';
 // import { isAxiosError } from 'axios';
 import type { User } from '../types/auth';
-import { LOGIN_PAGE_PATH, REGISTER_PAGE_PATH } from '../constants/constants';
+import { AUTH_STORAGE_KEY, LOGIN_PAGE_PATH, REGISTER_PAGE_PATH } from '../constants/constants';
 import { getStorageJson } from '../lib/storage';
 
 // 同一タブ内でのrefresh多重実行を防止するシンプルなsingleflightロック
@@ -175,9 +175,9 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      _fetchUserProfileAfterRefresh: async (onUnauthorized?: (currentPath: string) => void, currentPath?: string): Promise<User> => {
+      _fetchUserProfileAfterRefresh: async ( currentPath?: string, onUnauthorized?: (currentPath: string) => void): Promise<User> => {
         const { refreshAccessToken } = get();
-        await refreshAccessToken(onUnauthorized, currentPath);
+        await refreshAccessToken(currentPath, onUnauthorized);
 
         const { accessToken } = get();
         if (!accessToken) {
@@ -231,7 +231,7 @@ export const useAuthStore = create<AuthStore>()(
 
         // パス情報を外部から受け取る（Next.jsのusePathnameを使用するため）
         const path = currentPath || '';
-        
+
         // ゲストページ（/login, /register）では自動リフレッシュを行わず初期化のみ行う
         const guestOnly = [LOGIN_PAGE_PATH, REGISTER_PAGE_PATH];
         if (guestOnly.some((p) => path.startsWith(p))) {
@@ -241,16 +241,13 @@ export const useAuthStore = create<AuthStore>()(
 
         // localStorage から認証データをチェック
         if (typeof window !== 'undefined') {
-          const storedAuth = getStorageJson<{state?: {user?: User; accessToken?: string; isInitialized?: boolean}} | null>('auth-storage', null);
-          if (storedAuth?.state?.user && storedAuth?.state?.isInitialized) {
+          const storedAuth = getStorageJson<{ state?: { user?: User; accessToken?: string; isInitialized?: boolean } } | null>(AUTH_STORAGE_KEY, null);
+          if (storedAuth?.state?.user) {
+            // 旧persistデータからはユーザー情報のみを暫定反映。accessTokenは復元しない。
             set({
-              user: storedAuth.state.user,
-              accessToken: storedAuth.state.accessToken,
-              isInitialized: true,
-              isLoading: false,
-              error: null
+              user: storedAuth.state.user
             });
-            return;
+            // 以降のrefreshで新しいaccessTokenを取得する（早期returnしない）。
           }
         }
 
@@ -258,7 +255,7 @@ export const useAuthStore = create<AuthStore>()(
           set({ isLoading: true });
 
           // onUnauthorizedコールバックを_fetchUserProfileAfterRefreshに渡す
-          const user = await get()._fetchUserProfileAfterRefresh(onUnauthorized, currentPath);
+          const user = await get()._fetchUserProfileAfterRefresh(currentPath, onUnauthorized);
           set({ user, isInitialized: true, isLoading: false, error: null });
         } catch {
           set({

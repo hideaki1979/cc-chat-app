@@ -2,7 +2,9 @@ package services
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -13,9 +15,9 @@ import (
 
 // TokenService トークンサービスの実装
 type TokenService struct {
-	jwtSecret     []byte
-	userRepo      UserRepositoryInterface
-	accessTokenTTL time.Duration
+	jwtSecret       []byte
+	userRepo        UserRepositoryInterface
+	accessTokenTTL  time.Duration
 	refreshTokenTTL time.Duration
 }
 
@@ -23,6 +25,9 @@ type TokenService struct {
 func NewTokenService(userRepo UserRepositoryInterface) TokenServiceInterface {
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
+		if os.Getenv("GO_ENV") == "production" {
+			log.Fatal("FATAL: JWT_SECRET environment variable must be set in production")
+		}
 		jwtSecret = "default-secret-for-development"
 	}
 
@@ -35,9 +40,9 @@ func NewTokenService(userRepo UserRepositoryInterface) TokenServiceInterface {
 }
 
 // GenerateTokens アクセストークンとリフレッシュトークンを生成
-func (s *TokenService) GenerateTokens(userID uuid.UUID, email string) (*models.TokenPair, error) {
+func (s *TokenService) GenerateTokens(ctx context.Context, userID uuid.UUID, email string) (*models.TokenPair, error) {
 	now := time.Now()
-	
+
 	// アクセストークン生成
 	accessClaims := &models.TokenClaims{
 		UserID: userID.String(),
@@ -74,6 +79,12 @@ func (s *TokenService) GenerateTokens(userID uuid.UUID, email string) (*models.T
 		return nil, fmt.Errorf("failed to sign refresh token: %w", err)
 	}
 
+	// リフレッシュトークンハッシュをDBに保存
+	refreshTokenHash := sha256.Sum256([]byte(refreshTokenString))
+	if err := s.userRepo.UpdateRefreshToken(ctx, userID, refreshTokenHash[:], now.Add(s.refreshTokenTTL)); err != nil {
+		return nil, fmt.Errorf("failed to persist refresh token: %w", err)
+	}
+
 	return &models.TokenPair{
 		AccessToken:  accessTokenString,
 		RefreshToken: refreshTokenString,
@@ -96,7 +107,7 @@ func (s *TokenService) RefreshTokens(ctx context.Context, refreshToken string) (
 	}
 
 	// 新しいトークンペア生成
-	return s.GenerateTokens(userID, claims.Email)
+	return s.GenerateTokens(ctx, userID, claims.Email)
 }
 
 // ValidateAccessToken アクセストークンを検証
@@ -117,9 +128,9 @@ func (s *TokenService) ValidateRefreshToken(ctx context.Context, tokenString str
 		return nil, fmt.Errorf("invalid user ID: %w", err)
 	}
 
-	// TODO: リフレッシュトークンのハッシュ化処理が必要
-	// 現在は簡略化のため、直接tokenStringを使用
-	user, err := s.userRepo.GetUserByRefreshTokenHash(ctx, []byte(tokenString))
+	// リフレッシュトークンをハッシュ化して検索
+	refreshTokenHash := sha256.Sum256([]byte(tokenString))
+	user, err := s.userRepo.GetUserByRefreshTokenHash(ctx, refreshTokenHash[:])
 	if err != nil || user == nil {
 		return nil, fmt.Errorf("refresh token not found or revoked")
 	}
