@@ -17,6 +17,8 @@ import (
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/services"
 	"github.com/hideaki1979/cc-chat-app/apps/api/util"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/apperrors"
+
 	"github.com/labstack/echo/v4"
 )
 
@@ -52,7 +54,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	result, err := h.authService.RegisterUser(ctx, req)
 	if err != nil {
 		c.Logger().Errorf("user registration failed: %v", err)
-		if errors.Is(err, services.ErrEmailExists) {
+		if errors.Is(err, apperrors.ErrEmailExists) {
 			return c.JSON(http.StatusConflict, models.ErrorResponse{
 				Message: "このメールアドレスは既に使用されています",
 				Code:    "EMAIL_ALREADY_EXISTS",

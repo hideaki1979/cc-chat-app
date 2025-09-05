@@ -45,8 +45,6 @@ func (r *UserRepository) CreateUser(ctx context.Context, req models.RegisterRequ
 		SetPasswordHash(hashedPassword).
 		Save(ctx)
 	if err != nil {
-		// SQLiteの制約違反チェック
-		
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
