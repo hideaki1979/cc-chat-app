@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+)
 
 // ユーザー登録用のリクエスト構造体
 type RegisterRequest struct {
@@ -79,4 +83,27 @@ type UploadAvatarResponse struct {
 type ErrorResponse struct {
 	Message string `json:"message"`
 	Code    string `json:"code,omitempty"`
+}
+
+// ユーザーレスポンス構造体（UserInfoのエイリアス）
+type UserResponse = UserInfo
+
+// トークンペア構造体
+type TokenPair struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresAt    int64  `json:"expires_at"`
+}
+
+// JWTクレーム構造体
+type TokenClaims struct {
+	UserID string `json:"user_id"`
+	Email  string `json:"email"`
+	jwt.RegisteredClaims
+}
+
+// 認証結果DTO（サービス→ハンドラ）
+type AuthResult struct {
+	User   UserInfo   `json:"user"`
+	Tokens *TokenPair `json:"tokens"`
 }

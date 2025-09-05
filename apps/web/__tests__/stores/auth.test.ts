@@ -212,6 +212,79 @@ describe('Auth Store', () => {
       expect(result.current.error).toBeNull()
     })
 
+    test('should initialize auth with currentPath and onUnauthorized callback', async () => {
+      const mockUser = {
+        id: '1',
+        email: 'test@example.com',
+        name: 'testuser',
+        created_at: '2024-01-01',
+        updated_at: '2024-01-01',
+      }
+
+      // Mock refresh token call
+      ;(global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ token: 'new-access-token' }),
+        })
+        // Mock profile call
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockUser,
+        })
+
+      const { result } = renderHook(() => useAuthStore())
+      const mockOnUnauthorized = jest.fn()
+
+      await act(async () => {
+        await result.current.initializeAuth('/dashboard', mockOnUnauthorized)
+      })
+
+      expect(result.current.user).toEqual(mockUser)
+      expect(result.current.accessToken).toBe('new-access-token')
+      expect(result.current.isInitialized).toBe(true)
+      expect(result.current.isLoading).toBe(false)
+      expect(result.current.error).toBeNull()
+      expect(mockOnUnauthorized).not.toHaveBeenCalled()
+    })
+
+    test('should skip refresh on guest pages', async () => {
+      const { result } = renderHook(() => useAuthStore())
+
+      await act(async () => {
+        await result.current.initializeAuth('/login')
+      })
+
+      expect(result.current.user).toBeNull()
+      expect(result.current.accessToken).toBeNull()
+      expect(result.current.isInitialized).toBe(true)
+      expect(result.current.isLoading).toBe(false)
+      expect(result.current.error).toBeNull()
+      expect(global.fetch).not.toHaveBeenCalled()
+    })
+
+    test('should call onUnauthorized callback on 401 error', async () => {
+      // Mock refresh token failure
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+      })
+
+      const { result } = renderHook(() => useAuthStore())
+      const mockOnUnauthorized = jest.fn()
+
+      await act(async () => {
+        await result.current.initializeAuth('/dashboard', mockOnUnauthorized)
+      })
+
+      expect(result.current.user).toBeNull()
+      expect(result.current.accessToken).toBeNull()
+      expect(result.current.isInitialized).toBe(true)
+      expect(result.current.isLoading).toBe(false)
+      expect(result.current.error).toBeNull()
+      expect(mockOnUnauthorized).toHaveBeenCalledWith('/dashboard')
+    })
+
     test('should handle initialization failure', async () => {
       // Mock refresh token failure
       ;(global.fetch as jest.Mock).mockResolvedValueOnce({
@@ -258,7 +331,7 @@ describe('Auth Store', () => {
       const { result } = renderHook(() => useAuthStore())
 
       await act(async () => {
-        await result.current.logout()
+        result.current.logout()
       })
 
       expect(result.current.user).toBeNull()

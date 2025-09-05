@@ -1,15 +1,8 @@
 import axios, { AxiosHeaders } from 'axios';
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import type { UseBoundStore, StoreApi } from 'zustand';
-import type { AuthStore } from '../types/auth';
 import { ChatRoom, ChatRoomResponse } from '../types/chat';
 import { UserSearchResponse } from '../types/user';
-
-declare global {
-  interface Window {
-    authStore?: UseBoundStore<StoreApi<AuthStore>>;
-  }
-}
+import { useAuthStore } from '../stores/auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -37,7 +30,7 @@ const attachAuthHeader = (config: InternalAxiosRequestConfig) => {
   // メモリ内のaccess_tokenを認証ストアから取得（SSR回避）
   if (typeof window !== 'undefined') {
     try {
-      const authState = window.authStore?.getState?.();
+      const authState = useAuthStore.getState();
       const token = authState?.accessToken;
       if (token) {
         const headers = AxiosHeaders.from(config.headers);

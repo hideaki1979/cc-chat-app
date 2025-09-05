@@ -16,6 +16,8 @@ import (
 	_ "github.com/hideaki1979/cc-chat-app/apps/api/ent/runtime"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/handlers"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/middleware"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/repositories"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/services"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	echoMiddleware "github.com/labstack/echo/v4/middleware"
@@ -114,8 +116,15 @@ func main() {
 		}
 	})
 
+	// リポジトリ初期化
+	userRepo := repositories.NewUserRepository(client)
+
+	// サービス初期化
+	tokenService := services.NewTokenService(userRepo)
+	authService := services.NewAuthService(client, userRepo, tokenService)
+
 	// ハンドラー初期化
-	authHandler := handlers.NewAuthHandler()
+	authHandler := handlers.NewAuthHandler(authService, tokenService)
 	chatRoomHandler := handlers.NewChatRoomHandler(client)
 	messageHandler := handlers.NewMessageHandler(client)
 

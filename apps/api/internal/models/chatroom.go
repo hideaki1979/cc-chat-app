@@ -149,6 +149,12 @@ func ConvertToChatRoomListResponse(room *ent.ChatRoom, memberCount int) *ChatRoo
 	return response
 }
 
+// ChatRoomsResponse チャットルーム一覧レスポンス（複数のルームを含む）
+type ChatRoomsResponse struct {
+	Rooms []ChatRoomListResponse `json:"rooms"`
+	Total int                    `json:"total"`
+}
+
 // ValidateUUIDs UUID文字列のバリデーション
 func ValidateUUIDs(uuidStrs []string) error {
 	for _, uuidStr := range uuidStrs {

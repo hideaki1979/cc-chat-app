@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/enttest"
-	"github.com/hideaki1979/cc-chat-app/apps/api/internal/auth"
+	"golang.org/x/crypto/bcrypt"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/handlers"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/middleware"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
@@ -37,7 +37,7 @@ func TestChatRoomHandlers(t *testing.T) {
 	e.Validator = middleware.NewValidator()
 
 	// テスト用ユーザー作成
-	hashedPassword, _ := auth.HashPassword("testpassword123")
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("testpassword123"), bcrypt.DefaultCost)
 	user1, err := client.User.Create().
 		SetName("Test User 1").
 		SetEmail("test1@example.com").
@@ -121,7 +121,7 @@ func TestMessageHandlers(t *testing.T) {
 	e.Validator = middleware.NewValidator()
 
 	// テスト用ユーザー作成
-	hashedPassword, _ := auth.HashPassword("testpassword123")
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("testpassword123"), bcrypt.DefaultCost)
 	user1, err := client.User.Create().
 		SetName("Message Test User 1").
 		SetEmail("message_test1@example.com").
