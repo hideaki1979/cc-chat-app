@@ -9,6 +9,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/apperrors"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -44,11 +46,11 @@ func (s *AuthService) RegisterUser(ctx context.Context, req models.RegisterReque
 	// 重複チェック
 	existingUser, err := s.userRepo.GetUserByEmail(ctx, req.Email)
 	if err == nil && existingUser != nil {
-		return nil, ErrEmailExists
+		return nil, apperrors.ErrEmailExists
 	}
 
 	// ユーザーが見つからない以外のエラーは伝播させる
-	if err != nil && !errors.Is(err, ErrUserNotFound) {
+	if err != nil && !errors.Is(err, apperrors.ErrUserNotFound) {
 		return nil, fmt.Errorf("failed to check existing user: %w", err)
 	}
 
@@ -56,8 +58,8 @@ func (s *AuthService) RegisterUser(ctx context.Context, req models.RegisterReque
 	newUser, err := s.userRepo.CreateUser(ctx, req)
 	if err != nil {
 		// entの一意制約違反を明示的エラーへ正規化
-		if ent.IsConstraintError(err) {
-			return nil, ErrEmailExists
+		if errors.Is(err, apperrors.ErrEmailExists) {
+			return nil, apperrors.ErrEmailExists
 		}
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
@@ -172,7 +174,16 @@ func (s *AuthService) UploadUserAvatar(ctx context.Context, userID uuid.UUID, im
 	}
 
 	// TODO: 実際のファイルアップロード処理（S3等）
-	avatarURL := fmt.Sprintf("/uploads/avatars/%s.jpg", userID.String())
+	extMap := map[string]string{
+		"image/jpeg": ".jpg",
+		"image/png":  ".png",
+		"image/gif":  ".git",
+	}
+	ext, ok := extMap[contentType]
+	if !ok {
+		return nil, fmt.Errorf("unsupported file type")
+	}
+	avatarURL := fmt.Sprintf("/uploads/avatars/%s%s", userID.String(), ext)
 
 	// ユーザーのアバターURL更新
 	updatedUser, err := s.userRepo.UpdateUserAvatar(ctx, userID, avatarURL)

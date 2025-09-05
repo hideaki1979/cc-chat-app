@@ -51,6 +51,7 @@ func (s *TokenService) GenerateTokens(ctx context.Context, userID uuid.UUID, ema
 			ExpiresAt: jwt.NewNumericDate(now.Add(s.accessTokenTTL)),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
+			Audience:  jwt.ClaimStrings{"access"},
 			Subject:   userID.String(),
 		},
 	}
@@ -69,6 +70,7 @@ func (s *TokenService) GenerateTokens(ctx context.Context, userID uuid.UUID, ema
 			ExpiresAt: jwt.NewNumericDate(now.Add(s.refreshTokenTTL)),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
+			Audience:  jwt.ClaimStrings{"access"},
 			Subject:   userID.String(),
 		},
 	}
@@ -164,6 +166,18 @@ func (s *TokenService) validateToken(tokenString string, tokenType string) (*mod
 	claims, ok := token.Claims.(*models.TokenClaims)
 	if !ok || !token.Valid {
 		return nil, fmt.Errorf("invalid token claims")
+	}
+
+	// トークン種別の検証（aud に "access" or "refresh" が含まれること）
+	validAud := false
+	for _, aud := range claims.Audience {
+		if aud == tokenType {
+			validAud = true
+			break
+		}
+	}
+	if !validAud {
+		return nil, fmt.Errorf("invalid token type: expected %s", tokenType)
 	}
 
 	// 有効期限チェック

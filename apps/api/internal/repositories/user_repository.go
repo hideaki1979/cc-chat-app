@@ -11,6 +11,7 @@ import (
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/user"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/services"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/apperrors"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -44,6 +45,8 @@ func (r *UserRepository) CreateUser(ctx context.Context, req models.RegisterRequ
 		SetPasswordHash(hashedPassword).
 		Save(ctx)
 	if err != nil {
+		// SQLiteの制約違反チェック
+		
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
@@ -56,7 +59,10 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*ent
 		Where(user.EmailEqualFold(email)).
 		Only(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("user not found: %w", err)
+		if ent.IsNotFound(err) {
+			return  nil, apperrors.ErrUserNotFound	// 正規化されたエラー
+		}
+		return nil, fmt.Errorf("failed to get user by email: %w", err)
 	}
 	return user, nil
 }
@@ -67,7 +73,10 @@ func (r *UserRepository) GetUserByID(ctx context.Context, userID uuid.UUID) (*en
 		Where(user.ID(userID)).
 		Only(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("user not found: %w", err)
+		if ent.IsNotFound(err) {
+			return nil, apperrors.ErrUserNotFound
+		}
+		return nil, fmt.Errorf("failed to get user by ID: %w", err)
 	}
 	return user, nil
 }
@@ -147,7 +156,10 @@ func (r *UserRepository) UpdateRefreshToken(ctx context.Context, userID uuid.UUI
 // GetUserByRefreshTokenHash リフレッシュトークンハッシュでユーザーを取得
 func (r *UserRepository) GetUserByRefreshTokenHash(ctx context.Context, refreshTokenHash []byte) (*ent.User, error) {
 	user, err := r.client.User.Query().
-		Where(user.RefreshTokenHash(refreshTokenHash)).
+		Where(
+			user.RefreshTokenHash(refreshTokenHash),
+			user.RefreshTokenExpiresAtGT(time.Now()),
+			).
 		Only(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("user not found by refresh token: %w", err)

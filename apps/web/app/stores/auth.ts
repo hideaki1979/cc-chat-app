@@ -11,8 +11,7 @@ import type {
 } from '../types/auth';
 // import { isAxiosError } from 'axios';
 import type { User } from '../types/auth';
-import { AUTH_STORAGE_KEY, LOGIN_PAGE_PATH, REGISTER_PAGE_PATH } from '../constants/constants';
-import { getStorageJson } from '../lib/storage';
+import { LOGIN_PAGE_PATH, REGISTER_PAGE_PATH } from '../constants/constants';
 
 // 同一タブ内でのrefresh多重実行を防止するシンプルなsingleflightロック
 let refreshPromise: Promise<void> | null = null;
@@ -175,7 +174,7 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      _fetchUserProfileAfterRefresh: async ( currentPath?: string, onUnauthorized?: (currentPath: string) => void): Promise<User> => {
+      _fetchUserProfileAfterRefresh: async (currentPath?: string, onUnauthorized?: (currentPath: string) => void): Promise<User> => {
         const { refreshAccessToken } = get();
         await refreshAccessToken(currentPath, onUnauthorized);
 
@@ -239,17 +238,7 @@ export const useAuthStore = create<AuthStore>()(
           return;
         }
 
-        // localStorage から認証データをチェック
-        if (typeof window !== 'undefined') {
-          const storedAuth = getStorageJson<{ state?: { user?: User; accessToken?: string; isInitialized?: boolean } } | null>(AUTH_STORAGE_KEY, null);
-          if (storedAuth?.state?.user) {
-            // 旧persistデータからはユーザー情報のみを暫定反映。accessTokenは復元しない。
-            set({
-              user: storedAuth.state.user
-            });
-            // 以降のrefreshで新しいaccessTokenを取得する（早期returnしない）。
-          }
-        }
+        // localStorage からの認証状態の復元は廃止（XSS耐性強化のため）
 
         try {
           set({ isLoading: true });

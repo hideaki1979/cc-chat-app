@@ -4,17 +4,18 @@ CLAUDE.md禁止事項分析に基づく構造的問題の解決計画。
 
 ## 📊 問題概要
 
-| 分類 | 問題数 | 影響度 | 対応期限 |
-|------|--------|--------|----------|
-| 巨大関数・コンポーネント | 4件 | 高 | 1週間 |
-| 責務分散違反 | 3件 | 中 | 2週間 |
-| 設計原則違反 | 3件 | 中 | 3週間 |
+| 分類                     | 問題数 | 影響度 | 対応期限 |
+| ------------------------ | ------ | ------ | -------- |
+| 巨大関数・コンポーネント | 4件    | 高     | 1週間    |
+| 責務分散違反             | 3件    | 中     | 2週間    |
+| 設計原則違反             | 3件    | 中     | 3週間    |
 
 ---
 
 ## 🎯 TASK-003: 巨大ハンドラー関数分割
 
 ### 📍 現在の問題
+
 **ファイル**: `apps/api/internal/handlers/auth.go`
 
 - `Register` 関数: **144行** (制限: 50行)
@@ -24,6 +25,7 @@ CLAUDE.md禁止事項分析に基づく構造的問題の解決計画。
 ### 🏗️ 新しいアーキテクチャ
 
 #### Before: 単一ハンドラー
+
 ```
 AuthHandler
 ├── Register (144行) - 全責務混在
@@ -32,6 +34,7 @@ AuthHandler
 ```
 
 #### After: 層分離アーキテクチャ
+
 ```
 Handler層 (HTTP処理のみ)
 ├── AuthHandler
@@ -57,6 +60,7 @@ Repository層 (データアクセス)
 ```
 
 ### 📁 新ディレクトリ構造
+
 ```
 apps/api/internal/
 ├── handlers/          # HTTP層
@@ -74,6 +78,7 @@ apps/api/internal/
 ### 🔄 実装例
 
 #### 新AuthService
+
 ```go
 // ✅ apps/api/internal/services/auth_service.go
 package services
@@ -88,7 +93,7 @@ func (s *AuthService) RegisterUser(ctx context.Context, req RegisterRequest) (*A
     if err := s.validateRegisterRequest(req); err != nil {
         return nil, err
     }
-    
+
     // 重複チェック
     exists, err := s.userRepo.ExistsByEmail(ctx, req.Email)
     if err != nil {
@@ -97,19 +102,19 @@ func (s *AuthService) RegisterUser(ctx context.Context, req RegisterRequest) (*A
     if exists {
         return nil, ErrEmailExists
     }
-    
+
     // ユーザー作成
     user, err := s.userRepo.CreateUser(ctx, req)
     if err != nil {
         return nil, err
     }
-    
+
     // トークン生成
     tokens, err := s.tokenSvc.GenerateTokens(user.ID, user.Email)
     if err != nil {
         return nil, err
     }
-    
+
     return &AuthResponse{
         Token: tokens.AccessToken,
         User: user.ToUserInfo(),
@@ -118,6 +123,7 @@ func (s *AuthService) RegisterUser(ctx context.Context, req RegisterRequest) (*A
 ```
 
 #### 薄いハンドラー
+
 ```go
 // ✅ 修正後: apps/api/internal/handlers/auth.go (30行)
 func (h *AuthHandler) Register(c echo.Context) error {
@@ -125,20 +131,21 @@ func (h *AuthHandler) Register(c echo.Context) error {
     if err := middleware.ValidateRequest(c, &req); err != nil {
         return err
     }
-    
+
     response, err := h.authService.RegisterUser(c.Request().Context(), req)
     if err != nil {
         return h.handleError(c, err)
     }
-    
+
     // Cookie設定
     h.setRefreshTokenCookie(c, response.RefreshToken)
-    
+
     return c.JSON(http.StatusCreated, response)
 }
 ```
 
 ### 📋 実装手順
+
 1. [ ] サービス層インターfaces定義
 2. [ ] AuthService実装
 3. [ ] TokenService実装
@@ -151,12 +158,51 @@ func (h *AuthHandler) Register(c echo.Context) error {
 
 ---
 
+## 🎯 TASK-021: 認証のCookie完全移行（アーキテクチャ）
+
+### 📍 背景
+
+現状は以下のハイブリッド構成：
+
+- リフレッシュトークン: httpOnly + Secure(+Lax) Cookie（サーバー設定済み）
+- アクセストークン: レスポンスJSONで返却し、フロントのメモリ保持＋`Authorization` ヘッダーで送出
+
+最終目標は「アクセストークンも httpOnly Cookie で管理し、フロントはトークンを一切保持しない」設計へ移行。
+
+### 🏗️ 設計方針
+
+- サーバー: `access_token` も Set-Cookie（httpOnly, Secure, SameSite=Lax/Strict）
+- クライアント: `Authorization` ヘッダー送出を廃止し、`credentials: 'include'` のみでAPI呼び出し
+- 認証ミドルウェア: Cookie から `access_token` を検証（`Authorization`は後方互換で当面併用可）
+- CSRF対策: SameSite=Lax維持に加え、state-changingリクエストにCSRFトークン（二重送信）導入
+
+### 📁 変更箇所
+
+- `apps/api/internal/handlers/auth.go`: `Login/Register/Refresh` で `access_token` Cookieも発行
+- `apps/api/internal/middleware/jwt.go`: Cookieからの`access_token`読取対応
+- `apps/web/app/api/backend/proxyHandler.ts`: `Authorization` 転送削除、Cookieパススルー前提
+- `apps/web/app/stores/auth.ts`: `Authorization` ヘッダー付与ロジックの削除
+
+### 📋 実装手順（概要）
+
+1. ハンドラーで `access_token` の Set-Cookie 実装
+2. JWTミドルウェアで Cookie を優先的に検証
+3. フロントの `Authorization` 依存削除（fetchは`credentials: 'include'`）
+4. CSRFトークン実装（Cookie+ヘッダー二重送信）
+5. E2E/ユニットテスト更新
+
+**工数**: 4-6時間
+
+---
+
 ## 🎯 TASK-004: 巨大コンポーネント分割
 
 ### 📍 現在の問題
+
 **ファイル**: `apps/web/app/components/LoginForm.tsx` (118行)
 
 **責務混在**:
+
 - UI表示
 - フォーム状態管理
 - バリデーション
@@ -167,6 +213,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 ### 🏗️ 新しいコンポーネント構造
 
 #### Before: 単一巨大コンポーネント
+
 ```
 LoginForm (118行)
 ├── UI表示
@@ -178,6 +225,7 @@ LoginForm (118行)
 ```
 
 #### After: 責務分離
+
 ```
 LoginPage (15行) - ページコンポーネント
 └── LoginFormContainer (25行) - コンテナコンポーネント
@@ -187,6 +235,7 @@ LoginPage (15行) - ページコンポーネント
 ```
 
 ### 📁 新ファイル構造
+
 ```
 apps/web/app/components/auth/
 ├── LoginPage.tsx          # ページコンポーネント
@@ -202,6 +251,7 @@ apps/web/app/lib/services/
 ### 🔄 実装例
 
 #### プレゼンテーションコンポーネント
+
 ```typescript
 // ✅ LoginFormUI.tsx (40行)
 interface LoginFormUIProps {
@@ -246,6 +296,7 @@ export const LoginFormUI: React.FC<LoginFormUIProps> = ({
 ```
 
 #### カスタムフック
+
 ```typescript
 // ✅ useLoginForm.ts (30行)
 export const useLoginForm = () => {
@@ -260,8 +311,10 @@ export const useLoginForm = () => {
   const handleLogin = async (data: LoginFormData) => {
     const success = await authService.login(data);
     if (success) {
-      const redirect = searchParams.get('redirect');
-      const nextPath = redirect?.startsWith('/') ? redirect : DEFAULT_LOGIN_REDIRECT;
+      const redirect = searchParams.get("redirect");
+      const nextPath = redirect?.startsWith("/")
+        ? redirect
+        : DEFAULT_LOGIN_REDIRECT;
       router.push(nextPath);
     }
   };
@@ -276,6 +329,7 @@ export const useLoginForm = () => {
 ```
 
 #### コンテナコンポーネント
+
 ```typescript
 // ✅ LoginFormContainer.tsx (25行)
 export const LoginFormContainer: React.FC = () => {
@@ -293,6 +347,7 @@ export const LoginFormContainer: React.FC = () => {
 ```
 
 ### 📋 実装手順
+
 1. [ ] useLoginForm カスタムフック抽出
 2. [ ] LoginFormUI プレゼンテーションコンポーネント作成
 3. [ ] LoginFormContainer コンテナコンポーネント作成
@@ -307,9 +362,11 @@ export const LoginFormContainer: React.FC = () => {
 ## 🎯 TASK-009: AuthHandler責務分離
 
 ### 📍 現在の問題
+
 **ファイル**: `apps/api/internal/handlers/auth.go`
 
 **単一ハンドラーに複数責務**:
+
 - 認証処理 (Register, Login, Logout, RefreshToken)
 - プロフィール管理 (Profile, UpdateProfile)
 - ユーザー検索 (SearchUsers)
@@ -318,6 +375,7 @@ export const LoginFormContainer: React.FC = () => {
 ### 🏗️ 新しいハンドラー構造
 
 #### Before: God Object
+
 ```
 AuthHandler (758行)
 ├── Register
@@ -331,6 +389,7 @@ AuthHandler (758行)
 ```
 
 #### After: 責務分離
+
 ```
 AuthHandler (200行)
 ├── Register
@@ -349,6 +408,7 @@ UserHandler (100行)
 ```
 
 ### 📁 新ファイル構造
+
 ```
 apps/api/internal/handlers/
 ├── auth.go          # 認証のみ
@@ -360,6 +420,7 @@ apps/api/internal/handlers/
 ### 🔄 実装例
 
 #### 基底ハンドラー
+
 ```go
 // ✅ base.go - 共通処理
 package handlers
@@ -388,6 +449,7 @@ func (h *BaseHandler) handleError(c echo.Context, err error) error {
 ```
 
 #### 認証専用ハンドラー
+
 ```go
 // ✅ auth.go - 認証処理のみ
 type AuthHandler struct {
@@ -405,6 +467,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 ```
 
 #### プロフィール専用ハンドラー
+
 ```go
 // ✅ profile.go - プロフィール管理
 type ProfileHandler struct {
@@ -422,6 +485,7 @@ func (h *ProfileHandler) UpdateProfile(c echo.Context) error {
 ```
 
 ### 📋 実装手順
+
 1. [ ] BaseHandler抽出
 2. [ ] AuthHandler機能絞り込み
 3. [ ] ProfileHandler作成
@@ -437,11 +501,13 @@ func (h *ProfileHandler) UpdateProfile(c echo.Context) error {
 ## 🗓️ 実装スケジュール
 
 ### Week 1: バックエンド構造改善
+
 - **Day 1-2**: TASK-003 ハンドラー関数分割
 - **Day 3-4**: TASK-009 Handler責務分離
 - **Day 5**: 統合テスト・動作確認
 
 ### Week 2: フロントエンド構造改善
+
 - **Day 1-2**: TASK-004 コンポーネント分割
 - **Day 3-4**: ビジネスロジック抽出
 - **Day 5**: 型安全性確認・テスト
@@ -451,17 +517,20 @@ func (h *ProfileHandler) UpdateProfile(c echo.Context) error {
 ## 📊 完了基準
 
 ### コード品質メトリクス
+
 - [ ] 関数行数: 50行以下
 - [ ] コンポーネント行数: 100行以下
 - [ ] 循環複雑度: 10以下
 - [ ] 単一責務の原則遵守
 
 ### テスト品質
+
 - [ ] 単体テストカバレッジ: 80%以上
 - [ ] 統合テスト: 全APIエンドポイント
 - [ ] E2Eテスト: 認証フロー全体
 
 ### レビュー完了
+
 - [ ] コードレビュー（CLAUDE.md準拠）
 - [ ] アーキテクチャレビュー
 - [ ] セキュリティレビュー
