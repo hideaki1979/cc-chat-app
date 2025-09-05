@@ -39,7 +39,7 @@ test.describe('Authentication and Authorization', () => {
     await page.getByRole('button', { name: 'ログイン' }).click();
 
     // APIからのエラーメッセージが表示されることを確認
-    await expect(page.getByRole('alert')).toContainText(/メールアドレスまたはパスワードが正しくありません/);
+    await expect(page.getByRole('alert')).toContainText(/メールアドレスまたはパスワードに誤りがあります/);
   });
 
   test('should allow a user to log in and redirect to /dashboard', async ({ page }) => {

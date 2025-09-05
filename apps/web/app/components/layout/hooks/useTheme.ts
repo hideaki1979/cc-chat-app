@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { storage } from '../../../lib/storage';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -9,8 +10,8 @@ export function useTheme() {
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
-    // ローカルストレージからテーマを取得
-    const savedTheme = localStorage.getItem('theme') as Theme;
+    // 🔄 localStorage直接アクセスを安全なユーティリティに変更
+    const savedTheme = storage.getItem('theme') as Theme;
     if (savedTheme && ['light', 'dark', 'system'].includes(savedTheme)) {
       setTheme(savedTheme);
     }
@@ -48,12 +49,12 @@ export function useTheme() {
   const toggleTheme = () => {
     const newTheme = resolvedTheme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
+    storage.setItem('theme', newTheme);
   };
 
   const setThemeMode = (newTheme: Theme) => {
     setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
+    storage.setItem('theme', newTheme);
   };
 
   return {

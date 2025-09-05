@@ -78,3 +78,10 @@ func ConvertToMessageResponse(message *ent.Message) *MessageResponse {
 
 	return response
 }
+
+// MessagesResponse メッセージ一覧レスポンス
+type MessagesResponse struct {
+	Messages []MessageResponse `json:"messages"`
+	Total    int               `json:"total"`
+	HasMore  bool              `json:"has_more"`
+}

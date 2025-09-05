@@ -42,14 +42,14 @@ export interface AuthActions {
   login: (credentials: LoginCredentials) => Promise<boolean>;
   register: (credentials: RegisterCredentials) => Promise<RegisterResult>;
   logout: () => void;
-  refreshAccessToken: () => Promise<void>;
+  refreshAccessToken: (onUnauthorized?: (currentPath: string) => void, currentPath?: string) => Promise<void>;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
   setUser: (user: User | null) => void;
-  _fetchUserProfileAfterRefresh: () => Promise<User>;
+  _fetchUserProfileAfterRefresh: (onUnauthorized?: (currentPath: string) => void, currentPath?: string) => Promise<User>;
   loadCurrentUser: () => Promise<void>;
-  initializeAuth: () => Promise<void>;
+  initializeAuth: (currentPath?: string, onUnauthorized?: (currentPath: string) => void) => Promise<void>;
 }
 
 export type AuthStore = AuthState & AuthActions;

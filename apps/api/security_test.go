@@ -20,8 +20,11 @@ import (
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/handlers"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/middleware"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/repositories"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/services"
+	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
-	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	entsql "entgo.io/ent/dialect/sql"
@@ -29,14 +32,10 @@ import (
 
 // テスト用のクライアント設定
 func setupTestClient() (*ent.Client, error) {
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		dbURL = "postgresql://cc_chat_user:secret123@localhost:5433/cc_chat_db?sslmode=disable"
-	}
-
-	drv, err := entsql.Open("postgres", dbURL)
+	// SQLiteインメモリデータベースを使用（外部キー制約を有効化）
+	drv, err := entsql.Open("sqlite3", ":memory:?_fk=1")
 	if err != nil {
-		return nil, fmt.Errorf("failed opening connection to postgres: %v", err)
+		return nil, fmt.Errorf("failed opening connection to sqlite: %v", err)
 	}
 
 	client := ent.NewClient(ent.Driver(drv))
@@ -63,8 +62,15 @@ func setupTestServer(client *ent.Client) *echo.Echo {
 		}
 	})
 
+	// リポジトリ初期化
+	userRepo := repositories.NewUserRepository(client)
+
+	// サービス初期化
+	tokenService := services.NewTokenService(userRepo)
+	authService := services.NewAuthService(client, userRepo, tokenService)
+
 	// ハンドラー設定
-	authHandler := handlers.NewAuthHandler()
+	authHandler := handlers.NewAuthHandler(authService, tokenService)
 	authGroup := e.Group("/auth")
 	authGroup.POST("/register", authHandler.Register)
 	authGroup.POST("/login", authHandler.Login)
@@ -75,11 +81,38 @@ func setupTestServer(client *ent.Client) *echo.Echo {
 // テストデータクリア
 func clearTestData(client *ent.Client) error {
 	ctx := context.Background()
-	_, err := client.User.Delete().Exec(ctx)
-	return err
+	
+	// 外部キー制約のため、依存関係の順序で削除（エラーは無視）
+	// トランザクションを使用してより安全に削除
+	tx, err := client.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	
+	// Messages テーブルがある場合は削除
+	_, _ = tx.Message.Delete().Exec(ctx)
+	
+	// RoomMembers テーブルを削除
+	_, _ = tx.RoomMember.Delete().Exec(ctx)
+	
+	// ChatRooms テーブルがある場合は削除
+	_, _ = tx.ChatRoom.Delete().Exec(ctx)
+	
+	// Users テーブルを削除
+	_, err = tx.User.Delete().Exec(ctx)
+	if err != nil {
+		return err
+	}
+	
+	return tx.Commit()
 }
 
 func TestSecurityImprovements(t *testing.T) {
+	// .envファイルを読み込み
+	err := godotenv.Load()
+	require.NoError(t, err, ".envファイルの読み込みに失敗しました")
+	
 	// テスト環境セットアップ
 	client, err := setupTestClient()
 	require.NoError(t, err)
@@ -154,7 +187,7 @@ func TestSecurityImprovements(t *testing.T) {
 
 		// リフレッシュトークンハッシュがbytes型であることを確認
 		assert.NotNil(t, user.RefreshTokenHash)
-		assert.IsType(t, &[]byte{}, user.RefreshTokenHash)
+		assert.IsType(t, []byte{}, *user.RefreshTokenHash)
 
 		// ハッシュが存在し、十分な長さを持つことを確認
 		assert.Equal(t, 32, len(*user.RefreshTokenHash)) // SHA256ハッシュは32バイト

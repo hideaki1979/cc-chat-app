@@ -12,6 +12,7 @@ import type {
 // import { isAxiosError } from 'axios';
 import type { User } from '../types/auth';
 import { LOGIN_PAGE_PATH, REGISTER_PAGE_PATH } from '../constants/constants';
+import { getStorageJson } from '../lib/storage';
 
 // 同一タブ内でのrefresh多重実行を防止するシンプルなsingleflightロック
 let refreshPromise: Promise<void> | null = null;
@@ -127,7 +128,7 @@ export const useAuthStore = create<AuthStore>()(
         });
       },
 
-      refreshAccessToken: async () => {
+      refreshAccessToken: async (onUnauthorized?: (currentPath: string) => void, currentPath?: string) => {
         try {
           // 既に実行中ならそれを待つ
           if (refreshPromise) {
@@ -139,16 +140,16 @@ export const useAuthStore = create<AuthStore>()(
             // Next.js Route Handler 経由でバックエンドへ
             const response = await fetch('/api/backend/refresh', { method: 'POST', credentials: 'include' });
             if (!response.ok) {
-              // 401 の場合は即ログアウトし、ログインへ誘導
+              // 401 の場合は即ログアウトし、外部にリダイレクト処理を委譲
               if (response.status === 401) {
                 try {
                   const { logout } = get();
                   await logout();
                 } finally {
-                  if (typeof window !== 'undefined') {
-                    const currentPath = window.location.pathname || '/';
-                    const redirectParam = encodeURIComponent(currentPath);
-                    window.location.href = `/login?redirect=${redirectParam}`;
+                  // リダイレクト処理を外部に委譲（Next.jsルーターを使用するため）
+                  if (onUnauthorized) {
+                    const pathToUse = currentPath || '/';
+                    onUnauthorized(pathToUse);
                   }
                 }
               }
@@ -174,9 +175,9 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      _fetchUserProfileAfterRefresh: async (): Promise<User> => {
+      _fetchUserProfileAfterRefresh: async (onUnauthorized?: (currentPath: string) => void, currentPath?: string): Promise<User> => {
         const { refreshAccessToken } = get();
-        await refreshAccessToken();
+        await refreshAccessToken(onUnauthorized, currentPath);
 
         const { accessToken } = get();
         if (!accessToken) {
@@ -224,48 +225,40 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       // 初期化関数（カスタムフック側で明示的に呼び出す）
-      initializeAuth: async () => {
+      initializeAuth: async (currentPath?: string, onUnauthorized?: (currentPath: string) => void) => {
         const state = get();
         if (state.isInitialized) return; // 既に初期化済みなら何もしない
 
-        // テスト環境での認証データチェック
+        // パス情報を外部から受け取る（Next.jsのusePathnameを使用するため）
+        const path = currentPath || '';
+        
+        // ゲストページ（/login, /register）では自動リフレッシュを行わず初期化のみ行う
+        const guestOnly = [LOGIN_PAGE_PATH, REGISTER_PAGE_PATH];
+        if (guestOnly.some((p) => path.startsWith(p))) {
+          set({ isInitialized: true, isLoading: false, error: null });
+          return;
+        }
+
+        // localStorage から認証データをチェック
         if (typeof window !== 'undefined') {
-          // ゲストページ（/login, /register）では自動リフレッシュを行わず初期化のみ行う
-          try {
-            const path = window.location.pathname || '';
-            const guestOnly = [LOGIN_PAGE_PATH, REGISTER_PAGE_PATH];
-            if (guestOnly.some((p) => path.startsWith(p))) {
-              set({ isInitialized: true, isLoading: false, error: null });
-              return;
-            }
-          } catch {
-            // no-op
-          }
-          try {
-            const storedAuth = localStorage.getItem('auth-storage');
-            if (storedAuth) {
-              const parsedAuth = JSON.parse(storedAuth);
-              if (parsedAuth.state && parsedAuth.state.user && parsedAuth.state.isInitialized) {
-                // テスト用の認証データが存在する場合はそれを使用
-                set({
-                  user: parsedAuth.state.user,
-                  accessToken: parsedAuth.state.accessToken,
-                  isInitialized: true,
-                  isLoading: false,
-                  error: null
-                });
-                return;
-              }
-            }
-          } catch {
-            // localStorage解析エラーは無視して通常の初期化を続行
+          const storedAuth = getStorageJson<{state?: {user?: User; accessToken?: string; isInitialized?: boolean}} | null>('auth-storage', null);
+          if (storedAuth?.state?.user && storedAuth?.state?.isInitialized) {
+            set({
+              user: storedAuth.state.user,
+              accessToken: storedAuth.state.accessToken,
+              isInitialized: true,
+              isLoading: false,
+              error: null
+            });
+            return;
           }
         }
 
         try {
           set({ isLoading: true });
 
-          const user = await get()._fetchUserProfileAfterRefresh();
+          // onUnauthorizedコールバックを_fetchUserProfileAfterRefreshに渡す
+          const user = await get()._fetchUserProfileAfterRefresh(onUnauthorized, currentPath);
           set({ user, isInitialized: true, isLoading: false, error: null });
         } catch {
           set({
@@ -284,7 +277,3 @@ export const useAuthStore = create<AuthStore>()(
   )
 );
 
-// axiosインターセプターからアクセスできるようにwindowオブジェクトに登録
-if (typeof window !== 'undefined') {
-  window.authStore = useAuthStore;
-}
