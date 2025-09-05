@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
-	"github.com/hideaki1979/cc-chat-app/apps/api/internal/apperrors"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -46,11 +45,11 @@ func (s *AuthService) RegisterUser(ctx context.Context, req models.RegisterReque
 	// 重複チェック
 	existingUser, err := s.userRepo.GetUserByEmail(ctx, req.Email)
 	if err == nil && existingUser != nil {
-		return nil, apperrors.ErrEmailExists
+		return nil, ErrEmailExists
 	}
 
 	// ユーザーが見つからない以外のエラーは伝播させる
-	if err != nil && !errors.Is(err, apperrors.ErrUserNotFound) {
+	if err != nil && !errors.Is(err, ErrUserNotFound) {
 		return nil, fmt.Errorf("failed to check existing user: %w", err)
 	}
 
@@ -58,8 +57,8 @@ func (s *AuthService) RegisterUser(ctx context.Context, req models.RegisterReque
 	newUser, err := s.userRepo.CreateUser(ctx, req)
 	if err != nil {
 		// entの一意制約違反を明示的エラーへ正規化
-		if errors.Is(err, apperrors.ErrEmailExists) {
-			return nil, apperrors.ErrEmailExists
+		if errors.Is(err, ErrEmailExists) {
+			return nil, ErrEmailExists
 		}
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}

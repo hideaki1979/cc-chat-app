@@ -17,7 +17,6 @@ import (
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/services"
 	"github.com/hideaki1979/cc-chat-app/apps/api/util"
-	"github.com/hideaki1979/cc-chat-app/apps/api/internal/apperrors"
 
 	"github.com/labstack/echo/v4"
 )
@@ -54,7 +53,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	result, err := h.authService.RegisterUser(ctx, req)
 	if err != nil {
 		c.Logger().Errorf("user registration failed: %v", err)
-		if errors.Is(err, apperrors.ErrEmailExists) {
+		if errors.Is(err, services.ErrEmailExists) {
 			return c.JSON(http.StatusConflict, models.ErrorResponse{
 				Message: "このメールアドレスは既に使用されています",
 				Code:    "EMAIL_ALREADY_EXISTS",
@@ -253,13 +252,13 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 		c.Logger().Errorf("token refresh failed: %v", err)
 		// 失敗時はクッキーを無効化
 		c.SetCookie(&http.Cookie{
-			Name: "refresh_token",
-			Value: "",
-			Path: "/",
-			Domain: "",
-			MaxAge: -1,
+			Name:     "refresh_token",
+			Value:    "",
+			Path:     "/",
+			Domain:   "",
+			MaxAge:   -1,
 			HttpOnly: true,
-			Secure: util.IsProduction(),
+			Secure:   util.IsProduction(),
 			SameSite: http.SameSiteLaxMode,
 		})
 		return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
