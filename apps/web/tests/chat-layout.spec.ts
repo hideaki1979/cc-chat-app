@@ -25,19 +25,22 @@ test.describe('Chat Layout Integration', () => {
     await page.goto('/chat');
     await expect(page).toHaveURL(/.*chat/);
 
-    // サイドバーが表示されるまで待機（認証初期化の完了を意味する）
-    await expect(page.locator('[data-testid="test-sidebar"]')).toBeVisible({ timeout: 15000 });
+    // 初期ロード完了を待機（ChatLayoutのisInitialLoadがfalseになるまで待つ）
+    await page.waitForTimeout(100);
+    
+    // デスクトップサイズでは自動的にサイドバーが表示される（lg: 1024px以上）
+    await page.setViewportSize({ width: 1200, height: 800 });
+    await page.waitForTimeout(100);
   });
 
   test('should display chat layout with sidebar and header', async ({ page }) => {
-    // page.goto('/chat')はbeforeEachで実行済み
-
-    // Check main layout elements
+    // サイドバー内容の確認
+    await expect(page.getByText('CC Chat')).toBeVisible();
     await expect(page.locator('[data-testid="test-sidebar"]')).toBeVisible();
-    await expect(page.locator('main').first()).toBeVisible();
-
-    // Check header is present
-    await expect(page.locator('h2', { hasText: 'チャットルームを選択してください' })).toBeVisible();
+    
+    // メインエリアの確認
+    await expect(page.getByText('チャットルームを選択してください')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'ダッシュボードに戻る' })).toBeVisible();
   });
 
   test('should toggle sidebar using hamburger menu on mobile', async ({ page }) => {

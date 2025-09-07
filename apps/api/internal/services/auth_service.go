@@ -5,15 +5,15 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/middleware"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
-var validate = validator.New()
+var validator = middleware.NewValidator()
 
 const (
 	MaxAvatarSizeBytes = 5 * 1024 * 1024 // 5MB
@@ -38,7 +38,7 @@ func NewAuthService(client *ent.Client, userRepo UserRepositoryInterface, tokenS
 // RegisterUser ユーザー登録処理
 func (s *AuthService) RegisterUser(ctx context.Context, req models.RegisterRequest) (*models.AuthResult, error) {
 	// バリデーション
-	if err := validate.Struct(req); err != nil {
+	if err := validator.Validate(req); err != nil {
 		return nil, fmt.Errorf("validation error: %w", err)
 	}
 
@@ -112,7 +112,7 @@ func (s *AuthService) GetUserProfile(ctx context.Context, userID uuid.UUID) (*mo
 // UpdateUserProfile ユーザープロフィール更新
 func (s *AuthService) UpdateUserProfile(ctx context.Context, userID uuid.UUID, req models.UpdateProfileRequest) (*models.UserResponse, error) {
 	// バリデーション
-	if err := validate.Struct(req); err != nil {
+	if err := validator.Validate(req); err != nil {
 		return nil, fmt.Errorf("validation error: %w", err)
 	}
 

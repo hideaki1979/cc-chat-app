@@ -159,8 +159,8 @@ describe('MessageInput', () => {
 
     const textarea = screen.getByPlaceholderText('メッセージを入力してください...');
 
-    // 初期の高さを確認
-    expect(textarea).toHaveStyle('min-height: 44px');
+    // 初期の高さクラスを確認（TailwindCSS）
+    expect(textarea).toHaveClass('min-h-[44px]');
 
     // 長いテキストを入力
     const longText = 'これは長いメッセージです。\n'.repeat(5);

@@ -31,32 +31,34 @@ async function globalSetup(_config: FullConfig) {
     console.log(`⏳ Waiting for backend service at ${backendUrl}/health...`);
     await waitForUrl(`${backendUrl}/health`);
 
-    // --- 3. Create a test user for this run ---
+    // --- 3. Create a test user for this run via frontend ---
     const user = {
         email: `test-${Date.now()}@example.com`,
-        password: process.env.TEST_USER_PASSWORD ?? `Test-123abc-${Date.now()}`,
+        password: process.env.TEST_USER_PASSWORD ?? `Test123!${Date.now().toString().slice(-3)}`,
+        username: 'E2ETestUser',
         name: 'E2E Test User',
     };
-    console.log(`👤 Registering test user: ${user.email}`);
+    console.log(`👤 Registering test user via frontend: ${user.email}`);
 
-    const api = await request.newContext({ baseURL: backendUrl });
+    const browser = await request.newContext({ baseURL: frontendUrl });
     try {
-        const response = await api.post(`/auth/register`, {
-            data: { email: user.email, password: user.password, name: user.name },
+        // Frontend registration API経由で登録（proxyHandler経由）
+        const response = await browser.post(`/api/backend/register`, {
+            data: { email: user.email, password: user.password, name: user.username },
             timeout: 30_000,
         });
         if (!response.ok()) {
-            throw new Error(`Failed to register user: ${await response.text()}`);
+            throw new Error(`Failed to register user via frontend: ${await response.text()}`);
         }
-        console.log('✅ Test user registered successfully.');
+        console.log('✅ Test user registered successfully via frontend.');
     } catch (error) {
-        console.error('❌ Error registering user:', error);
+        console.error('❌ Error registering user via frontend:', error);
         // Cleanup and exit if user registration fails
         const compose = process.env.USE_COMPOSE_V1 === '1' ? 'docker-compose' : 'docker compose';
         execSync(`${compose} down`, { stdio: 'inherit' });
         throw error;
     } finally {
-        await api.dispose();
+        await browser.dispose();
     }
 
     // --- 4. Save the user credentials for tests to use ---
@@ -71,7 +73,7 @@ async function waitForUrl(url: string, timeout = 120000) {
     while (Date.now() - startTime < timeout) {
         try {
             const response = await fetch(url, {
-                method: "HEAD",
+                method: "GET",
                 redirect: "follow",
                 signal: AbortSignal.timeout(5000),
             });

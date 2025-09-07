@@ -6,6 +6,7 @@ import { useAuthStore } from '../../app/stores/auth'
 
 // Mock Next.js router
 const mockPush = jest.fn()
+const mockSearchParams = new URLSearchParams()
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
@@ -13,6 +14,7 @@ jest.mock('next/navigation', () => ({
     prefetch: jest.fn(),
     back: jest.fn(),
   }),
+  useSearchParams: () => mockSearchParams,
 }))
 
 // Mock auth store
@@ -54,13 +56,13 @@ describe('LoginForm Component', () => {
 
   test('submits form with valid data', async () => {
     const user = userEvent.setup()
-    mockLogin.mockResolvedValueOnce(undefined)
+    mockLogin.mockResolvedValueOnce(true)
     
     render(<LoginForm />)
     
     // Fill form
     await user.type(screen.getByLabelText(/メールアドレス/i), 'test@example.com')
-    await user.type(screen.getByLabelText(/パスワード/i), 'password123')
+    await user.type(screen.getByLabelText(/パスワード/i), 'Password123')
     
     // Submit form
     await user.click(screen.getByRole('button', { name: /ログイン/i }))
@@ -70,7 +72,7 @@ describe('LoginForm Component', () => {
       expect(mockClearError).toHaveBeenCalled()
       expect(mockLogin).toHaveBeenCalledWith({
         email: 'test@example.com',
-        password: 'password123',
+        password: 'Password123',
       })
       expect(mockPush).toHaveBeenCalledWith('/dashboard')
     })
@@ -100,7 +102,7 @@ describe('LoginForm Component', () => {
     
     // Enter invalid email
     await user.type(screen.getByLabelText(/メールアドレス/i), 'invalid-email')
-    await user.type(screen.getByLabelText(/パスワード/i), 'password123')
+    await user.type(screen.getByLabelText(/パスワード/i), 'Password123')
     await user.click(screen.getByRole('button', { name: /ログイン/i }))
     
     // Wait and check that login was not called due to validation
@@ -121,7 +123,7 @@ describe('LoginForm Component', () => {
     
     // Check password validation error
     await waitFor(() => {
-      expect(screen.getByText(/パスワードは6文字以上である必要があります/i)).toBeInTheDocument()
+      expect(screen.getByText(/パスワードは8文字以上である必要があります/i)).toBeInTheDocument()
     })
     
     expect(mockLogin).not.toHaveBeenCalled()
@@ -173,13 +175,13 @@ describe('LoginForm Component', () => {
 
   test('handles login failure', async () => {
     const user = userEvent.setup()
-    mockLogin.mockRejectedValueOnce(new Error('Login failed'))
+    mockLogin.mockResolvedValueOnce(false) // Return false to indicate failure
     
     render(<LoginForm />)
     
     // Fill and submit form
     await user.type(screen.getByLabelText(/メールアドレス/i), 'test@example.com')
-    await user.type(screen.getByLabelText(/パスワード/i), 'password123')
+    await user.type(screen.getByLabelText(/パスワード/i), 'Password123')
     await user.click(screen.getByRole('button', { name: /ログイン/i }))
     
     // Check that login was called but navigation didn't happen

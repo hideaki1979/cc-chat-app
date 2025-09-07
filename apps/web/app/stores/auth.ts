@@ -127,7 +127,7 @@ export const useAuthStore = create<AuthStore>()(
         });
       },
 
-      refreshAccessToken: async (onUnauthorized?: (currentPath: string) => void, currentPath?: string) => {
+      refreshAccessToken: async (currentPath?: string, onUnauthorized?: (currentPath: string) => void) => {
         try {
           // 既に実行中ならそれを待つ
           if (refreshPromise) {

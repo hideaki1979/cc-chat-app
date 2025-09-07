@@ -16,13 +16,12 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func TestChatRoomHandlers(t *testing.T) {
-	// テスト用のPostgreSQLテストDBを使用
-	testDBURL := "postgres://ccuser:ccpassword@localhost:5433/ccdb_test?sslmode=disable"
-	client := enttest.Open(t, "postgres", testDBURL)
+	// テスト用のSQLite in-memoryを使用
+	client := enttest.Open(t, "sqlite3", "file:ent_test?mode=memory&_fk=1")
 	defer client.Close()
 
 	// テスト前にデータをクリーンアップ
@@ -37,7 +36,7 @@ func TestChatRoomHandlers(t *testing.T) {
 	e.Validator = middleware.NewValidator()
 
 	// テスト用ユーザー作成
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("testpassword123"), bcrypt.DefaultCost)
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("TestPassword123"), bcrypt.DefaultCost)
 	user1, err := client.User.Create().
 		SetName("Test User 1").
 		SetEmail("test1@example.com").
@@ -104,9 +103,8 @@ func TestChatRoomHandlers(t *testing.T) {
 }
 
 func TestMessageHandlers(t *testing.T) {
-	// テスト用のPostgreSQLテストDBを使用
-	testDBURL := "postgres://ccuser:ccpassword@localhost:5433/ccdb_test?sslmode=disable"
-	client := enttest.Open(t, "postgres", testDBURL)
+	// テスト用のSQLite in-memoryを使用
+	client := enttest.Open(t, "sqlite3", "file:ent_test?mode=memory&_fk=1")
 	defer client.Close()
 
 	// テスト前にデータをクリーンアップ
@@ -121,7 +119,7 @@ func TestMessageHandlers(t *testing.T) {
 	e.Validator = middleware.NewValidator()
 
 	// テスト用ユーザー作成
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("testpassword123"), bcrypt.DefaultCost)
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("TestPassword123"), bcrypt.DefaultCost)
 	user1, err := client.User.Create().
 		SetName("Message Test User 1").
 		SetEmail("message_test1@example.com").

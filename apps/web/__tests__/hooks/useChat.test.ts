@@ -1,13 +1,13 @@
 import { renderHook, act } from '@testing-library/react';
 import { useChat } from '../../app/hooks/useChat';
 import { useChatStore } from '../../app/stores/chat';
-import { api } from '../../app/lib/api';
+import { apiProxy } from '../../app/lib/api';
 
 // Mocks
 jest.mock('../../app/lib/api');
 jest.mock('../../app/stores/chat');
 
-const mockedApi = api as jest.Mocked<typeof api>;
+const mockedApiProxy = apiProxy as jest.Mocked<typeof apiProxy>;
 
 // Mock store state
 const mockStoreState = {
@@ -49,7 +49,7 @@ describe('useChat', () => {
         }
       };
 
-      mockedApi.get.mockResolvedValue(mockResponse);
+      mockedApiProxy.get.mockResolvedValue(mockResponse);
 
       const { result } = renderHook(() => useChat());
 
@@ -57,7 +57,7 @@ describe('useChat', () => {
         await result.current.fetchRooms();
       });
 
-      expect(mockedApi.get).toHaveBeenCalledWith('/api/backend/chatrooms');
+      expect(mockedApiProxy.get).toHaveBeenCalledWith('/chatrooms');
       expect(mockStoreState.beginLoading).toHaveBeenCalled();
       expect(mockStoreState.setRooms).toHaveBeenCalledWith(mockRooms);
       expect(mockStoreState.endLoading).toHaveBeenCalled();
@@ -65,7 +65,7 @@ describe('useChat', () => {
 
     it('should handle fetch rooms error', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      mockedApi.get.mockRejectedValue(new Error('Network error'));
+      mockedApiProxy.get.mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useChat());
 
@@ -147,7 +147,7 @@ describe('useChat', () => {
         }
       };
 
-      mockedApi.get.mockResolvedValue(mockResponse);
+      mockedApiProxy.get.mockResolvedValue(mockResponse);
 
       const { result } = renderHook(() => useChat());
 
@@ -155,7 +155,7 @@ describe('useChat', () => {
         await result.current.fetchMessages(roomId);
       });
 
-      expect(mockedApi.get).toHaveBeenCalledWith(`/api/backend/chatrooms/${roomId}/messages`, {
+      expect(mockedApiProxy.get).toHaveBeenCalledWith(`/chatrooms/${roomId}/messages`, {
         params: { page: 1, page_size: 50 }
       });
       // ソートされた順序でsetMessagesが呼ばれることを確認
@@ -165,7 +165,7 @@ describe('useChat', () => {
     it('should handle fetch messages error', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       const roomId = 'room1';
-      mockedApi.get.mockRejectedValue(new Error('Network error'));
+      mockedApiProxy.get.mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useChat());
 
@@ -193,7 +193,7 @@ describe('useChat', () => {
       };
       const mockResponse = { data: mockMessage };
 
-      mockedApi.post.mockResolvedValue(mockResponse);
+      mockedApiProxy.post.mockResolvedValue(mockResponse);
 
       const { result } = renderHook(() => useChat());
 
@@ -202,7 +202,7 @@ describe('useChat', () => {
         sentMessage = await result.current.sendMessage(roomId, content);
       });
 
-      expect(mockedApi.post).toHaveBeenCalledWith(`/api/backend/chatrooms/${roomId}/messages`, {
+      expect(mockedApiProxy.post).toHaveBeenCalledWith(`/chatrooms/${roomId}/messages`, {
         content
       });
       expect(mockStoreState.addMessage).toHaveBeenCalledWith(mockMessage);
@@ -213,7 +213,7 @@ describe('useChat', () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       const roomId = 'room1';
       const content = 'Hello World';
-      mockedApi.post.mockRejectedValue(new Error('Network error'));
+      mockedApiProxy.post.mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useChat());
 
@@ -277,7 +277,7 @@ describe('useChat', () => {
         }
       };
 
-      mockedApi.get.mockResolvedValue(mockResponse);
+      mockedApiProxy.get.mockResolvedValue(mockResponse);
 
       const { result } = renderHook(() => useChat());
 
@@ -286,7 +286,7 @@ describe('useChat', () => {
       });
 
       expect(mockStoreState.setCurrentRoom).toHaveBeenCalledWith(roomId);
-      expect(mockedApi.get).toHaveBeenCalledWith(`/api/backend/chatrooms/${roomId}/messages`, {
+      expect(mockedApiProxy.get).toHaveBeenCalledWith(`/chatrooms/${roomId}/messages`, {
         params: { page: 1, page_size: 50 }
       });
       // ソートされた順序でsetMessagesが呼ばれることを確認

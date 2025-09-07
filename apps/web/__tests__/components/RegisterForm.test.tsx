@@ -6,6 +6,7 @@ import { useAuthStore } from '../../app/stores/auth'
 
 // Mock Next.js router
 const mockPush = jest.fn()
+const mockSearchParams = new URLSearchParams()
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
@@ -13,6 +14,7 @@ jest.mock('next/navigation', () => ({
     prefetch: jest.fn(),
     back: jest.fn(),
   }),
+  useSearchParams: () => mockSearchParams,
 }))
 
 // Mock auth store
@@ -56,7 +58,7 @@ describe('RegisterForm Component', () => {
 
   test('submits form with valid data', async () => {
     const user = userEvent.setup()
-    mockRegister.mockResolvedValueOnce(undefined)
+    mockRegister.mockResolvedValueOnce({ ok: true })
     
     render(<RegisterForm />)
     

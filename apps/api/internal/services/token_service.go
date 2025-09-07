@@ -52,6 +52,7 @@ func (s *TokenService) GenerateTokens(ctx context.Context, userID uuid.UUID, ema
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
 			Audience:  jwt.ClaimStrings{"access"},
+			Issuer:    "chat-app",
 			Subject:   userID.String(),
 		},
 	}
@@ -70,7 +71,8 @@ func (s *TokenService) GenerateTokens(ctx context.Context, userID uuid.UUID, ema
 			ExpiresAt: jwt.NewNumericDate(now.Add(s.refreshTokenTTL)),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
-			Audience:  jwt.ClaimStrings{"access"},
+			Audience:  jwt.ClaimStrings{"refresh"},
+			Issuer:    "chat-app",
 			Subject:   userID.String(),
 		},
 	}

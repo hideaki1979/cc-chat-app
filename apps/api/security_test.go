@@ -32,8 +32,8 @@ import (
 
 // テスト用のクライアント設定
 func setupTestClient() (*ent.Client, error) {
-	// SQLite in-memory（共有キャッシュ＆FK有効化）。1接続に固定して一貫性を担保
-	db, err := entsql.Open("sqlite3", "file:ent_test?mode=memory&cache=share&_fk=1")
+	// SQLite in-memory（FK有効化）。1接続に固定して一貫性を担保
+	db, err := entsql.Open("sqlite3", "file:ent_test?mode=memory&_fk=1")
 	if err != nil {
 		return nil, fmt.Errorf("failed opening connection to sqlite: %v", err)
 	}

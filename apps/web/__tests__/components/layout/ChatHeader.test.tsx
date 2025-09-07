@@ -128,7 +128,7 @@ describe('ChatHeader Component', () => {
     });
 
     test('disables action buttons when no room is selected', () => {
-      render(<ChatHeader {...defaultProps} roomName="チャットルームを選択してください。" />);
+      render(<ChatHeader {...defaultProps} roomName="チャットルームを選択してください" />);
       
       const voiceButton = screen.getByRole('button', { name: '音声通話' });
       const videoButton = screen.getByRole('button', { name: 'ビデオ通話' });

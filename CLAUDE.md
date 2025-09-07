@@ -13,12 +13,14 @@ CC Chat App is a Turborepo monorepo containing a real-time chat application with
 ## Key Development Commands
 
 ### Quick Start
+
 ```bash
 pnpm dev                    # Start all development servers
 docker-compose up           # Full stack with database (PostgreSQL on 5433)
 ```
 
 ### Build & Test
+
 ```bash
 # Build
 pnpm build                  # Build all apps and packages
@@ -27,7 +29,12 @@ turbo build --filter=web    # Build specific app
 # Test
 pnpm test                   # Frontend Jest tests
 pnpm test:e2e              # Playwright E2E tests
+pnpm test:e2e:ui           # Playwright E2E with UI mode
 go test ./...              # Go backend tests (from apps/api/)
+
+# Test Coverage
+cd apps/web && pnpm test:coverage    # Jest coverage report
+cd apps/api && pnpm test:coverage    # Go coverage report
 
 # Quality
 pnpm lint                  # ESLint all packages
@@ -36,6 +43,7 @@ pnpm format              # Prettier formatting
 ```
 
 ### Backend Development (Go)
+
 ```bash
 cd apps/api
 pnpm dev                   # Uses Air hot reload (.air.toml config)
@@ -45,6 +53,7 @@ go test -cover ./...      # Coverage report
 ```
 
 ### Frontend Development
+
 ```bash
 cd apps/web
 pnpm dev                  # Next.js dev server (port 3003)
@@ -53,6 +62,7 @@ pnpm test -- LoginForm.test.tsx  # Run specific test
 ```
 
 ### Turborepo Filtering
+
 ```bash
 turbo dev --filter=web                    # Only frontend
 turbo build --filter=api                  # Only backend
@@ -62,23 +72,28 @@ turbo test --filter="web" --filter="api"  # Multiple workspaces
 ## Critical Architecture Patterns
 
 ### API Proxy System
+
 The frontend uses Next.js API routes to proxy requests to the Go backend:
+
 ```
 Frontend: /api/backend/login → proxyHandler.ts → Go backend: /auth/login
 ```
 
 This pattern handles:
+
 - **Cookie Management**: Fixes domain issues for refresh tokens
 - **Request Timeout**: 10-second timeout with abort controller
 - **CORS Headers**: Forwards authentication and content-type headers
 - **Error Handling**: Structured error responses with Japanese messages
 
 ### Database Schema & Migration
+
 - **Ent ORM**: Schema-first approach with generated code
 - **Auto Migration**: Controlled by `RUN_MIGRATIONS=true` environment variable
 - **Connection Pooling**: MaxIdleConns(10), MaxOpenConns(100), ConnMaxLifetime(1h)
 
 ### Authentication Flow
+
 1. **Registration/Login**: POST to `/auth/register` or `/auth/login`
 2. **JWT Tokens**: Access token + HTTP-only refresh token cookie
 3. **Protected Routes**: `/api` group uses JWT middleware
@@ -86,6 +101,7 @@ This pattern handles:
 5. **Frontend State**: Zustand auth store with token management
 
 ### Project Structure
+
 ```
 apps/
 ├── web/                # Next.js frontend (port 3003)
@@ -104,6 +120,7 @@ Key Routes:
 - Frontend: http://localhost:3003
 - Backend: http://localhost:8080
 - Database: postgres://localhost:5433
+- pgAdmin: http://localhost:5050 (admin@example.com / admin)
 ```
 
 ## Environment Setup
@@ -165,7 +182,7 @@ JWT_SECRET=your-super-secret-jwt-key-here
 #### 禁止事項
 
 - **useEffect乱用**: 不要な副作用やデータフェッチでの使用禁止
-- **any型使用**: `any`型の使用は原則禁止、`unknown`を使用
+- **any型使用**: `any`型の使用は原則禁止、`unknown`も原則禁止
 - **インラインスタイル**: `style`プロップでのインラインスタイル禁止
 - **直接DOM操作**: `document.getElementById`等の直接DOM操作禁止
 - **key属性省略**: リスト要素での`key`属性省略禁止

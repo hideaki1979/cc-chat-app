@@ -5,22 +5,10 @@ import type { RegisterResult } from '../../app/types/auth'
 // Mock fetch
 global.fetch = jest.fn()
 
-// Mock localStorage
-const localStorageMock = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
-}
-
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-})
 
 describe('Auth Store', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    localStorageMock.getItem.mockReturnValue(null)
     // Reset fetch mock
     ;(global.fetch as jest.Mock).mockClear()
 
@@ -264,11 +252,16 @@ describe('Auth Store', () => {
     })
 
     test('should call onUnauthorized callback on 401 error', async () => {
-      // Mock refresh token failure
-      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-      })
+      // Mock refresh token failure (401 for both refresh and profile requests)
+      ;(global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+        })
 
       const { result } = renderHook(() => useAuthStore())
       const mockOnUnauthorized = jest.fn()

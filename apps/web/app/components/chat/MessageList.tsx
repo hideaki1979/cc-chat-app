@@ -131,7 +131,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+    <div className="flex-1 bg-gray-50 dark:bg-gray-900">
       <div ref={messagesContainerRef} className="min-h-full">
         {/* 過去のメッセージを読み込むボタン */}
         {hasMore && (
