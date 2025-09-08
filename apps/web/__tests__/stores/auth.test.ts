@@ -9,8 +9,8 @@ global.fetch = jest.fn()
 describe('Auth Store', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    // Reset fetch mock
-    ;(global.fetch as jest.Mock).mockClear()
+      // Reset fetch mock
+      ; (global.fetch as jest.Mock).mockClear()
 
     // Reset store state
     useAuthStore.setState({
@@ -50,10 +50,10 @@ describe('Auth Store', () => {
         token: 'access-token',
       }
 
-      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      })
+        ; (global.fetch as jest.Mock).mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockResponse,
+        })
 
       const { result } = renderHook(() => useAuthStore())
 
@@ -75,11 +75,11 @@ describe('Auth Store', () => {
 
     test('should handle login error', async () => {
       const errorMessage = 'Invalid credentials'
-      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-        json: async () => ({ message: errorMessage }),
-      })
+        ; (global.fetch as jest.Mock).mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          json: async () => ({ message: errorMessage }),
+        })
 
       const { result } = renderHook(() => useAuthStore())
 
@@ -114,10 +114,10 @@ describe('Auth Store', () => {
         token: 'access-token',
       }
 
-      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      })
+        ; (global.fetch as jest.Mock).mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockResponse,
+        })
 
       const { result } = renderHook(() => useAuthStore())
 
@@ -141,11 +141,11 @@ describe('Auth Store', () => {
 
     test('should handle register error', async () => {
       const errorMessage = 'Email already exists'
-      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false,
-        status: 400,
-        json: async () => ({ message: errorMessage }),
-      })
+        ; (global.fetch as jest.Mock).mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          json: async () => ({ message: errorMessage }),
+        })
 
       const { result } = renderHook(() => useAuthStore())
 
@@ -175,17 +175,17 @@ describe('Auth Store', () => {
         updated_at: '2024-01-01',
       }
 
-      // Mock refresh token call
-      ;(global.fetch as jest.Mock)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ token: 'new-access-token' }),
-        })
-        // Mock profile call
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => mockUser,
-        })
+        // Mock refresh token call
+        ; (global.fetch as jest.Mock)
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ token: 'new-access-token' }),
+          })
+          // Mock profile call
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => mockUser,
+          })
 
       const { result } = renderHook(() => useAuthStore())
 
@@ -209,23 +209,23 @@ describe('Auth Store', () => {
         updated_at: '2024-01-01',
       }
 
-      // Mock refresh token call
-      ;(global.fetch as jest.Mock)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ token: 'new-access-token' }),
-        })
-        // Mock profile call
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => mockUser,
-        })
+        // Mock refresh token call
+        ; (global.fetch as jest.Mock)
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ token: 'new-access-token' }),
+          })
+          // Mock profile call
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => mockUser,
+          })
 
       const { result } = renderHook(() => useAuthStore())
       const mockOnUnauthorized = jest.fn()
 
       await act(async () => {
-        await result.current.initializeAuth('/dashboard', mockOnUnauthorized)
+        await result.current.initializeAuth({ currentPath: '/dashboard', onUnauthorized: mockOnUnauthorized })
       })
 
       expect(result.current.user).toEqual(mockUser)
@@ -240,7 +240,7 @@ describe('Auth Store', () => {
       const { result } = renderHook(() => useAuthStore())
 
       await act(async () => {
-        await result.current.initializeAuth('/login')
+        await result.current.initializeAuth({ currentPath: '/login' })
       })
 
       expect(result.current.user).toBeNull()
@@ -253,7 +253,7 @@ describe('Auth Store', () => {
 
     test('should call onUnauthorized callback on 401 error', async () => {
       // Mock refresh token failure (401 for both refresh and profile requests)
-      ;(global.fetch as jest.Mock)
+      ; (global.fetch as jest.Mock)
         .mockResolvedValueOnce({
           ok: false,
           status: 401,
@@ -267,7 +267,7 @@ describe('Auth Store', () => {
       const mockOnUnauthorized = jest.fn()
 
       await act(async () => {
-        await result.current.initializeAuth('/dashboard', mockOnUnauthorized)
+        await result.current.initializeAuth({ currentPath: '/dashboard', onUnauthorized: mockOnUnauthorized })
       })
 
       expect(result.current.user).toBeNull()
@@ -280,7 +280,7 @@ describe('Auth Store', () => {
 
     test('should handle initialization failure', async () => {
       // Mock refresh token failure
-      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ; (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 401,
       })
@@ -302,7 +302,7 @@ describe('Auth Store', () => {
   describe('Logout', () => {
     test('should logout and clear state', async () => {
       // Mock logout API call
-      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ; (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
       })
 

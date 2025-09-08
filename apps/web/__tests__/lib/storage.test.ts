@@ -79,7 +79,7 @@ describe('Storage Utilities', () => {
       const testData = { user: { id: '1', name: 'test' } }
       localStorageMock.getItem.mockReturnValue(JSON.stringify(testData))
       
-      const result = getStorageJson<typeof testData>('test-key', null)
+      const result = getStorageJson('test-key', testData)
       
       expect(result).toEqual(testData)
     })

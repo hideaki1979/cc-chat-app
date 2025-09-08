@@ -127,7 +127,7 @@ export const useAuthStore = create<AuthStore>()(
         });
       },
 
-      refreshAccessToken: async (currentPath?: string, onUnauthorized?: (currentPath: string) => void) => {
+      refreshAccessToken: async (options: { currentPath?: string; onUnauthorized?: (currentPath: string) => void } = {}) => {
         try {
           // 既に実行中ならそれを待つ
           if (refreshPromise) {
@@ -146,9 +146,9 @@ export const useAuthStore = create<AuthStore>()(
                   await logout();
                 } finally {
                   // リダイレクト処理を外部に委譲（Next.jsルーターを使用するため）
-                  if (onUnauthorized) {
-                    const pathToUse = currentPath || '/';
-                    onUnauthorized(pathToUse);
+                  if (options.onUnauthorized) {
+                    const pathToUse = options.currentPath || '/';
+                    options.onUnauthorized(pathToUse);
                   }
                 }
               }
@@ -174,9 +174,9 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      _fetchUserProfileAfterRefresh: async (currentPath?: string, onUnauthorized?: (currentPath: string) => void): Promise<User> => {
+      _fetchUserProfileAfterRefresh: async (options: { currentPath?: string; onUnauthorized?: (currentPath: string) => void } = {}): Promise<User> => {
         const { refreshAccessToken } = get();
-        await refreshAccessToken(currentPath, onUnauthorized);
+        await refreshAccessToken(options);
 
         const { accessToken } = get();
         if (!accessToken) {
@@ -194,13 +194,34 @@ export const useAuthStore = create<AuthStore>()(
         return (await res.json()) as User;
       },
 
-      // 手動でのユーザー情報再取得（AuthInitがrefreshを担当する前提で、プロフィール取得のみ）
+      // 手動でのユーザー情報再取得（トークンリフレッシュ付き）
       loadCurrentUser: async () => {
         const { setLoading } = get();
         try {
           setLoading(true);
 
-          const { accessToken } = get();
+          let { accessToken } = get();
+          
+          // アクセストークンが無い場合、リフレッシュを試行
+          if (!accessToken) {
+            try {
+              await get().refreshAccessToken();
+              const newState = get();
+              accessToken = newState.accessToken;
+            } catch {
+              // リフレッシュ失敗時はログアウト状態にする
+              set({ 
+                user: null,
+                accessToken: null,
+                isLoading: false, 
+                isInitialized: true,
+                error: null
+              });
+              throw new Error('認証の有効期限が切れています。再度ログインしてください。');
+            }
+          }
+          
+          // まだトークンが無い場合はエラー
           if (!accessToken) {
             set({ isLoading: false, isInitialized: true });
             throw new Error('Access token is not available');
@@ -224,12 +245,12 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       // 初期化関数（カスタムフック側で明示的に呼び出す）
-      initializeAuth: async (currentPath?: string, onUnauthorized?: (currentPath: string) => void) => {
+      initializeAuth: async (options: { currentPath?: string; onUnauthorized?: (currentPath: string) => void } = {}) => {
         const state = get();
         if (state.isInitialized) return; // 既に初期化済みなら何もしない
 
         // パス情報を外部から受け取る（Next.jsのusePathnameを使用するため）
-        const path = currentPath || '';
+        const path = options.currentPath || '';
 
         // ゲストページ（/login, /register）では自動リフレッシュを行わず初期化のみ行う
         const guestOnly = [LOGIN_PAGE_PATH, REGISTER_PAGE_PATH];
@@ -244,7 +265,7 @@ export const useAuthStore = create<AuthStore>()(
           set({ isLoading: true });
 
           // onUnauthorizedコールバックを_fetchUserProfileAfterRefreshに渡す
-          const user = await get()._fetchUserProfileAfterRefresh(currentPath, onUnauthorized);
+          const user = await get()._fetchUserProfileAfterRefresh(options);
           set({ user, isInitialized: true, isLoading: false, error: null });
         } catch {
           set({

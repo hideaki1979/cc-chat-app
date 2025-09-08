@@ -26,8 +26,10 @@ const mockMessages: Message[] = [
     content: 'メッセージ1',
     sender_id: 'user1',
     sender_name: 'ユーザー1',
+    user_id: 'user1',
     room_id: 'room1',
     created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
     message_type: 'text',
   },
   {
@@ -35,8 +37,10 @@ const mockMessages: Message[] = [
     content: 'メッセージ2',
     sender_id: 'user2',
     sender_name: 'ユーザー2',
+    user_id: 'user2',
     room_id: 'room1',
     created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
     message_type: 'text',
   },
   {
@@ -44,8 +48,10 @@ const mockMessages: Message[] = [
     content: 'ルーム2のメッセージ',
     sender_id: 'user1',
     sender_name: 'ユーザー1',
+    user_id: 'user1',
     room_id: 'room2',
     created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
     message_type: 'text',
   },
 ];

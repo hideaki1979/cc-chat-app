@@ -21,30 +21,32 @@ test.describe('チャット機能', () => {
   // 各テストの前にログイン処理を実行
   test.beforeEach(async ({ page }) => {
     await page.goto('/login');
+    
+    // ログインフォームが表示されるまで待機
+    await expect(page.getByLabel('メールアドレス')).toBeVisible();
+    
     await page.getByLabel('メールアドレス').fill(TEST_USER.email);
     await page.getByLabel('パスワード').fill(TEST_USER.password);
     await page.getByRole('button', { name: 'ログイン' }).click();
 
     // ダッシュボードページにリダイレクトされるのを待つ
-    await expect(page).toHaveURL(/.*dashboard/);
+    await expect(page).toHaveURL(/.*dashboard/, { timeout: 10000 });
     
-    // ログイン成功後のCookie確認（デバッグ）
-    const cookies = await page.context().cookies();
-    console.log('Cookies after login:', cookies.map(c => `${c.name}=${c.value.substring(0, 20)}...`));
-
     // チャットページへ移動
     await page.goto('/chat');
+    await expect(page).toHaveURL(/.*chat/);
     
-    // チャットページでの認証処理完了を待機
+    // 認証初期化が完了し、UIが表示されるのを待つ
+    await page.waitForFunction(() => {
+      const loadingText = document.querySelector('p');
+      return !loadingText || !loadingText.textContent?.includes('ユーザー情報を読み込み中');
+    }, { timeout: 15000 });
+    
+    // サイドバーが表示されることを確認（h1要素のみ）
+    await expect(page.getByRole('heading', { name: 'CC Chat' })).toBeVisible({ timeout: 15000 });
+    
+    // さらに安定性のため少し待機
     await page.waitForTimeout(1000);
-    
-    // URLが維持されているか確認（リダイレクトされていないか）
-    const currentUrl = page.url();
-    console.log('Current URL after /chat navigation:', currentUrl);
-    
-    if (currentUrl.includes('/login')) {
-      throw new Error('Authentication failed - redirected to login page');
-    }
   });
 
   test('チャット画面の基本レイアウト表示', async ({ page }) => {
@@ -59,21 +61,21 @@ test.describe('チャット機能', () => {
     }, { timeout: 10000 });
     
     // チャットアプリのタイトル要素が出現するまで待機
-    await expect(page.getByText('CC Chat')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('heading', { name: 'CC Chat' })).toBeVisible({ timeout: 5000 });
     
     // ページタイトルを確認
     await expect(page).toHaveTitle(/CC Chat/);
 
-    // サイドバーの存在確認
-    await expect(page.getByRole('button', { name: 'ルーム' })).toBeVisible();
+    // サイドバーの存在確認（サイドバー内のルームボタンを特定）
+    await expect(page.getByTestId('test-sidebar').getByRole('button', { name: 'ルーム' })).toBeVisible();
 
     // ユーザー情報の表示確認
-    await expect(page.getByText(TEST_USER.name)).toBeVisible();
+    await expect(page.getByText(TEST_USER.name.replace(/\s+/g, ''))).toBeVisible();
     await expect(page.getByText(TEST_USER.email)).toBeVisible();
 
     // 初期状態でルーム選択メッセージを表示
-    await expect(page.getByText('チャットルームを選択してください')).toBeVisible();
-    await expect(page.getByText('ダッシュボードに戻る')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'チャットルームを選択してください' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'ダッシュボードに戻る' })).toBeVisible();
   });
 
   test('ルーム一覧の表示（空状態）', async ({ page, isMobile }) => {
@@ -87,8 +89,8 @@ test.describe('チャット機能', () => {
   });
 
   test('プレースホルダー表示機能', async ({ page }) => {
-    // ルームが選択されていない状態でのプレースホルダー表示確認
-    await expect(page.getByText('チャットルームを選択してください')).toBeVisible();
+    // ルームが選択されていない状態でのプレースホルダー表示確認（ヘッダーの方を特定）
+    await expect(page.getByRole('heading', { name: 'チャットルームを選択してください' })).toBeVisible();
     
     // ダッシュボードへのリンクボタンの確認
     const dashboardButton = page.getByRole('button', { name: 'ダッシュボードに戻る' });

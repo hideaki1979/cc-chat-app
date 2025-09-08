@@ -36,7 +36,6 @@ async function globalSetup(_config: FullConfig) {
         email: `test-${Date.now()}@example.com`,
         password: process.env.TEST_USER_PASSWORD ?? `Test123!${Date.now().toString().slice(-3)}`,
         username: 'E2ETestUser',
-        name: 'E2E Test User',
     };
     console.log(`👤 Registering test user via frontend: ${user.email}`);
 

@@ -182,7 +182,7 @@ test.describe('Authentication and Authorization', () => {
       await expect(page).toHaveURL(/.*chat/);
       
       // ページが正常にロードされることを確認
-      await expect(page.getByText('チャット')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'CC Chat' })).toBeVisible();
     });
 
     test('should handle expired refresh token gracefully', async ({ page, context }) => {
@@ -224,8 +224,8 @@ test.describe('Authentication and Authorization', () => {
       // 複数のAPIリクエストが同時に実行される可能性があるページに移動
       await page.goto('/chat');
       
-      // ページが正常にロードされ、複数のAPIコールが成功することを確認
-      await expect(page.getByText('チャット')).toBeVisible();
+      // ページが正常にロードされ、複数のAPIコールが成功することを確認（CC Chatヘッダーを確認）
+      await expect(page.getByRole('heading', { name: 'CC Chat' })).toBeVisible();
       
       // プロフィールページにも移動して別のAPIコールをテスト
       await page.goto('/profile');
@@ -295,7 +295,7 @@ test.describe('Authentication and Authorization', () => {
       await expect(page).toHaveURL(/.*chat/);
     });
     
-    test('should work without localStorage in SSR environment', async ({ page }) => {
+    test('should work without localStorage in SSR environment', async ({ page, context }) => {
       // ログイン
       await page.goto('/login');
       await page.getByLabel('メールアドレス').fill(TEST_USER.email);
@@ -312,14 +312,25 @@ test.describe('Authentication and Authorization', () => {
         });
       });
       
+      // リフレッシュトークンも無効化してSSR認証失敗をシミュレート
+      await context.addCookies([{
+        name: 'refresh_token',
+        value: 'expired-token',
+        domain: 'localhost',
+        path: '/',
+        httpOnly: true,
+        secure: false,
+        sameSite: 'Lax'
+      }]);
+      
       // ページリロード（SSR環境シミュレート）
       await page.reload();
       
       // エラーが発生せずに正常に動作することを確認
       await expect(page.locator('body')).toBeVisible();
       
-      // localStorage が利用できない環境でもアプリケーションが動作する
-      // （ただし認証情報は失われるため、ログインページにリダイレクト）
+      // localStorage が利用できず、リフレッシュトークンも無効な環境では
+      // ログインページにリダイレクトされる
       await expect(page).toHaveURL(/.*login/);
     });
   });
