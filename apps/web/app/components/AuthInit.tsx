@@ -19,8 +19,8 @@ export function AuthInit() {
                 const redirectParam = encodeURIComponent(currentPath);
                 router.replace(`/login?redirect=${redirectParam}`);
             };
-            
-            void initializeAuth(pathname, handleUnauthorized);
+
+            void initializeAuth({ currentPath: pathname, onUnauthorized: handleUnauthorized });
         }
     }, [isInitialized, initializeAuth, pathname, router]);
 

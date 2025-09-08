@@ -89,9 +89,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   }
 
   return (
-    <div className="relative flex-1 flex flex-col h-full">
+    <div className="relative flex-1 flex flex-col h-full min-h-0">
       {/* メッセージリスト（flex-1で残り空間を全て使用） */}
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         <MessageList
           messages={actualMessages}
           currentUserId={currentUserId}
@@ -102,7 +102,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       </div>
 
       {/* メッセージ入力（下部固定） */}
-      <div className="flex-shrink-0">
+      <div className="flex-shrink-0 sticky bottom-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 supports-[backdrop-filter]:dark:bg-gray-800/60">
         <MessageInput
           onSendMessage={handleSendMessage}
           disabled={disabled || isSending}

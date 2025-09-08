@@ -121,9 +121,9 @@ export default function DMPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-white dark:bg-gray-900">
+    <div className="h-screen flex flex-col bg-white dark:bg-gray-900 overflow-hidden">
       {/* DM専用ヘッダー */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-10">
         {/* 左側：戻るボタンとユーザー情報 */}
         <div className="flex items-center space-x-3">
           <Button
@@ -203,7 +203,7 @@ export default function DMPage() {
       </div>
 
       {/* メインチャットエリア */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0">
         <ChatArea
           roomId={roomId}
           roomName={currentRoom.name}
