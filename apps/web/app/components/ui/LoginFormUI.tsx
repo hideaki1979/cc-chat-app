@@ -6,9 +6,28 @@ import { Button } from '@repo/ui/button';
 import { Input } from '@repo/ui/input';
 import { FormCard, FormHeader, FormContainer, FormFields, FormFooter } from '@repo/ui/form-card';
 
+function LoginIcon() {
+  return (
+    <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+    </svg>
+  );
+}
+
+function Subtitle() {
+  return (
+    <>
+      アカウントをお持ちでない場合は{' '}
+      <Link href="/register" className="font-semibold text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
+        新規登録
+      </Link>
+    </>
+  );
+}
+
 interface LoginFormUIProps {
   onSubmit: (e: React.FormEvent) => void;
-  registerField: (name: 'email' | 'password') => {
+  register: (name: 'email' | 'password') => {
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     onBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
     name: string;
@@ -24,25 +43,11 @@ interface LoginFormUIProps {
 
 export const LoginFormUI: React.FC<LoginFormUIProps> = ({
   onSubmit,
-  registerField,
+  register,
   errors,
   error,
   isLoading,
 }) => {
-  const loginIcon = (
-    <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-    </svg>
-  );
-
-  const subtitle = (
-    <>
-      アカウントをお持ちでない場合は{' '}
-      <Link href="/register" className="font-semibold text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
-        新規登録
-      </Link>
-    </>
-  );
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-4 px-4 sm:px-4 lg:px-6">
@@ -50,8 +55,8 @@ export const LoginFormUI: React.FC<LoginFormUIProps> = ({
         <FormCard>
           <FormHeader
             title="アカウントにログイン"
-            subtitle={subtitle}
-            icon={loginIcon}
+            subtitle={<Subtitle />}
+            icon={<LoginIcon />}
           />
 
           <FormContainer onSubmit={onSubmit}>
@@ -60,7 +65,7 @@ export const LoginFormUI: React.FC<LoginFormUIProps> = ({
                 label="メールアドレス"
                 type="email"
                 autoComplete="email"
-                {...registerField('email')}
+                {...register('email')}
                 error={errors.email?.message}
                 placeholder="example@email.com"
               />
@@ -69,7 +74,7 @@ export const LoginFormUI: React.FC<LoginFormUIProps> = ({
                 label="パスワード"
                 type="password"
                 autoComplete="current-password"
-                {...registerField('password')}
+                {...register('password')}
                 error={errors.password?.message}
                 placeholder="パスワードを入力"
               />

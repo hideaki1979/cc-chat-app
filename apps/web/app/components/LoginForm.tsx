@@ -3,13 +3,13 @@
 import React from 'react';
 import { LoginFormUI } from './ui/LoginFormUI';
 import { useLoginForm } from '../hooks/useLoginForm';
-import { useLoginFormLogic } from '../lib/login-form-logic';
+import { useLoginFormLogic } from '../hooks/useLoginFormLogic';
 
 export const LoginForm: React.FC = () => {
   const {
     handleSubmit,
     formState: { errors },
-    registerField,
+    register,
     login,
     isLoading,
     error,
@@ -23,7 +23,7 @@ export const LoginForm: React.FC = () => {
   return (
     <LoginFormUI
       onSubmit={onSubmit}
-      registerField={registerField}
+      register={register}
       errors={errors}
       error={error}
       isLoading={isLoading}

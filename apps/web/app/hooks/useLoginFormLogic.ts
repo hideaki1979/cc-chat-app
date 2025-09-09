@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { type LoginFormData } from './validations';
+import { type LoginFormData } from '../lib/validations';
 import { DEFAULT_LOGIN_REDIRECT } from '../constants/constants';
 
 export const useLoginFormLogic = (
@@ -14,14 +14,15 @@ export const useLoginFormLogic = (
   const handleLogin = async (data: LoginFormData): Promise<void> => {
     clearError();
     const success = await login(data);
-    
+
     if (success) {
       const redirect = searchParams.get('redirect');
-      const nextPath = redirect && redirect.startsWith('/') 
-        ? redirect 
-        : DEFAULT_LOGIN_REDIRECT;
-      
-      router.push(nextPath);
+      const safeRedirect =
+        redirect && redirect.startsWith('/') && !redirect.startsWith('//')
+          ? redirect
+          : null;
+
+      router.push(safeRedirect ?? DEFAULT_LOGIN_REDIRECT);
     }
   };
 

@@ -12,18 +12,14 @@ export const useLoginForm = () => {
   // 画面遷移後の古いエラーを初期化
   useEffect(() => {
     clearError();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [clearError]);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
 
-  const registerField = (name: 'email' | 'password') => form.register(name);
-
   return {
     ...form,
-    registerField,
     login,
     isLoading,
     error,
