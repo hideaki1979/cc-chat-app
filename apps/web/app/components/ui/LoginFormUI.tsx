@@ -1,0 +1,111 @@
+'use client';
+
+import React from 'react';
+import Link from 'next/link';
+import { Button } from '@repo/ui/button';
+import { Input } from '@repo/ui/input';
+import { FormCard, FormHeader, FormContainer, FormFields, FormFooter } from '@repo/ui/form-card';
+
+function LoginIcon() {
+  return (
+    <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+    </svg>
+  );
+}
+
+function Subtitle() {
+  return (
+    <>
+      アカウントをお持ちでない場合は{' '}
+      <Link href="/register" className="font-semibold text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
+        新規登録
+      </Link>
+    </>
+  );
+}
+
+interface LoginFormUIProps {
+  onSubmit: (e: React.FormEvent) => void;
+  register: (name: 'email' | 'password') => {
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
+    name: string;
+    ref: React.Ref<HTMLInputElement>;
+  };
+  errors: {
+    email?: { message?: string };
+    password?: { message?: string };
+  };
+  error: string | null;
+  isLoading: boolean;
+}
+
+export const LoginFormUI: React.FC<LoginFormUIProps> = ({
+  onSubmit,
+  register,
+  errors,
+  error,
+  isLoading,
+}) => {
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-4 px-4 sm:px-4 lg:px-6">
+      <div className="max-w-lg w-full">
+        <FormCard>
+          <FormHeader
+            title="アカウントにログイン"
+            subtitle={<Subtitle />}
+            icon={<LoginIcon />}
+          />
+
+          <FormContainer onSubmit={onSubmit}>
+            <FormFields>
+              <Input
+                label="メールアドレス"
+                type="email"
+                autoComplete="email"
+                {...register('email')}
+                error={errors.email?.message}
+                placeholder="example@email.com"
+              />
+
+              <Input
+                label="パスワード"
+                type="password"
+                autoComplete="current-password"
+                {...register('password')}
+                error={errors.password?.message}
+                placeholder="パスワードを入力"
+              />
+            </FormFields>
+
+            {error && (
+              <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-4 rounded-xl flex items-center mt-6">
+                <svg className="w-5 h-5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <span className="text-sm">{error}</span>
+              </div>
+            )}
+
+            <div className="pt-1">
+              <Button
+                type="submit"
+                isLoading={isLoading}
+                className="w-full"
+                size="md"
+              >
+                ログイン
+              </Button>
+            </div>
+          </FormContainer>
+
+          <FormFooter>
+            ログインすることで、利用規約とプライバシーポリシーに同意したものとみなされます。
+          </FormFooter>
+        </FormCard>
+      </div>
+    </div>
+  );
+};
