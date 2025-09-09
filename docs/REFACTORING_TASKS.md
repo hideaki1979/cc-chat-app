@@ -230,13 +230,13 @@ currentRoomMessages vs currentRoomId
 
 ### Week 1: セキュリティ修正
 
-- [ ] TASK-001: window汚染除去
-- [ ] TASK-002: localStorage修正
+- [✔] TASK-001: window汚染除去
+- [✔] TASK-002: localStorage修正
 - [ ] TASK-005: ハードコード設定
 
 ### Week 2: 構造改善
 
-- [ ] TASK-003: ハンドラー関数分割
+- [✔] TASK-003: ハンドラー関数分割
 - [ ] TASK-004: コンポーネント分割
 - [ ] TASK-009: Handler責務分離
 

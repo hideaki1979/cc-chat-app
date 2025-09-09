@@ -711,13 +711,13 @@ refreshAccessToken: async () => {
 
 #### Week 1: 緊急セキュリティ + テスト基盤
 
-- [ ] TASK-001: window汚染除去（セキュリティ）
-- [ ] TASK-002: localStorage修正（セキュリティ）
+- [✔] TASK-001: window汚染除去（セキュリティ）
+- [✔] TASK-002: localStorage修正（セキュリティ）
 - [ ] TASK-014: テストカバレッジ向上（品質基盤）
 
 #### Week 2: 構造改善 + エラーハンドリング
 
-- [ ] TASK-003: 巨大関数分割
+- [✔] TASK-003: 巨大関数分割
 - [ ] TASK-004: コンポーネント分割
 - [ ] TASK-015: Error Boundary実装
 - [ ] TASK-016: 構造化ログ実装
