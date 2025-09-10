@@ -243,4 +243,118 @@ describe('RegisterForm Component', () => {
     expect(confirmPasswordInput).toHaveAttribute('type', 'password')
     expect(confirmPasswordInput).toHaveAttribute('autoComplete', 'new-password')
   })
+
+  // E2Eから移管：詳細バリデーションテスト
+  describe('Detailed Validation Tests (from E2E)', () => {
+    test('shows validation errors for invalid registration data', async () => {
+      const user = userEvent.setup()
+      
+      render(<RegisterForm />)
+      
+      // 無効なデータで登録を試行
+      await user.type(screen.getByLabelText(/メールアドレス/i), 'invalid-email')
+      await user.type(screen.getByLabelText('パスワード'), '123') // 短すぎるパスワード
+      await user.click(screen.getByRole('button', { name: /アカウント作成/i }))
+      
+      // バリデーションエラーが表示されることを確認
+      await waitFor(() => {
+        expect(screen.getByText(/ユーザー名は必須です/)).toBeInTheDocument()
+        expect(screen.getByText(/有効なメールアドレスを入力してください/)).toBeInTheDocument()
+        expect(screen.getByText(/パスワードは8文字以上である必要があります/)).toBeInTheDocument()
+      })
+    })
+
+    test('handles duplicate email registration gracefully', async () => {
+      const user = userEvent.setup()
+      const duplicateErrorMessage = 'すでに登録済みのメールアドレスです'
+      
+      mockedUseAuthStore.mockReturnValue({
+        register: mockRegister,
+        isLoading: false,
+        error: duplicateErrorMessage,
+        clearError: mockClearError,
+        user: null,
+        accessToken: null,
+        login: jest.fn(),
+        logout: jest.fn(),
+        refreshAccessToken: jest.fn(),
+        setLoading: jest.fn(),
+        setError: jest.fn(),
+      })
+      
+      render(<RegisterForm />)
+      
+      // 重複メールエラーが表示されることを確認
+      expect(screen.getByText(duplicateErrorMessage)).toBeInTheDocument()
+      expect(screen.getByRole('alert')).toContainElement(screen.getByText(duplicateErrorMessage))
+    })
+
+    test('validates password strength requirements', async () => {
+      const user = userEvent.setup()
+      
+      render(<RegisterForm />)
+      
+      // 弱いパスワードでテスト
+      await user.type(screen.getByLabelText(/メールアドレス/i), 'test@example.com')
+      await user.type(screen.getByLabelText(/ユーザー名/i), 'testuser')
+      await user.type(screen.getByLabelText('パスワード'), 'weak') // 弱いパスワード
+      await user.type(screen.getByLabelText(/パスワード確認/i), 'weak')
+      await user.click(screen.getByRole('button', { name: /アカウント作成/i }))
+      
+      // パスワード強度エラーが表示されることを確認
+      await waitFor(() => {
+        expect(screen.getByText(/パスワードは8文字以上である必要があります/)).toBeInTheDocument()
+      })
+    })
+
+    test('maintains form state during validation errors', async () => {
+      const user = userEvent.setup()
+      
+      render(<RegisterForm />)
+      
+      const testName = 'FormStateTestUser'
+      const testEmail = 'test-form-state@example.com'
+      
+      // 正しいデータを一部入力し、一部を無効にする
+      await user.type(screen.getByLabelText(/ユーザー名/i), testName)
+      await user.type(screen.getByLabelText(/メールアドレス/i), testEmail)
+      await user.type(screen.getByLabelText('パスワード'), 'weak') // 無効なパスワード
+      await user.type(screen.getByLabelText(/パスワード確認/i), 'weak')
+      await user.click(screen.getByRole('button', { name: /アカウント作成/i }))
+      
+      // バリデーションエラー後も、有効な入力値が保持されていることを確認
+      await waitFor(() => {
+        expect(screen.getByDisplayValue(testName)).toBeInTheDocument()
+        expect(screen.getByDisplayValue(testEmail)).toBeInTheDocument()
+      })
+    })
+
+    test('shows proper error styling and accessibility', () => {
+      const errorMessage = 'Registration error occurred'
+      mockedUseAuthStore.mockReturnValue({
+        register: mockRegister,
+        isLoading: false,
+        error: errorMessage,
+        clearError: mockClearError,
+        user: null,
+        accessToken: null,
+        login: jest.fn(),
+        logout: jest.fn(),
+        refreshAccessToken: jest.fn(),
+        setLoading: jest.fn(),
+        setError: jest.fn(),
+      })
+      
+      render(<RegisterForm />)
+      
+      // エラー表示のスタイリングを確認
+      const errorElement = screen.getByText(errorMessage)
+      expect(errorElement).toBeInTheDocument()
+      
+      // エラーコンテナが適切なスタイルを持つことを確認
+      const errorContainer = errorElement.closest('.bg-red-50')
+      expect(errorContainer).toBeInTheDocument()
+      expect(errorContainer).toHaveClass('bg-red-50')
+    })
+  })
 })

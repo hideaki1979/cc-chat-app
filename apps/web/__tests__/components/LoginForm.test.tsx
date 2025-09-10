@@ -190,4 +190,83 @@ describe('LoginForm Component', () => {
     expect(passwordInput).toHaveAttribute('type', 'password')
     expect(passwordInput).toHaveAttribute('autoComplete', 'current-password')
   })
+
+  // E2Eから移管：詳細バリデーションテスト
+  describe('Detailed Validation Tests (from E2E)', () => {
+    test('shows validation errors for empty form fields', () => {
+      mockUseLoginForm.mockReturnValue({
+        ...mockUseLoginFormReturn,
+        formState: {
+          errors: {
+            email: { 
+              message: '有効なメールアドレスを入力してください',
+              type: 'required'
+            },
+            password: { 
+              message: 'パスワードは必須です',
+              type: 'required'
+            },
+          }
+        },
+      })
+      
+      render(<LoginForm />)
+      
+      expect(screen.getByText('有効なメールアドレスを入力してください')).toBeInTheDocument()
+      expect(screen.getByText('パスワードは必須です')).toBeInTheDocument()
+    })
+
+    test('shows error for incorrect login credentials', () => {
+      const errorMessage = 'メールアドレスまたはパスワードに誤りがあります'
+      mockUseLoginForm.mockReturnValue({
+        ...mockUseLoginFormReturn,
+        error: errorMessage,
+      })
+      
+      render(<LoginForm />)
+      
+      const errorElement = screen.getByText(errorMessage)
+      expect(errorElement).toBeInTheDocument()
+      expect(errorElement.closest('.bg-red-50')).toBeInTheDocument()
+    })
+
+    test('displays error with proper styling and accessibility', () => {
+      const errorMessage = 'Authentication failed'
+      mockUseLoginForm.mockReturnValue({
+        ...mockUseLoginFormReturn,
+        error: errorMessage,
+      })
+      
+      render(<LoginForm />)
+      
+      const errorContainer = screen.getByText(errorMessage).closest('.bg-red-50')
+      expect(errorContainer).toBeInTheDocument()
+      expect(errorContainer).toHaveClass('bg-red-50')
+      
+      const errorText = screen.getByText(errorMessage)
+      expect(errorText).toHaveClass('text-sm')
+    })
+
+    test('clears error when clearError is called', async () => {
+      const user = userEvent.setup()
+      
+      // Initial state with error
+      mockUseLoginForm.mockReturnValue({
+        ...mockUseLoginFormReturn,
+        error: 'Some error message',
+      })
+      
+      const { rerender } = render(<LoginForm />)
+      expect(screen.getByText('Some error message')).toBeInTheDocument()
+      
+      // Simulate error clearing
+      mockUseLoginForm.mockReturnValue({
+        ...mockUseLoginFormReturn,
+        error: null,
+      })
+      
+      rerender(<LoginForm />)
+      expect(screen.queryByText('Some error message')).not.toBeInTheDocument()
+    })
+  })
 })

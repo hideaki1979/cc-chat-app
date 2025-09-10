@@ -4,7 +4,7 @@ import React, { useState, useCallback, useRef, KeyboardEvent } from 'react';
 import { Button } from '@repo/ui/button';
 
 interface MessageInputProps {
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string) => void | Promise<void>;
   disabled?: boolean;
   placeholder?: string;
   maxLength?: number;
@@ -49,11 +49,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     }
   };
 
-  const handleSendMessage = useCallback(() => {
+  const handleSendMessage = useCallback(async () => {
     const trimmedMessage = message.trim();
     if (!trimmedMessage || disabled || isComposing) return;
 
-    onSendMessage(trimmedMessage);
+    await onSendMessage(trimmedMessage);
     setMessage('');
 
     // メッセージ送信後、テキストエリアの高さをリセット
