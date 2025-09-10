@@ -9,3 +9,6 @@ export const LOGIN_PAGE_PATH = '/login';
 export const REGISTER_PAGE_PATH = '/register';
 
 export const AUTH_STORAGE_KEY = "auth-storage";
+
+export const PAGE_SIZE = 50;
+export const MAX_MESSAGE_LENGTH= 1000;

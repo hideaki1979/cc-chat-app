@@ -353,4 +353,175 @@ describe('ChatLayout Component', () => {
       expect(screen.getByText('Open Sidebar')).toBeInTheDocument();
     });
   });
+
+  // E2Eから移管：詳細UIテスト
+  describe('Detailed UI State Tests (from E2E)', () => {
+    test('should display chat layout with sidebar and header', () => {
+      render(
+        <ChatLayout
+          header={(props) => <TestHeader {...props} />}
+          sidebar={<TestSidebar />}
+        >
+          <TestContent />
+        </ChatLayout>
+      );
+
+      // サイドバー内容の確認
+      expect(screen.getByTestId('test-sidebar')).toBeInTheDocument();
+      expect(screen.getByText('Test Sidebar Content')).toBeVisible();
+      
+      // メインエリアの確認
+      expect(screen.getByTestId('test-content')).toBeInTheDocument();
+      expect(screen.getByText('Test Main Content')).toBeVisible();
+      
+      // ヘッダーの確認
+      expect(screen.getByTestId('test-header')).toBeInTheDocument();
+    });
+
+    test('should toggle sidebar using hamburger menu simulation', () => {
+      const { container } = render(
+        <ChatLayout
+          header={(props) => <TestHeader {...props} />}
+          sidebar={<TestSidebar />}
+        >
+          <TestContent />
+        </ChatLayout>
+      );
+
+      // 初期状態でサイドバーが表示されていることを確認
+      const sidebarElement = container.querySelector('.fixed.inset-y-0.left-0');
+      expect(sidebarElement).toHaveClass('translate-x-0');
+
+      // ハンバーガーメニュー（トグルボタン）をクリック
+      const toggleButton = screen.getByText('Close Sidebar');
+      fireEvent.click(toggleButton);
+
+      // サイドバーが非表示になることを確認
+      expect(sidebarElement).toHaveClass('-translate-x-full');
+      expect(screen.getByText('Open Sidebar')).toBeInTheDocument();
+    });
+
+    test('should show overlay when sidebar is open', () => {
+      const { container } = render(
+        <ChatLayout
+          header={(props) => <TestHeader {...props} />}
+          sidebar={<TestSidebar />}
+        >
+          <TestContent />
+        </ChatLayout>
+      );
+
+      // サイドバーが開いているときはオーバーレイが表示される
+      const overlay = container.querySelector('.fixed.inset-0.z-40.bg-black.bg-opacity-50.lg\\:hidden');
+      expect(overlay).toBeInTheDocument();
+    });
+
+    test('should close sidebar when clicking overlay', () => {
+      const { container } = render(
+        <ChatLayout
+          header={(props) => <TestHeader {...props} />}
+          sidebar={<TestSidebar />}
+        >
+          <TestContent />
+        </ChatLayout>
+      );
+
+      // 初期状態：サイドバーが開いている
+      expect(screen.getByText('Close Sidebar')).toBeInTheDocument();
+
+      // オーバーレイをクリックしてサイドバーを閉じる
+      const overlay = container.querySelector('.fixed.inset-0.z-40.bg-black.bg-opacity-50.lg\\:hidden');
+      fireEvent.click(overlay!);
+
+      // サイドバーが閉じられることを確認
+      expect(screen.getByText('Open Sidebar')).toBeInTheDocument();
+    });
+
+    test('should be responsive on different screen sizes (simulation)', () => {
+      const { container } = render(
+        <ChatLayout
+          header={(props) => <TestHeader {...props} />}
+          sidebar={<TestSidebar />}
+        >
+          <TestContent />
+        </ChatLayout>
+      );
+
+      // デスクトップビューのシミュレーション - サイドバーが常に表示
+      const sidebarElement = container.querySelector('.fixed.inset-y-0.left-0');
+      expect(sidebarElement).toHaveClass('translate-x-0'); // デフォルト状態
+
+      // モバイルビューの動作をシミュレート - ハンバーガーメニューが表示される想定
+      const toggleButton = screen.getByText('Close Sidebar');
+      expect(toggleButton).toBeInTheDocument();
+
+      // モバイルでのサイドバー制御テスト
+      fireEvent.click(toggleButton);
+      expect(sidebarElement).toHaveClass('-translate-x-full');
+    });
+
+    test('should display appropriate content when no specific state is selected', () => {
+      render(
+        <ChatLayout
+          header={(props) => <TestHeader {...props} />}
+          sidebar={<TestSidebar />}
+        >
+          <div data-testid="welcome-message">Welcome Message</div>
+          <div>左のサイドバーからチャットルームを選択するか、</div>
+        </ChatLayout>
+      );
+
+      // プレースホルダーコンテンツが適切に表示されることを確認
+      expect(screen.getByTestId('welcome-message')).toBeVisible();
+      expect(screen.getByText('左のサイドバーからチャットルームを選択するか、')).toBeVisible();
+    });
+
+    test('should handle authentication state properly in layout', () => {
+      // 未認証状態のシミュレーション
+      render(
+        <ChatLayout>
+          <div data-testid="auth-required">認証が必要です</div>
+        </ChatLayout>
+      );
+
+      // レイアウトが認証状態に応じて適切にレンダリングされることを確認
+      expect(screen.getByTestId('auth-required')).toBeInTheDocument();
+      expect(screen.getByText('認証が必要です')).toBeVisible();
+      
+      // サイドバーやヘッダーが表示されないことを確認（認証が必要な場合）
+      expect(screen.queryByTestId('test-sidebar')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('test-header')).not.toBeInTheDocument();
+    });
+
+    test('should maintain layout integrity across different content types', () => {
+      const { rerender } = render(
+        <ChatLayout
+          header={(props) => <TestHeader {...props} />}
+          sidebar={<TestSidebar />}
+        >
+          <div data-testid="chat-content">Chat Messages</div>
+        </ChatLayout>
+      );
+
+      // チャットコンテンツが表示されることを確認
+      expect(screen.getByTestId('chat-content')).toBeInTheDocument();
+      expect(screen.getByText('Chat Messages')).toBeVisible();
+
+      // 異なるコンテンツタイプに変更
+      rerender(
+        <ChatLayout
+          header={(props) => <TestHeader {...props} />}
+          sidebar={<TestSidebar />}
+        >
+          <div data-testid="dashboard-content">Dashboard</div>
+        </ChatLayout>
+      );
+
+      // 新しいコンテンツが表示され、レイアウトが維持されることを確認
+      expect(screen.getByTestId('dashboard-content')).toBeInTheDocument();
+      expect(screen.getByText('Dashboard')).toBeVisible();
+      expect(screen.getByTestId('test-sidebar')).toBeInTheDocument();
+      expect(screen.getByTestId('test-header')).toBeInTheDocument();
+    });
+  });
 });

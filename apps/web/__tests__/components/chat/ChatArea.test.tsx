@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
@@ -26,20 +27,26 @@ jest.mock('../../../app/components/chat/MessageInput', () => {
     placeholder?: string;
   }
   return {
-    MessageInput: ({ onSendMessage, disabled, placeholder }: MockMessageInputProps) => (
-      <div data-testid="message-input">
-        <input
-          data-testid="message-input-field"
-          placeholder={placeholder}
-          disabled={disabled}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              onSendMessage('test message');
-            }
-          }}
-        />
-      </div>
-    ),
+    MessageInput: ({ onSendMessage, disabled, placeholder }: MockMessageInputProps) => {
+      const [value, setValue] = useState('');
+      return (
+        <div data-testid="message-input">
+          <input
+            data-testid="message-input-field"
+            placeholder={placeholder}
+            disabled={disabled}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && value.trim()) {
+                onSendMessage(value.trim());
+                setValue('');
+              }
+            }}
+          />
+        </div>
+      );
+    },
   };
 });
 
@@ -148,7 +155,8 @@ describe('ChatArea', () => {
     );
 
     const input = screen.getByTestId('message-input-field');
-    await user.type(input, '{Enter}');
+    await user.type(input, 'test message');
+    await user.keyboard('{Enter}');
 
     await waitFor(() => {
       expect(mockOnSendMessage).toHaveBeenCalledWith('test message');
@@ -156,9 +164,7 @@ describe('ChatArea', () => {
   });
 
   test('送信中状態の表示', async () => {
-    const slowOnSendMessage = jest.fn().mockImplementation(
-      () => new Promise(resolve => setTimeout(resolve, 100))
-    );
+    const slowOnSendMessage = jest.fn((): Promise<void> => new Promise(resolve => setTimeout(resolve, 100)));
 
     const user = userEvent.setup();
 
@@ -173,14 +179,19 @@ describe('ChatArea', () => {
     );
 
     const input = screen.getByTestId('message-input-field');
-    await user.type(input, '{Enter}');
+    await user.type(input, 'test message');
+    
+    // 送信開始
+    user.keyboard('{Enter}');
 
-    // 送信中表示を確認
-    expect(screen.getByText('送信中...')).toBeInTheDocument();
+    // 送信中表示を確認（プレースホルダーとして表示）
+    await waitFor(() => {
+      expect(input).toHaveAttribute('placeholder', '送信中...');
+    });
 
     // 送信完了まで待つ
     await waitFor(() => {
-      expect(screen.queryByText('送信中...')).not.toBeInTheDocument();
+      expect(input).toHaveAttribute('placeholder', 'テストルームにメッセージを送信...');
     });
   });
 
@@ -232,10 +243,15 @@ describe('ChatArea', () => {
     );
 
     const input = screen.getByTestId('message-input-field');
-    await user.type(input, '{Enter}');
+    await user.type(input, 'テストメッセージ');
+    await user.keyboard('{Enter}');
 
     await waitFor(() => {
-      expect(consoleErrorSpy).toHaveBeenCalledWith('メッセージ送信エラー:', expect.any(Error));
+      expect(errorOnSendMessage).toHaveBeenCalledWith('テストメッセージ');
+    });
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith('メッセージ送信エラー:', 'メッセージ送信: 送信エラー');
     });
 
     consoleErrorSpy.mockRestore();
@@ -319,7 +335,8 @@ describe('ChatArea', () => {
     );
 
     const input = screen.getByTestId('message-input-field');
-    await user.type(input, '{Enter}');
+    await user.type(input, 'test message');
+    await user.keyboard('{Enter}');
 
     await waitFor(() => {
       expect(mockUseChatReturn.sendMessage).toHaveBeenCalledWith('room1', 'test message');

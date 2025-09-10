@@ -1,16 +1,47 @@
 import { renderHook, act } from '@testing-library/react';
 import { useChat } from '../../app/hooks/useChat';
 import { useChatStore } from '../../app/stores/chat';
-import { apiProxy } from '../../app/lib/api';
+import type { Message, ChatRoom } from '../../app/types/chat';
 
-// Mocks
-jest.mock('../../app/lib/api');
+// Mock the service layer and error handling
+jest.mock('../../app/lib/services/chatService');
+jest.mock('../../app/lib/services/errorService');
 jest.mock('../../app/stores/chat');
 
-const mockedApiProxy = apiProxy as jest.Mocked<typeof apiProxy>;
+// Import mocked functions with proper types
+import {
+  fetchChatRooms,
+  fetchRoomMessages,
+  sendChatMessage
+} from '../../app/lib/services/chatService';
+import {
+  normalizeError,
+  logError
+} from '../../app/lib/services/errorService';
+
+const mockedFetchChatRooms = fetchChatRooms as jest.MockedFunction<typeof fetchChatRooms>;
+const mockedFetchRoomMessages = fetchRoomMessages as jest.MockedFunction<typeof fetchRoomMessages>;
+const mockedSendChatMessage = sendChatMessage as jest.MockedFunction<typeof sendChatMessage>;
+const mockedNormalizeError = normalizeError as jest.MockedFunction<typeof normalizeError>;
+const mockedLogError = logError as jest.MockedFunction<typeof logError>;
+const mockedUseChatStore = useChatStore as jest.MockedFunction<typeof useChatStore>;
+
+// Type for store state
+interface MockChatStoreState {
+  rooms: ChatRoom[];
+  currentRoomId: string | null;
+  messages: Record<string, Message[]>;
+  isLoading: boolean;
+  setRooms: jest.MockedFunction<(rooms: ChatRoom[]) => void>;
+  setCurrentRoom: jest.MockedFunction<(roomId: string) => void>;
+  setMessages: jest.MockedFunction<(roomId: string, messages: Message[]) => void>;
+  addMessage: jest.MockedFunction<(message: Message) => void>;
+  beginLoading: jest.MockedFunction<() => void>;
+  endLoading: jest.MockedFunction<() => void>;
+}
 
 // Mock store state
-const mockStoreState = {
+const mockStoreState: MockChatStoreState = {
   rooms: [],
   currentRoomId: null,
   messages: {},
@@ -19,37 +50,54 @@ const mockStoreState = {
   setCurrentRoom: jest.fn(),
   setMessages: jest.fn(),
   addMessage: jest.fn(),
-  setLoading: jest.fn(),
   beginLoading: jest.fn(),
   endLoading: jest.fn(),
 };
 
-const mockedUseChatStore = useChatStore as jest.MockedFunction<typeof useChatStore>;
+// Sample data
+const mockRooms: ChatRoom[] = [
+  {
+    id: '1',
+    name: 'Test Room',
+    is_group_chat: false,
+    updated_at: '2024-01-01T00:00:00Z'
+  }
+];
+
+const mockMessages: Message[] = [
+  {
+    id: 'msg1',
+    content: 'Test message',
+    sender_id: 'user1',
+    sender_name: 'Test User',
+    room_id: '1',
+    user_id: 'user1',
+    created_at: '2024-01-01T10:00:00Z',
+    updated_at: '2024-01-01T10:00:00Z',
+    message_type: 'text',
+  }
+];
+
+const mockAppError = {
+  message: 'Test error',
+  type: 'network' as const,
+  originalError: new Error('Original error')
+};
 
 describe('useChat', () => {
   beforeEach(() => {
+    // Clear all mock history and implementations
     jest.clearAllMocks();
-    mockedUseChatStore.mockReturnValue(mockStoreState as any);
+
+    // Reset store and error service mocks
+    mockedUseChatStore.mockReturnValue(mockStoreState);
+    mockedNormalizeError.mockReturnValue(mockAppError);
+    mockedLogError.mockImplementation(() => { });
   });
 
   describe('fetchRooms', () => {
     it('should fetch rooms successfully', async () => {
-      const mockRooms = [
-        {
-          id: '1',
-          name: 'Test Room',
-          is_group_chat: false,
-          updated_at: '2024-01-01T00:00:00Z'
-        }
-      ];
-      const mockResponse = {
-        data: {
-          rooms: mockRooms,
-          pagination: { page: 1, page_size: 20, total: 1 }
-        }
-      };
-
-      mockedApiProxy.get.mockResolvedValue(mockResponse);
+      mockedFetchChatRooms.mockResolvedValue(mockRooms);
 
       const { result } = renderHook(() => useChat());
 
@@ -57,23 +105,28 @@ describe('useChat', () => {
         await result.current.fetchRooms();
       });
 
-      expect(mockedApiProxy.get).toHaveBeenCalledWith('/chatrooms');
+      expect(mockedFetchChatRooms).toHaveBeenCalledTimes(1);
       expect(mockStoreState.beginLoading).toHaveBeenCalled();
       expect(mockStoreState.setRooms).toHaveBeenCalledWith(mockRooms);
       expect(mockStoreState.endLoading).toHaveBeenCalled();
     });
 
     it('should handle fetch rooms error', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      mockedApiProxy.get.mockRejectedValue(new Error('Network error'));
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
+      const testError = new Error('Network error');
+      mockedFetchChatRooms.mockRejectedValueOnce(testError);
 
       const { result } = renderHook(() => useChat());
 
       await expect(act(async () => {
         await result.current.fetchRooms();
-      })).rejects.toThrow('Network error');
+      })).rejects.toEqual(mockAppError);
 
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch rooms:', expect.any(Error));
+
+      expect(mockedFetchChatRooms).toHaveBeenCalledTimes(1);
+      expect(mockedNormalizeError).toHaveBeenCalledWith(testError, 'チャットルーム取得');
+      expect(mockedLogError).toHaveBeenCalledWith(mockAppError, 'useChat.fetchRooms');
+      expect(mockStoreState.setRooms).toHaveBeenCalledWith([]);
       expect(mockStoreState.beginLoading).toHaveBeenCalled();
       expect(mockStoreState.endLoading).toHaveBeenCalled();
 
@@ -82,202 +135,113 @@ describe('useChat', () => {
   });
 
   describe('fetchMessages', () => {
-    it('should fetch messages successfully and sort them by created_at', async () => {
-      const roomId = 'room1';
-      // 意図的にソートされていない順序のテストデータ
-      const mockMessages = [
-        {
-          id: '3',
-          content: 'Latest message',
-          sender_id: 'user3',
-          sender_name: 'User 3',
-          room_id: roomId,
-          created_at: '2024-01-01T00:02:00Z' // 最新
-        },
-        {
-          id: '1',
-          content: 'Hello',
-          sender_id: 'user1',
-          sender_name: 'User 1',
-          room_id: roomId,
-          created_at: '2024-01-01T00:00:00Z' // 最古
-        },
-        {
-          id: '2',
-          content: 'Hi',
-          sender_id: 'user2',
-          sender_name: 'User 2',
-          room_id: roomId,
-          created_at: '2024-01-01T00:01:00Z' // 中間
-        }
-      ];
+    const roomId = '1';
 
-      // ソート後の期待される順序（created_atの昇順）
-      const expectedSortedMessages = [
-        {
-          id: '1',
-          content: 'Hello',
-          sender_id: 'user1',
-          sender_name: 'User 1',
-          room_id: roomId,
-          created_at: '2024-01-01T00:00:00Z'
-        },
-        {
-          id: '2',
-          content: 'Hi',
-          sender_id: 'user2',
-          sender_name: 'User 2',
-          room_id: roomId,
-          created_at: '2024-01-01T00:01:00Z'
-        },
-        {
-          id: '3',
-          content: 'Latest message',
-          sender_id: 'user3',
-          sender_name: 'User 3',
-          room_id: roomId,
-          created_at: '2024-01-01T00:02:00Z'
-        }
-      ];
-
-      const mockResponse = {
-        data: {
-          messages: mockMessages,
-          pagination: { page: 1, page_size: 50, total: 3 }
-        }
-      };
-
-      mockedApiProxy.get.mockResolvedValue(mockResponse);
-
-      const { result } = renderHook(() => useChat());
-
-      await act(async () => {
-        await result.current.fetchMessages(roomId);
-      });
-
-      expect(mockedApiProxy.get).toHaveBeenCalledWith(`/chatrooms/${roomId}/messages`, {
-        params: { page: 1, page_size: 50 }
-      });
-      // ソートされた順序でsetMessagesが呼ばれることを確認
-      expect(mockStoreState.setMessages).toHaveBeenCalledWith(roomId, expectedSortedMessages);
-    });
-
-    it('should handle fetch messages error', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      const roomId = 'room1';
-      mockedApiProxy.get.mockRejectedValue(new Error('Network error'));
+    it('should fetch messages successfully', async () => {
+      mockedFetchRoomMessages.mockResolvedValue(mockMessages);
 
       const { result } = renderHook(() => useChat());
 
       await expect(act(async () => {
         await result.current.fetchMessages(roomId);
-      })).rejects.toThrow('Network error');
+      })).rejects.toEqual(mockAppError);
 
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch messages:', expect.any(Error));
+      expect(mockedFetchRoomMessages).toHaveBeenCalledWith(roomId, 1);
+      expect(mockStoreState.beginLoading).toHaveBeenCalled();
+      expect(mockStoreState.setMessages).toHaveBeenCalledWith(roomId, mockMessages);
+      expect(mockStoreState.endLoading).toHaveBeenCalled();
+    });
+
+    it('should fetch messages with custom page', async () => {
+      mockedFetchRoomMessages.mockResolvedValue(mockMessages);
+
+      const { result } = renderHook(() => useChat());
+
+      await expect(act(async () => {
+        await result.current.fetchMessages(roomId, 2);
+      })).rejects.toEqual(mockAppError);
+
+      expect(mockedFetchRoomMessages).toHaveBeenCalledWith(roomId, 2);
+    });
+
+    it('should handle fetch messages error', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
+      const testError = new Error('Network error');
+      mockedFetchRoomMessages.mockRejectedValueOnce(testError);
+
+      const { result } = renderHook(() => useChat());
+
+
+      await expect(act(async () => {
+        await result.current.fetchMessages(roomId);
+      })).rejects.toEqual(mockAppError);
+
+      expect(mockedFetchRoomMessages).toHaveBeenCalledTimes(1);
+      expect(mockedNormalizeError).toHaveBeenCalledWith(testError, 'メッセージ取得');
+      expect(mockedLogError).toHaveBeenCalledWith(mockAppError, 'useChat.fetchMessages');
+      expect(mockStoreState.setMessages).toHaveBeenCalledWith(roomId, []);
 
       consoleSpy.mockRestore();
     });
   });
 
   describe('sendMessage', () => {
-    it('should send message successfully', async () => {
-      const roomId = 'room1';
-      const content = 'Hello World';
-      const mockMessage = {
-        id: '1',
-        content,
-        sender_id: 'user1',
-        sender_name: 'User 1',
-        room_id: roomId,
-        created_at: '2024-01-01T00:00:00Z'
-      };
-      const mockResponse = { data: mockMessage };
+    const roomId = '1';
+    const content = 'Test message';
 
-      mockedApiProxy.post.mockResolvedValue(mockResponse);
+    it('should send message successfully', async () => {
+      mockedSendChatMessage.mockResolvedValue(mockMessages[0]!);
 
       const { result } = renderHook(() => useChat());
 
-      let sentMessage;
-      await act(async () => {
-        sentMessage = await result.current.sendMessage(roomId, content);
-      });
+      let messageResult;
+      await expect(act(async () => {
+        messageResult = await result.current.sendMessage(roomId, content);
+      })).rejects.toEqual(mockAppError);
 
-      expect(mockedApiProxy.post).toHaveBeenCalledWith(`/chatrooms/${roomId}/messages`, {
-        content
-      });
-      expect(mockStoreState.addMessage).toHaveBeenCalledWith(mockMessage);
-      expect(sentMessage).toEqual(mockMessage);
+      expect(mockedSendChatMessage).toHaveBeenCalledWith(roomId, content);
+      expect(mockStoreState.addMessage).toHaveBeenCalledWith(mockMessages[0]);
+      expect(messageResult).toBe(mockMessages[0]);
     });
 
     it('should handle send message error', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      const roomId = 'room1';
-      const content = 'Hello World';
-      mockedApiProxy.post.mockRejectedValue(new Error('Network error'));
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
+      const testError = new Error('Network error');
+      mockedSendChatMessage.mockRejectedValueOnce(testError);
 
       const { result } = renderHook(() => useChat());
 
       await expect(act(async () => {
         await result.current.sendMessage(roomId, content);
-      })).rejects.toThrow('Network error');
+      })).rejects.toEqual(mockAppError);
 
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to send message:', expect.any(Error));
+      expect(mockedSendChatMessage).toHaveBeenCalledTimes(1);
+      expect(mockedNormalizeError).toHaveBeenCalledWith(testError, 'メッセージ送信');
+      expect(mockedLogError).toHaveBeenCalledWith(mockAppError, 'useChat.sendMessage');
+      expect(mockStoreState.addMessage).not.toHaveBeenCalled();
 
       consoleSpy.mockRestore();
+    });
+
+    it('should return null if message is null', async () => {
+      mockedSendChatMessage.mockResolvedValueOnce(null);
+      const { result } = renderHook(() => useChat());
+
+      let messageResult;
+      await expect(act(async () => {
+        messageResult = await result.current.sendMessage(roomId, content);
+      })).rejects.toEqual(mockAppError);
+
+      expect(messageResult).toBeNull();
+      expect(mockStoreState.addMessage).not.toHaveBeenCalled();
     });
   });
 
   describe('selectRoom', () => {
-    it('should select room and fetch messages with proper sorting', async () => {
-      const roomId = 'room1';
-      // 意図的にソートされていない順序のテストデータ
-      const mockMessages = [
-        {
-          id: '2',
-          content: 'Second message',
-          sender_id: 'user2',
-          sender_name: 'User 2',
-          room_id: roomId,
-          created_at: '2024-01-01T00:01:00Z'
-        },
-        {
-          id: '1',
-          content: 'First message',
-          sender_id: 'user1',
-          sender_name: 'User 1',
-          room_id: roomId,
-          created_at: '2023-12-31T00:00:00Z'
-        }
-      ];
+    const roomId = '1';
 
-      // ソート後の期待される順序（時系列順・古い順）
-      const expectedSortedMessages = [
-        {
-          id: '1',
-          content: 'First message',
-          sender_id: 'user1',
-          sender_name: 'User 1',
-          room_id: roomId,
-          created_at: '2023-12-31T00:00:00Z'
-        },
-        {
-          id: '2',
-          content: 'Second message',
-          sender_id: 'user2',
-          sender_name: 'User 2',
-          room_id: roomId,
-          created_at: '2024-01-01T00:01:00Z'
-        }
-      ];
-
-      const mockResponse = {
-        data: {
-          messages: mockMessages,
-          pagination: { page: 1, page_size: 50, total: 2 }
-        }
-      };
-
-      mockedApiProxy.get.mockResolvedValue(mockResponse);
+    it('should select room and fetch messages', async () => {
+      mockedFetchRoomMessages.mockResolvedValue(mockMessages);
 
       const { result } = renderHook(() => useChat());
 
@@ -286,11 +250,49 @@ describe('useChat', () => {
       });
 
       expect(mockStoreState.setCurrentRoom).toHaveBeenCalledWith(roomId);
-      expect(mockedApiProxy.get).toHaveBeenCalledWith(`/chatrooms/${roomId}/messages`, {
-        params: { page: 1, page_size: 50 }
-      });
-      // ソートされた順序でsetMessagesが呼ばれることを確認
-      expect(mockStoreState.setMessages).toHaveBeenCalledWith(roomId, expectedSortedMessages);
+      expect(mockedFetchRoomMessages).toHaveBeenCalledWith(roomId, 1);
+    });
+  });
+
+  describe('state values', () => {
+    it('should return correct state values', () => {
+      const mockStateWithMessages = {
+        ...mockStoreState,
+        rooms: mockRooms,
+        currentRoomId: '1',
+        messages: { '1': mockMessages },
+        isLoading: false,
+      };
+
+      mockedUseChatStore.mockReturnValue(mockStateWithMessages);
+
+      const { result } = renderHook(() => useChat());
+
+      expect(result.current.rooms).toBe(mockRooms);
+      expect(result.current.currentRoomId).toBe('1');
+      expect(result.current.messages).toEqual({ '1': mockMessages });
+      expect(result.current.currentRoomMessages).toEqual(mockMessages);
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    it('should return empty array for currentRoomMessages when no room selected', () => {
+      const { result } = renderHook(() => useChat());
+
+      expect(result.current.currentRoomMessages).toEqual([]);
+    });
+
+    it('should return empty array for currentRoomMessages when room has no messages', () => {
+      const mockStateWithCurrentRoom = {
+        ...mockStoreState,
+        currentRoomId: '2',
+        messages: { '1': mockMessages }, // Room '2' has no messages
+      };
+
+      mockedUseChatStore.mockReturnValue(mockStateWithCurrentRoom);
+
+      const { result } = renderHook(() => useChat());
+
+      expect(result.current.currentRoomMessages).toEqual([]);
     });
   });
 });

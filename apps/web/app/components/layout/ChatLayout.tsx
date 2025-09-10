@@ -19,19 +19,24 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
   header,
 }) => {
   // 画面幅に応じてサイドバーの初期状態を決定
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    // SSRでは常にfalse、クライアントでは画面サイズで判定
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth >= 1024;
+  });
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
     const checkSize = () => {
-      // サーバーサイドでは常にfalse、クライアントでの初回マウント時に判定
-      setIsSidebarOpen(window.innerWidth >= 1024); // lgブレークポイント
+      // デスクトップ（lg以上）では表示、モバイルでは非表示
+      setIsSidebarOpen(window.innerWidth >= 1024);
     };
 
-    if (typeof window !== 'undefined') {
-      checkSize();
-    }
-    setIsInitialLoad(false);
+    checkSize();
+    // リサイズイベントも監視
+    window.addEventListener('resize', checkSize);
+    return () => window.removeEventListener('resize', checkSize);
   }, []);
 
 
@@ -39,10 +44,7 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  // 初期読み込み時はちらつき防止のため何も表示しない
-  if (isInitialLoad && typeof window !== 'undefined') {
-    return null;
-  }
+  // 初期読み込み時の処理を削除し、常に通常のレンダリングを行う
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
@@ -52,14 +54,14 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
           fixed inset-y-0 left-0 z-50 w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-lg
           transform transition-transform duration-300 ease-in-out
           lg:relative lg:translate-x-0 lg:shadow-none
-          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
         {sidebar}
       </div>
 
       {/* オーバーレイ（モバイル時） */}
-      {isSidebarOpen && (
+      {isClient && isSidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
           onClick={toggleSidebar}

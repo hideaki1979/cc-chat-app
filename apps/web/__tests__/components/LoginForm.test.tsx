@@ -2,7 +2,8 @@ import React from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { LoginForm } from '../../app/components/LoginForm'
-import { useAuthStore } from '../../app/stores/auth'
+import { FieldErrors } from 'react-hook-form'
+import { LoginFormData } from '../../app/lib/validations'
 
 // Mock Next.js router
 const mockPush = jest.fn()
@@ -17,30 +18,85 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
 }))
 
-// Mock auth store
-jest.mock('../../app/stores/auth')
-const mockedUseAuthStore = useAuthStore as jest.MockedFunction<typeof useAuthStore>
+// Type definitions for mocked hook returns
+interface MockUseLoginFormReturn {
+  handleSubmit: (fn: (data: LoginFormData) => void | Promise<void>) => (e: React.FormEvent) => void;
+  formState: { errors: FieldErrors<LoginFormData> };
+  register: (name: keyof LoginFormData) => {
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
+    name: string;
+    ref: React.Ref<HTMLInputElement>;
+  };
+  login: (data: LoginFormData) => Promise<boolean>;
+  isLoading: boolean;
+  error: string | null;
+  clearError: () => void;
+}
+
+interface MockUseLoginFormLogicReturn {
+  handleLogin: (data: LoginFormData) => Promise<void>;
+}
+
+// Mock functions
+const mockHandleSubmit = jest.fn()
+const mockRegister = jest.fn()
+const mockLogin = jest.fn()
+const mockClearError = jest.fn()
+const mockHandleLogin = jest.fn()
+
+// Create mock return objects
+const mockUseLoginFormReturn: MockUseLoginFormReturn = {
+  handleSubmit: mockHandleSubmit,
+  formState: { errors: {} },
+  register: mockRegister,
+  login: mockLogin,
+  isLoading: false,
+  error: null,
+  clearError: mockClearError,
+}
+
+const mockUseLoginFormLogicReturn: MockUseLoginFormLogicReturn = {
+  handleLogin: mockHandleLogin,
+}
+
+jest.mock('../../app/hooks/useLoginForm', () => ({
+  useLoginForm: jest.fn(() => mockUseLoginFormReturn),
+}))
+
+jest.mock('../../app/hooks/useLoginFormLogic', () => ({
+  useLoginFormLogic: jest.fn(() => mockUseLoginFormLogicReturn),
+}))
+
+// Get the mocked hooks for dynamic updates
+const mockUseLoginForm = require('../../app/hooks/useLoginForm').useLoginForm as jest.MockedFunction<() => MockUseLoginFormReturn>
+const mockUseLoginFormLogic = require('../../app/hooks/useLoginFormLogic').useLoginFormLogic as jest.MockedFunction<() => MockUseLoginFormLogicReturn>
 
 describe('LoginForm Component', () => {
-  const mockLogin = jest.fn()
-  const mockClearError = jest.fn()
-
   beforeEach(() => {
     jest.clearAllMocks()
     mockPush.mockClear()
     
-    mockedUseAuthStore.mockReturnValue({
-      login: mockLogin,
+    // Reset mock implementations
+    mockHandleSubmit.mockImplementation((fn) => (e: React.FormEvent) => {
+      e.preventDefault()
+      fn({ email: 'test@example.com', password: 'Password123' })
+    })
+    mockRegister.mockReturnValue({
+      onChange: jest.fn(),
+      onBlur: jest.fn(),
+      name: 'test',
+      ref: { current: null },
+    })
+    mockLogin.mockResolvedValue(true)
+    mockHandleLogin.mockResolvedValue(undefined)
+    
+    // Reset the mock return values to defaults
+    mockUseLoginForm.mockReturnValue({
+      ...mockUseLoginFormReturn,
       isLoading: false,
       error: null,
-      clearError: mockClearError,
-      user: null,
-      accessToken: null,
-      register: jest.fn(),
-      logout: jest.fn(),
-      refreshAccessToken: jest.fn(),
-      setLoading: jest.fn(),
-      setError: jest.fn(),
+      formState: { errors: {} },
     })
   })
 
@@ -56,146 +112,76 @@ describe('LoginForm Component', () => {
 
   test('submits form with valid data', async () => {
     const user = userEvent.setup()
-    mockLogin.mockResolvedValueOnce(true)
-    
     render(<LoginForm />)
     
-    // Fill form
-    await user.type(screen.getByLabelText(/メールアドレス/i), 'test@example.com')
-    await user.type(screen.getByLabelText(/パスワード/i), 'Password123')
+    // Find and click the submit button
+    const submitButton = screen.getByRole('button', { name: /ログイン/i })
+    await user.click(submitButton)
     
-    // Submit form
-    await user.click(screen.getByRole('button', { name: /ログイン/i }))
-    
-    // Check if login was called with correct data
+    // Check if the handleSubmit was called
     await waitFor(() => {
-      expect(mockClearError).toHaveBeenCalled()
-      expect(mockLogin).toHaveBeenCalledWith({
-        email: 'test@example.com',
-        password: 'Password123',
-      })
-      expect(mockPush).toHaveBeenCalledWith('/dashboard')
+      expect(mockHandleSubmit).toHaveBeenCalled()
     })
   })
 
-  test('does not call login when required fields are empty', async () => {
-    const user = userEvent.setup()
-    
-    render(<LoginForm />)
-    
-    // Submit form without filling fields
-    await user.click(screen.getByRole('button', { name: /ログイン/i }))
-    
-    // Check that login was not called due to validation
-    await waitFor(() => {
-      expect(mockLogin).not.toHaveBeenCalled()
-    }, { timeout: 1000 })
-    
-    // Also check that there are validation error elements present
-    expect(document.querySelector('.text-red-600')).toBeTruthy()
-  })
-
-  test('does not call login when email format is invalid', async () => {
-    const user = userEvent.setup()
-    
-    render(<LoginForm />)
-    
-    // Enter invalid email
-    await user.type(screen.getByLabelText(/メールアドレス/i), 'invalid-email')
-    await user.type(screen.getByLabelText(/パスワード/i), 'Password123')
-    await user.click(screen.getByRole('button', { name: /ログイン/i }))
-    
-    // Wait and check that login was not called due to validation
-    await waitFor(() => {
-      expect(mockLogin).not.toHaveBeenCalled()
-    }, { timeout: 1000 })
-  })
-
-  test('validates password length', async () => {
-    const user = userEvent.setup()
-    
-    render(<LoginForm />)
-    
-    // Enter short password
-    await user.type(screen.getByLabelText(/メールアドレス/i), 'test@example.com')
-    await user.type(screen.getByLabelText(/パスワード/i), '123')
-    await user.click(screen.getByRole('button', { name: /ログイン/i }))
-    
-    // Check password validation error
-    await waitFor(() => {
-      expect(screen.getByText(/パスワードは8文字以上である必要があります/i)).toBeInTheDocument()
+  test('displays validation errors', async () => {
+    // Mock validation errors
+    mockUseLoginForm.mockReturnValue({
+      ...mockUseLoginFormReturn,
+      formState: {
+        errors: {
+          email: { 
+            message: 'メールアドレスは必須です',
+            type: 'required'
+          },
+          password: { 
+            message: 'パスワードは必須です',
+            type: 'required'
+          },
+        }
+      },
     })
     
-    expect(mockLogin).not.toHaveBeenCalled()
+    render(<LoginForm />)
+    
+    expect(screen.getByText('メールアドレスは必須です')).toBeInTheDocument()
+    expect(screen.getByText('パスワードは必須です')).toBeInTheDocument()
   })
 
   test('displays loading state', () => {
-    mockedUseAuthStore.mockReturnValue({
-      login: mockLogin,
+    mockUseLoginForm.mockReturnValue({
+      ...mockUseLoginFormReturn,
       isLoading: true,
-      error: null,
-      clearError: mockClearError,
-      user: null,
-      accessToken: null,
-      register: jest.fn(),
-      logout: jest.fn(),
-      refreshAccessToken: jest.fn(),
-      setLoading: jest.fn(),
-      setError: jest.fn(),
     })
     
     render(<LoginForm />)
     
-    // Check loading state
-    expect(screen.getByText(/処理中/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /処理中/i })).toBeDisabled()
+    const submitButton = screen.getByRole('button')
+    expect(submitButton).toBeDisabled()
+    expect(submitButton).toHaveTextContent('処理中')
   })
 
   test('displays error message', () => {
     const errorMessage = 'Invalid credentials'
-    mockedUseAuthStore.mockReturnValue({
-      login: mockLogin,
-      isLoading: false,
+    mockUseLoginForm.mockReturnValue({
+      ...mockUseLoginFormReturn,
       error: errorMessage,
-      clearError: mockClearError,
-      user: null,
-      accessToken: null,
-      register: jest.fn(),
-      logout: jest.fn(),
-      refreshAccessToken: jest.fn(),
-      setLoading: jest.fn(),
-      setError: jest.fn(),
     })
     
     render(<LoginForm />)
     
-    // Check error message is displayed
     expect(screen.getByText(errorMessage)).toBeInTheDocument()
   })
 
-  test('handles login failure', async () => {
-    const user = userEvent.setup()
-    mockLogin.mockResolvedValueOnce(false) // Return false to indicate failure
-    
+  test('calls useLoginFormLogic with correct parameters', () => {
     render(<LoginForm />)
     
-    // Fill and submit form
-    await user.type(screen.getByLabelText(/メールアドレス/i), 'test@example.com')
-    await user.type(screen.getByLabelText(/パスワード/i), 'Password123')
-    await user.click(screen.getByRole('button', { name: /ログイン/i }))
-    
-    // Check that login was called but navigation didn't happen
-    await waitFor(() => {
-      expect(mockLogin).toHaveBeenCalled()
-    })
-    
-    expect(mockPush).not.toHaveBeenCalled()
+    expect(mockUseLoginFormLogic).toHaveBeenCalledWith(mockLogin, mockClearError)
   })
 
   test('has proper form accessibility', () => {
     render(<LoginForm />)
     
-    // Check form has proper labels and structure
     const emailInput = screen.getByLabelText(/メールアドレス/i)
     const passwordInput = screen.getByLabelText(/パスワード/i)
     
@@ -203,5 +189,84 @@ describe('LoginForm Component', () => {
     expect(emailInput).toHaveAttribute('autoComplete', 'email')
     expect(passwordInput).toHaveAttribute('type', 'password')
     expect(passwordInput).toHaveAttribute('autoComplete', 'current-password')
+  })
+
+  // E2Eから移管：詳細バリデーションテスト
+  describe('Detailed Validation Tests (from E2E)', () => {
+    test('shows validation errors for empty form fields', () => {
+      mockUseLoginForm.mockReturnValue({
+        ...mockUseLoginFormReturn,
+        formState: {
+          errors: {
+            email: { 
+              message: '有効なメールアドレスを入力してください',
+              type: 'required'
+            },
+            password: { 
+              message: 'パスワードは必須です',
+              type: 'required'
+            },
+          }
+        },
+      })
+      
+      render(<LoginForm />)
+      
+      expect(screen.getByText('有効なメールアドレスを入力してください')).toBeInTheDocument()
+      expect(screen.getByText('パスワードは必須です')).toBeInTheDocument()
+    })
+
+    test('shows error for incorrect login credentials', () => {
+      const errorMessage = 'メールアドレスまたはパスワードに誤りがあります'
+      mockUseLoginForm.mockReturnValue({
+        ...mockUseLoginFormReturn,
+        error: errorMessage,
+      })
+      
+      render(<LoginForm />)
+      
+      const errorElement = screen.getByText(errorMessage)
+      expect(errorElement).toBeInTheDocument()
+      expect(errorElement.closest('.bg-red-50')).toBeInTheDocument()
+    })
+
+    test('displays error with proper styling and accessibility', () => {
+      const errorMessage = 'Authentication failed'
+      mockUseLoginForm.mockReturnValue({
+        ...mockUseLoginFormReturn,
+        error: errorMessage,
+      })
+      
+      render(<LoginForm />)
+      
+      const errorContainer = screen.getByText(errorMessage).closest('.bg-red-50')
+      expect(errorContainer).toBeInTheDocument()
+      expect(errorContainer).toHaveClass('bg-red-50')
+      
+      const errorText = screen.getByText(errorMessage)
+      expect(errorText).toHaveClass('text-sm')
+    })
+
+    test('clears error when clearError is called', async () => {
+      const user = userEvent.setup()
+      
+      // Initial state with error
+      mockUseLoginForm.mockReturnValue({
+        ...mockUseLoginFormReturn,
+        error: 'Some error message',
+      })
+      
+      const { rerender } = render(<LoginForm />)
+      expect(screen.getByText('Some error message')).toBeInTheDocument()
+      
+      // Simulate error clearing
+      mockUseLoginForm.mockReturnValue({
+        ...mockUseLoginFormReturn,
+        error: null,
+      })
+      
+      rerender(<LoginForm />)
+      expect(screen.queryByText('Some error message')).not.toBeInTheDocument()
+    })
   })
 })

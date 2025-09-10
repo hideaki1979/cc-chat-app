@@ -5,10 +5,17 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@repo/ui/button';
 import { Input } from '@repo/ui/input';
-import { searchUsers } from '../../lib/api';
 import { UserSearchResult } from '../../types/user';
 import { ChatRoomResponse } from '../../types/chat';
 import { useDirectMessage } from '../../hooks/useDirectMessage';
+import { 
+  performUserSearch,
+  validateSearchQuery,
+  getUserDisplayName,
+  getUserInitial,
+  calculateSearchDebounceDelay
+} from '../../lib/services/userService';
+import { getUserFriendlyMessage, normalizeError } from '../../lib/services/errorService';
 
 export type User = UserSearchResult;
 
@@ -36,28 +43,34 @@ export const UserSearch: React.FC<UserSearchProps> = ({
   const { startDM } = useDirectMessage();
 
   // 検索実行
-  const performUserSearch = useCallback(async (query: string) => {
+  const executeUserSearch = useCallback(async (query: string) => {
     const trimmed = query.trim();
     if (!trimmed) {
       setUsers([]);
       return;
     }
 
+    // ビジネスロジック：事前バリデーション
+    const validation = validateSearchQuery(trimmed);
+    if (!validation.isValid) {
+      setError(validation.error || ' 検索条件が正しくありません');
+      setUsers([]);
+      return;
+    }
+
     setIsSearching(true);
     const requestId = ++lastRequestIdRef.current;
-    setIsSearching(true);
     setError(null);
 
     try {
-      const data = await searchUsers(trimmed);
+      const filteredUsers = await performUserSearch(trimmed, currentUserId);
       if (requestId !== lastRequestIdRef.current) return; // stale 応答は破棄
-      // 自分を除外
-      const filteredUsers = data.users?.filter((user: User) => user.id !== currentUserId) || [];
       setUsers(filteredUsers);
     } catch (err) {
       if (requestId !== lastRequestIdRef.current) return; // stale エラーも破棄
-      console.error('ユーザー検索エラー:', err);
-      setError(err instanceof Error ? err.message : 'ユーザー検索に失敗しました');
+      const appError = normalizeError(err, 'ユーザー検索');
+      const userMessage = getUserFriendlyMessage(appError);
+      setError(userMessage);
       setUsers([]);
     } finally {
       if (requestId === lastRequestIdRef.current) {
@@ -68,12 +81,13 @@ export const UserSearch: React.FC<UserSearchProps> = ({
 
   // デバウンス付き検索
   useEffect(() => {
+    const delay = calculateSearchDebounceDelay(searchQuery.length);
     const debounceTimer = setTimeout(() => {
-      performUserSearch(searchQuery);
-    }, 500);
+      executeUserSearch(searchQuery);
+    }, delay);
 
     return () => clearTimeout(debounceTimer);
-  }, [searchQuery, performUserSearch]);
+  }, [searchQuery, executeUserSearch]);
 
   // DM開始処理
   const handleStartDM = async (user: User) => {
@@ -81,8 +95,8 @@ export const UserSearch: React.FC<UserSearchProps> = ({
     setSelectedUser(user);
 
     try {
-
       const room: ChatRoomResponse = await startDM(user.id);
+      
       // ユーザー選択コールバックがあれば実行
       if (onUserSelect) {
         onUserSelect(user);
@@ -92,8 +106,9 @@ export const UserSearch: React.FC<UserSearchProps> = ({
       router.push(`/dm/${room.id}`);
       onClose(); // 成功したらモーダルを閉じる
     } catch (err) {
-      console.error('DM開始エラー:', err);
-      setError(err instanceof Error ? err.message : 'DMの開始に失敗しました');
+      const appError = normalizeError(err, 'DM開始');
+      const userMessage = getUserFriendlyMessage(appError);
+      setError(userMessage);
     } finally {
       setIsStartingDM(false);
       setSelectedUser(null);
@@ -115,7 +130,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
       return (
         <Image
           src={user.profile_image_url}
-          alt={`${user.name}のアバター`}
+          alt={`${getUserDisplayName(user)}のアバター`}
           width={40}
           height={40}
           className="w-10 h-10 rounded-full object-cover"
@@ -127,7 +142,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
     return (
       <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
         <span className="text-white text-sm font-bold">
-          {user.name.charAt(0).toUpperCase()}
+          {getUserInitial(user)}
         </span>
       </div>
     );
@@ -215,7 +230,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
                       {getUserAvatar(user)}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                          {user.name}
+                          {getUserDisplayName(user)}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                           {user.email}
