@@ -1,28 +1,14 @@
 'use client';
 
 import { useCallback } from 'react';
-import { apiProxy } from '../lib/api';
 import { useChatStore } from '../stores/chat';
-import type { Message, ChatRoom } from '../types/chat';
-import axios from 'axios';
-
-interface GetRoomsResponse {
-  rooms: ChatRoom[];
-  pagination: {
-    page: number;
-    page_size: number;
-    total: number;
-  };
-}
-
-interface GetMessagesResponse {
-  messages: Message[];
-  pagination: {
-    page: number;
-    page_size: number;
-    total: number;
-  };
-}
+import { 
+  fetchChatRooms, 
+  fetchRoomMessages, 
+  sendChatMessage 
+} from '../lib/services/chatService';
+import { normalizeError, logError } from '../lib/services/errorService';
+import type { Message } from '../types/chat';
 
 export const useChat = () => {
   const {
@@ -42,22 +28,15 @@ export const useChat = () => {
   const fetchRooms = useCallback(async () => {
     try {
       beginLoading();
-      const response = await apiProxy.get('/chatrooms');
-      const data: GetRoomsResponse = response.data;
-
-      if (data && Array.isArray(data.rooms)) {
-        setRooms(data.rooms);
-      } else {
-        setRooms([]);
-      }
+      const rooms = await fetchChatRooms();
+      setRooms(rooms);
     } catch (error) {
-      console.error('Failed to fetch rooms:', error);
-      // 404エラーの場合は空の配列を設定
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
-        setRooms([]);
-        return; // エラーを再スローしない
-      }
-      throw error;
+      const appError = normalizeError(error, 'チャットルーム取得');
+      logError(appError, 'useChat.fetchRooms');
+      
+      // UI層では空の配列を設定してエラーを隠す（UX向上）
+      setRooms([]);
+      throw appError;
     } finally {
       endLoading();
     }
@@ -67,30 +46,15 @@ export const useChat = () => {
   const fetchMessages = useCallback(async (roomId: string, page = 1) => {
     try {
       beginLoading();
-      const response = await apiProxy.get(`/chatrooms/${roomId}/messages`, {
-        params: { page, page_size: 50 }
-      });
-      const data: GetMessagesResponse = response.data;
-
-      if (data && Array.isArray(data.messages)) {
-        // メッセージを時系列順（古い順）に並べ替え
-        const sortedMessages = [...data.messages].sort((a, b) =>
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        );
-        setMessages(roomId, sortedMessages);
-      } else {
-        setMessages(roomId, []);
-      }
+      const messages = await fetchRoomMessages(roomId, page);
+      setMessages(roomId, messages);
     } catch (error) {
-      console.error('Failed to fetch messages:', error);
-      // 404エラーの場合は空の配列を設定
-      if (error && typeof error === 'object' && 'response' in error && 
-          error.response && typeof error.response === 'object' && 
-          'status' in error.response && error.response.status === 404) {
-        setMessages(roomId, []);
-        return; // エラーを再スローしない
-      }
-      throw error;
+      const appError = normalizeError(error, 'メッセージ取得');
+      logError(appError, 'useChat.fetchMessages');
+      
+      // UI層では空の配列を設定してエラーを隠す（UX向上）
+      setMessages(roomId, []);
+      throw appError;
     } finally {
       endLoading();
     }
@@ -99,19 +63,15 @@ export const useChat = () => {
   // メッセージ送信
   const sendMessage = useCallback(async (roomId: string, content: string): Promise<Message | null> => {
     try {
-      const response = await apiProxy.post(`/chatrooms/${roomId}/messages`, {
-        content,
-      });
-
-      const message: Message = response.data;
+      const message = await sendChatMessage(roomId, content);
       if (message) {
         addMessage(message);
-        return message;
       }
-      return null;
+      return message;
     } catch (error) {
-      console.error('Failed to send message:', error);
-      throw error;
+      const appError = normalizeError(error, 'メッセージ送信');
+      logError(appError, 'useChat.sendMessage');
+      throw appError;
     }
   }, [addMessage]);
 

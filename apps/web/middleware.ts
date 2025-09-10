@@ -21,6 +21,8 @@ export async function middleware(request: NextRequest) {
 
   // refresh_tokenクッキーの存在をチェック
   const refreshToken = request.cookies.get('refresh_token')?.value;
+  // NOTE: ミドルウェアではクッキーの有効性まではチェックできないため、
+  // 存在のみで認証済みと判断する。無効トークンの場合はクライアント側で処理される
   const isAuthenticated = !!refreshToken;
 
   // 保護されたルートへのアクセス

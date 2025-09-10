@@ -237,12 +237,12 @@ currentRoomMessages vs currentRoomId
 ### Week 2: 構造改善
 
 - [✔] TASK-003: ハンドラー関数分割
-- [ ] TASK-004: コンポーネント分割
+- [✔] TASK-004: コンポーネント分割
 - [ ] TASK-009: Handler責務分離
 
 ### Week 3: ロジック整理
 
-- [ ] TASK-006: ビジネスロジック抽出
+- [✔] TASK-006: ビジネスロジック抽出
 - [ ] TASK-007: useEffect最適化
 - [ ] TASK-008: Props drilling解消
 

@@ -50,8 +50,8 @@ test.describe('Chat Layout Integration', () => {
     await expect(page.getByRole('heading', { name: 'CC Chat' })).toBeVisible();
     await expect(page.locator('[data-testid="test-sidebar"]')).toBeVisible();
     
-    // メインエリアの確認
-    await expect(page.getByText('チャットルームを選択してください')).toBeVisible();
+    // メインエリアの確認（HeaderのH2要素を確認）
+    await expect(page.getByRole('heading', { name: 'チャットルームを選択してください' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'ダッシュボードに戻る' })).toBeVisible();
   });
 
@@ -59,8 +59,8 @@ test.describe('Chat Layout Integration', () => {
     // モバイルサイズに変更（reloadなしでレスポンシブテスト）
     await page.setViewportSize({ width: 375, height: 667 });
     
-    // レイアウトが安定するのを少し待つ
-    await page.waitForTimeout(500);
+    // サイドバーが閉じるのを待つ（レスポンシブ動作）
+    await expect(page.locator('[data-testid="test-sidebar"]')).not.toBeVisible({ timeout: 10000 });
 
     // hamburger menuが表示されるのを待つ
     const hamburgerButton = page.locator('button[aria-label*="サイドバーを"]').first();
@@ -83,7 +83,8 @@ test.describe('Chat Layout Integration', () => {
     await page.setViewportSize({ width: 375, height: 667 });
     await page.reload();
 
-    // [修正] reload後にレイアウトが安定するのを待つ
+    // reload後にサイドバーが閉じた状態になるのを待つ
+    await expect(page.locator('[data-testid="test-sidebar"]')).not.toBeVisible({ timeout: 10000 });
     await expect(page.locator('button[aria-label*="サイドバーを"]')).toBeVisible();
 
     // Open sidebar
@@ -99,7 +100,8 @@ test.describe('Chat Layout Integration', () => {
     await page.setViewportSize({ width: 375, height: 667 });
     await page.reload();
 
-    // [修正] reload後にレイアウトが安定するのを待つ
+    // reload後にサイドバーが閉じた状態になるのを待つ
+    await expect(page.locator('[data-testid="test-sidebar"]')).not.toBeVisible({ timeout: 10000 });
     await expect(page.locator('button[aria-label*="サイドバーを"]')).toBeVisible();
 
     // Open sidebar
@@ -124,8 +126,8 @@ test.describe('Chat Layout Integration', () => {
 
   test('should display appropriate content when no room is selected', async ({ page }) => {
     // page.gotoはbeforeEachで実行済み
-    await expect(page.locator('h3', { hasText: 'チャットルームを選択してください' })).toBeVisible();
-    await expect(page.locator('text=左のサイドバーからチャットルームを選択するか')).toBeVisible();
+    await expect(page.getByTestId('welcome-message')).toBeVisible();
+    await expect(page.getByText('左のサイドバーからチャットルームを選択するか、')).toBeVisible();
   });
 
   // Removed: 存在しないルーム選択機能をテストしていたため削除

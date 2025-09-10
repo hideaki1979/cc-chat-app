@@ -4,6 +4,8 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { MessageInput } from './MessageInput';
 import { MessageList } from './MessageList';
 import { useChat } from '../../hooks/useChat';
+import { validateMessageContent } from '../../lib/services/chatService';
+import { getUserFriendlyMessage, normalizeError } from '../../lib/services/errorService';
 import type { Message } from '../../types/chat';
 
 export { MessageInput, MessageList };
@@ -14,7 +16,7 @@ interface ChatAreaProps {
   roomName?: string;
   messages?: Message[];
   currentUserId?: string;
-  onSendMessage?: (content: string) => void;
+  onSendMessage?: (content: string) => void | Promise<void>;
   isLoading?: boolean;
   onLoadMore?: () => void;
   hasMore?: boolean;
@@ -49,6 +51,14 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   const handleSendMessage = useCallback(async (content: string) => {
     if (!roomId || isSending || disabled) return;
 
+    // ビジネスロジック：事前バリデーション
+    const validation = validateMessageContent(content);
+    if (!validation.isValid) {
+      // TODO: エラートーストを表示
+      console.error('バリデーションエラー:', validation.error);
+      return;
+    }
+
     setIsSending(true);
     try {
       // カスタムのonSendMessageがある場合はそれを使用、なければuseChatのsendMessageを使用
@@ -58,7 +68,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         await sendMessage(roomId, content);
       }
     } catch (error) {
-      console.error('メッセージ送信エラー:', error);
+      const appError = normalizeError(error, 'メッセージ送信');
+      const userMessage = getUserFriendlyMessage(appError);
+      console.error('メッセージ送信エラー:', userMessage);
       // TODO: エラートーストを表示
     } finally {
       setIsSending(false);
