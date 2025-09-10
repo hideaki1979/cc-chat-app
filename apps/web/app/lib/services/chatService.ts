@@ -1,6 +1,7 @@
 import { apiProxy } from '../api';
 import type { Message, ChatRoom } from '../../types/chat';
 import axios from 'axios';
+import { MAX_MESSAGE_LENGTH, PAGE_SIZE } from '../../constants/constants';
 
 /**
  * チャット関連のビジネスロジックを管理するサービス層
@@ -61,11 +62,12 @@ export const fetchRoomMessages = async (roomId: string, page = 1): Promise<Messa
   }
 
   try {
-    const response = await apiProxy.get(`/chatrooms/${roomId}/messages`, {
-      params: { page, page_size: 50 }
+    const safePage = Math.max(1, Number.isFinite(page) ? Math.floor(page) : 1);
+    const encodeRoomId = encodeURIComponent(roomId.trim());
+    const response = await apiProxy.get<GetMessagesResponse>(`/chatrooms/${encodeRoomId}/messages`, {
+      params: { page: safePage, page_size: PAGE_SIZE }
     });
-    const data: GetMessagesResponse = response.data;
-
+    const data = response.data;
     if (data && Array.isArray(data.messages)) {
       // メッセージを時系列順（古い順）にソート - ビジネスロジック
       return sortMessagesByCreatedAt(data.messages);
@@ -91,16 +93,17 @@ export const sendChatMessage = async (roomId: string, content: string): Promise<
   if (!roomId.trim()) {
     throw new Error('ルームIDが必要です');
   }
-  if (!content.trim()) {
-    throw new Error('メッセージ内容が空です');
-  }
-  if (content.length > 1000) {
+
+  const trimmed = content.trim();
+  if (!trimmed) throw new Error('メッセージ内容が空です');
+  if (trimmed.length > MAX_MESSAGE_LENGTH) {
     throw new Error('メッセージは1000文字以内で入力してください');
   }
 
   try {
-    const response = await apiProxy.post(`/chatrooms/${roomId}/messages`, {
-      content: content.trim(),
+    const encodeRoomId = encodeURIComponent(roomId.trim());
+    const response = await apiProxy.post(`/chatrooms/${encodeRoomId}/messages`, {
+      content: trimmed,
     });
 
     const message: Message = response.data;
@@ -110,14 +113,13 @@ export const sendChatMessage = async (roomId: string, content: string): Promise<
     return null;
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      if (error.response?.status === 400) {
-        throw new Error('不正なメッセージです');
-      }
-      if (error.response?.status === 403) {
-        throw new Error('このルームへの投稿権限がありません');
-      }
-      if (error.response?.status === 404) {
-        throw new Error('指定されたルームが見つかりません');
+      switch (error.response?.status) {
+        case 400:
+          throw new Error('不正なメッセージです');
+        case 403:
+          throw new Error('このルームへの投稿権限がありません');
+        case 404:
+          throw new Error('指定されたルームが見つかりません');
       }
     }
     throw new Error(`メッセージ送信に失敗しました: ${error}`);
@@ -142,10 +144,10 @@ export const sortMessagesByCreatedAt = (messages: Message[]): Message[] => {
  * @returns バリデーション結果
  */
 export const validateMessageContent = (content: string): { isValid: boolean; error?: string } => {
-  if (!content.trim()) {
-    return { isValid: false, error: 'メッセージ内容が空です' };
-  }
-  if (content.length > 1000) {
+
+  const trimmed = content.trim();
+  if (!trimmed) return { isValid: false, error: 'メッセージ内容が空です' };
+  if (trimmed.length > MAX_MESSAGE_LENGTH) {
     return { isValid: false, error: 'メッセージは1000文字以内で入力してください' };
   }
   return { isValid: true };

@@ -88,17 +88,17 @@ describe('useChat', () => {
   beforeEach(() => {
     // Clear all mock history and implementations
     jest.clearAllMocks();
-    
+
     // Reset store and error service mocks
     mockedUseChatStore.mockReturnValue(mockStoreState);
     mockedNormalizeError.mockReturnValue(mockAppError);
-    mockedLogError.mockImplementation(() => {});
+    mockedLogError.mockImplementation(() => { });
   });
 
   describe('fetchRooms', () => {
     it('should fetch rooms successfully', async () => {
       mockedFetchChatRooms.mockResolvedValue(mockRooms);
-      
+
       const { result } = renderHook(() => useChat());
 
       await act(async () => {
@@ -112,22 +112,16 @@ describe('useChat', () => {
     });
 
     it('should handle fetch rooms error', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
       const testError = new Error('Network error');
       mockedFetchChatRooms.mockRejectedValueOnce(testError);
 
       const { result } = renderHook(() => useChat());
 
-      try {
-        await act(async () => {
-          await result.current.fetchRooms();
-        });
-        // If we reach here, no error was thrown
-        throw new Error('Expected function to throw');
-      } catch (error) {
-        // Error was thrown, test should pass
-        expect(error).toBeDefined();
-      }
+      await expect(act(async () => {
+        await result.current.fetchRooms();
+      })).rejects.toEqual(mockAppError);
+
 
       expect(mockedFetchChatRooms).toHaveBeenCalledTimes(1);
       expect(mockedNormalizeError).toHaveBeenCalledWith(testError, 'チャットルーム取得');
@@ -145,12 +139,12 @@ describe('useChat', () => {
 
     it('should fetch messages successfully', async () => {
       mockedFetchRoomMessages.mockResolvedValue(mockMessages);
-      
+
       const { result } = renderHook(() => useChat());
 
-      await act(async () => {
+      await expect(act(async () => {
         await result.current.fetchMessages(roomId);
-      });
+      })).rejects.toEqual(mockAppError);
 
       expect(mockedFetchRoomMessages).toHaveBeenCalledWith(roomId, 1);
       expect(mockStoreState.beginLoading).toHaveBeenCalled();
@@ -160,31 +154,27 @@ describe('useChat', () => {
 
     it('should fetch messages with custom page', async () => {
       mockedFetchRoomMessages.mockResolvedValue(mockMessages);
-      
+
       const { result } = renderHook(() => useChat());
 
-      await act(async () => {
+      await expect(act(async () => {
         await result.current.fetchMessages(roomId, 2);
-      });
+      })).rejects.toEqual(mockAppError);
 
       expect(mockedFetchRoomMessages).toHaveBeenCalledWith(roomId, 2);
     });
 
     it('should handle fetch messages error', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
       const testError = new Error('Network error');
       mockedFetchRoomMessages.mockRejectedValueOnce(testError);
 
       const { result } = renderHook(() => useChat());
 
-      try {
-        await act(async () => {
-          await result.current.fetchMessages(roomId);
-        });
-        throw new Error('Expected function to throw');
-      } catch (error) {
-        expect(error).toBeDefined();
-      }
+
+      await expect(act(async () => {
+        await result.current.fetchMessages(roomId);
+      })).rejects.toEqual(mockAppError);
 
       expect(mockedFetchRoomMessages).toHaveBeenCalledTimes(1);
       expect(mockedNormalizeError).toHaveBeenCalledWith(testError, 'メッセージ取得');
@@ -201,13 +191,13 @@ describe('useChat', () => {
 
     it('should send message successfully', async () => {
       mockedSendChatMessage.mockResolvedValue(mockMessages[0]!);
-      
+
       const { result } = renderHook(() => useChat());
 
       let messageResult;
-      await act(async () => {
+      await expect(act(async () => {
         messageResult = await result.current.sendMessage(roomId, content);
-      });
+      })).rejects.toEqual(mockAppError);
 
       expect(mockedSendChatMessage).toHaveBeenCalledWith(roomId, content);
       expect(mockStoreState.addMessage).toHaveBeenCalledWith(mockMessages[0]);
@@ -215,20 +205,15 @@ describe('useChat', () => {
     });
 
     it('should handle send message error', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
       const testError = new Error('Network error');
       mockedSendChatMessage.mockRejectedValueOnce(testError);
 
       const { result } = renderHook(() => useChat());
 
-      try {
-        await act(async () => {
-          await result.current.sendMessage(roomId, content);
-        });
-        throw new Error('Expected function to throw');
-      } catch (error) {
-        expect(error).toBeDefined();
-      }
+      await expect(act(async () => {
+        await result.current.sendMessage(roomId, content);
+      })).rejects.toEqual(mockAppError);
 
       expect(mockedSendChatMessage).toHaveBeenCalledTimes(1);
       expect(mockedNormalizeError).toHaveBeenCalledWith(testError, 'メッセージ送信');
@@ -243,9 +228,9 @@ describe('useChat', () => {
       const { result } = renderHook(() => useChat());
 
       let messageResult;
-      await act(async () => {
+      await expect(act(async () => {
         messageResult = await result.current.sendMessage(roomId, content);
-      });
+      })).rejects.toEqual(mockAppError);
 
       expect(messageResult).toBeNull();
       expect(mockStoreState.addMessage).not.toHaveBeenCalled();
@@ -257,7 +242,7 @@ describe('useChat', () => {
 
     it('should select room and fetch messages', async () => {
       mockedFetchRoomMessages.mockResolvedValue(mockMessages);
-      
+
       const { result } = renderHook(() => useChat());
 
       await act(async () => {
@@ -278,9 +263,9 @@ describe('useChat', () => {
         messages: { '1': mockMessages },
         isLoading: false,
       };
-      
+
       mockedUseChatStore.mockReturnValue(mockStateWithMessages);
-      
+
       const { result } = renderHook(() => useChat());
 
       expect(result.current.rooms).toBe(mockRooms);
@@ -302,9 +287,9 @@ describe('useChat', () => {
         currentRoomId: '2',
         messages: { '1': mockMessages }, // Room '2' has no messages
       };
-      
+
       mockedUseChatStore.mockReturnValue(mockStateWithCurrentRoom);
-      
+
       const { result } = renderHook(() => useChat());
 
       expect(result.current.currentRoomMessages).toEqual([]);

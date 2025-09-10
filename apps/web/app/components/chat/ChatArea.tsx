@@ -40,7 +40,10 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   // roomIdが変更された時にメッセージを取得
   useEffect(() => {
     if (roomId) {
-      fetchMessages(roomId);
+      fetchMessages(roomId).catch((error) => {
+        // エラーはuseChat内でログ済み想定。ここではUI側の通知などに限定
+        console.error("Failed to fetch messages in component:", error);
+      });
     }
   }, [roomId, fetchMessages]);
 
