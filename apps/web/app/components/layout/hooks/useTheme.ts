@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { storage } from '../../../lib/storage';
+import { ThemeCookieManager } from '../../../lib/theme-cookies';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -10,9 +10,9 @@ export function useTheme() {
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
-    // 🔄 localStorage直接アクセスを安全なユーティリティに変更
-    const savedTheme = storage.getItem('theme') as Theme;
-    if (savedTheme && ['light', 'dark', 'system'].includes(savedTheme)) {
+    // TASK-002: localStorage依存を排除し、Cookieベースに変更
+    const savedTheme = ThemeCookieManager.getTheme();
+    if (savedTheme) {
       setTheme(savedTheme);
     }
   }, []);
@@ -49,12 +49,12 @@ export function useTheme() {
   const toggleTheme = () => {
     const newTheme = resolvedTheme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
-    storage.setItem('theme', newTheme);
+    ThemeCookieManager.setTheme(newTheme);
   };
 
   const setThemeMode = (newTheme: Theme) => {
     setTheme(newTheme);
-    storage.setItem('theme', newTheme);
+    ThemeCookieManager.setTheme(newTheme);
   };
 
   return {

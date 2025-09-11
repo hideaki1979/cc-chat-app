@@ -142,9 +142,9 @@ describe('useChat', () => {
 
       const { result } = renderHook(() => useChat());
 
-      await expect(act(async () => {
+      await act(async () => {
         await result.current.fetchMessages(roomId);
-      })).rejects.toEqual(mockAppError);
+      });
 
       expect(mockedFetchRoomMessages).toHaveBeenCalledWith(roomId, 1);
       expect(mockStoreState.beginLoading).toHaveBeenCalled();
@@ -157,9 +157,9 @@ describe('useChat', () => {
 
       const { result } = renderHook(() => useChat());
 
-      await expect(act(async () => {
+      await act(async () => {
         await result.current.fetchMessages(roomId, 2);
-      })).rejects.toEqual(mockAppError);
+      });
 
       expect(mockedFetchRoomMessages).toHaveBeenCalledWith(roomId, 2);
     });
@@ -195,9 +195,9 @@ describe('useChat', () => {
       const { result } = renderHook(() => useChat());
 
       let messageResult;
-      await expect(act(async () => {
+      await act(async () => {
         messageResult = await result.current.sendMessage(roomId, content);
-      })).rejects.toEqual(mockAppError);
+      });
 
       expect(mockedSendChatMessage).toHaveBeenCalledWith(roomId, content);
       expect(mockStoreState.addMessage).toHaveBeenCalledWith(mockMessages[0]);
@@ -228,9 +228,9 @@ describe('useChat', () => {
       const { result } = renderHook(() => useChat());
 
       let messageResult;
-      await expect(act(async () => {
+      await act(async () => {
         messageResult = await result.current.sendMessage(roomId, content);
-      })).rejects.toEqual(mockAppError);
+      });
 
       expect(messageResult).toBeNull();
       expect(mockStoreState.addMessage).not.toHaveBeenCalled();

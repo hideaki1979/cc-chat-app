@@ -20,17 +20,6 @@ jest.mock('next/navigation', () => ({
   },
 }))
 
-// Mock localStorage
-const localStorageMock = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
-}
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock
-})
-
 // Note: window.location mocking is handled individually in tests that need it
 // to avoid conflicts with jsdom's implementation
 
