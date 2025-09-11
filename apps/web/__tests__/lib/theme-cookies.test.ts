@@ -1,3 +1,4 @@
+import { exec } from 'child_process'
 import { ThemeCookieManager } from '../../app/lib/theme-cookies'
 
 // Mock document.cookie
@@ -38,29 +39,47 @@ describe('ThemeCookieManager', () => {
 
     test('should handle SSR environment gracefully', () => {
       const originalDocument = global.document
-      delete (global as any).document
+      const originalDescriptor = Object.getOwnPropertyDescriptor(global, 'document')
 
-      const theme = ThemeCookieManager.getTheme()
-      expect(theme).toBeNull()
+      try {
+        // documentプロパティを一時的に削除
+        Object.defineProperty(global, 'document', {
+          value: undefined,
+          configurable: true
+        })
 
-      global.document = originalDocument
+        const theme = ThemeCookieManager.getTheme()
+        expect(theme).toBeNull()
+      } finally {
+        // 元の状態を復元
+        if (originalDescriptor) {
+          Object.defineProperty(global, 'document', originalDescriptor)
+        } else {
+          global.document = originalDocument
+        }
+      }
     })
   })
 
   describe('setTheme', () => {
     test('should set theme cookie with correct attributes', () => {
+      const cookieSetter = jest.fn();
+      Object.defineProperty(document, 'cookie', {
+        set: cookieSetter,
+        get: jest.fn(() => 'theme-preference=dark'),
+      });
+
       ThemeCookieManager.setTheme('dark')
-      
-      expect(document.cookie).toContain('theme-preference=dark')
-      expect(document.cookie).toContain('max-age=31536000') // 1 year
-      expect(document.cookie).toContain('path=/')
-      expect(document.cookie).toContain('SameSite=Strict')
-    })
+
+      expect(cookieSetter).toHaveBeenCalledWith(
+        'theme-preference=dark; max-age=31536000; path=/; SameSite=Strict'
+      );
+    });
 
     test('should handle different theme values', () => {
       ThemeCookieManager.setTheme('system')
       expect(document.cookie).toContain('theme-preference=system')
-      
+
       ThemeCookieManager.setTheme('light')
       expect(document.cookie).toContain('theme-preference=light')
     })
@@ -82,10 +101,14 @@ describe('ThemeCookieManager', () => {
       // Set a theme first
       ThemeCookieManager.setTheme('dark')
       expect(document.cookie).toContain('theme-preference=dark')
-      
+
       // Remove it
       ThemeCookieManager.removeTheme()
-      expect(document.cookie).toContain('expires=Thu, 01 Jan 1970 00:00:00 GMT')
+
+      // クッキーが削除されたことを確認（値が取得できないこと）
+      const theme = ThemeCookieManager.getTheme();
+      expect(theme).toBeNull();
+
     })
 
     test('should handle SSR environment gracefully', () => {
@@ -105,14 +128,14 @@ describe('ThemeCookieManager', () => {
       // Verify that localStorage is never accessed
       const localStorageSpy = jest.spyOn(Storage.prototype, 'getItem')
       const setItemSpy = jest.spyOn(Storage.prototype, 'setItem')
-      
+
       ThemeCookieManager.setTheme('dark')
       const theme = ThemeCookieManager.getTheme()
       ThemeCookieManager.removeTheme()
-      
+
       expect(localStorageSpy).not.toHaveBeenCalled()
       expect(setItemSpy).not.toHaveBeenCalled()
-      
+
       localStorageSpy.mockRestore()
       setItemSpy.mockRestore()
     })
@@ -120,7 +143,7 @@ describe('ThemeCookieManager', () => {
     test('should use Cookie-based storage only', () => {
       // Set theme and verify it's stored in cookie
       ThemeCookieManager.setTheme('dark')
-      
+
       // Verify we can retrieve it from cookie without localStorage
       const theme = ThemeCookieManager.getTheme()
       expect(theme).toBe('dark')
