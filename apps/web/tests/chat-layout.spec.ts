@@ -24,15 +24,19 @@ test.describe('チャットレイアウト統合テスト', () => {
     await page.getByRole('button', { name: 'ログイン' }).click();
     await expect(page).toHaveURL(/.*dashboard/, { timeout: 10000 });
 
+    // 認証状態が完全に確立されるまで待機（ダッシュボードでユーザー名が表示されるまで）
+    await expect(page.getByRole('heading', { name: /ようこそ/ })).toBeVisible({ timeout: 10000 });
+
     await page.goto('/chat');
     await expect(page).toHaveURL(/.*chat/);
     
-    // UIが完全にロードされるまで待機
+    // チャットページで認証状態の初期化完了まで待機
     await page.waitForFunction(() => {
       const loadingText = document.querySelector('p');
       return !loadingText || !loadingText.textContent?.includes('ユーザー情報を読み込み中');
     }, { timeout: 15000 });
     
+    // サイドバーとヘッダーが正しく表示されるまで待機
     await expect(page.getByRole('heading', { name: 'CC Chat' })).toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(1000);
   });

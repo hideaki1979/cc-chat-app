@@ -208,8 +208,9 @@ export const useAuthStore = create<AuthStore>()(
               await get().refreshAccessToken();
               const newState = get();
               accessToken = newState.accessToken;
-            } catch {
-              // リフレッシュ失敗時はログアウト状態にする
+            } catch (error) {
+              // リフレッシュ失敗時はログアウト状態にする（バックエンド接続失敗も含む）
+              console.warn('Token refresh failed, redirecting to login:', error);
               set({ 
                 user: null,
                 accessToken: null,
@@ -217,7 +218,12 @@ export const useAuthStore = create<AuthStore>()(
                 isInitialized: true,
                 error: null
               });
-              throw new Error('認証の有効期限が切れています。再度ログインしてください。');
+              // バックエンドが起動していない場合のエラーメッセージを改善
+              const isConnectionError = error instanceof Error && error.message.includes('fetch failed');
+              const errorMessage = isConnectionError 
+                ? 'サーバーに接続できません。しばらくしてから再度お試しください。'
+                : '認証の有効期限が切れています。再度ログインしてください。';
+              throw new Error(errorMessage);
             }
           }
           
@@ -267,7 +273,9 @@ export const useAuthStore = create<AuthStore>()(
           // onUnauthorizedコールバックを_fetchUserProfileAfterRefreshに渡す
           const user = await get()._fetchUserProfileAfterRefresh(options);
           set({ user, isInitialized: true, isLoading: false, error: null });
-        } catch {
+        } catch (error) {
+          // 初期化失敗時もログアウト状態にする（バックエンド接続失敗を含む）
+          console.warn('Auth initialization failed:', error);
           set({
             user: null,
             accessToken: null,

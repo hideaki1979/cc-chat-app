@@ -32,6 +32,9 @@ test.describe('チャット機能', () => {
     // ダッシュボードページにリダイレクトされるのを待つ
     await expect(page).toHaveURL(/.*dashboard/, { timeout: 10000 });
     
+    // 認証状態が完全に確立されるまで待機（ダッシュボードでユーザー名が表示されるまで）
+    await expect(page.getByRole('heading', { name: /ようこそ/ })).toBeVisible({ timeout: 10000 });
+    
     // チャットページへ移動
     await page.goto('/chat');
     await expect(page).toHaveURL(/.*chat/);
