@@ -1,7 +1,7 @@
 import { DMPageClient } from './DMPageClient';
 
-interface Props {
-  params: { roomId: string }
+type PageProps = {
+  params: Promise<{ roomId: string }>
 }
 
 /**
@@ -12,6 +12,7 @@ interface Props {
  * - Client Component分離でhydration最適化
  * - roomId事前検証・型安全性確保
  */
-export default function DMPage({ params }: Props) {
-  return <DMPageClient roomId={params.roomId} />;
+export default async function DMPage({ params }: PageProps) {
+  const { roomId } = await params;
+  return <DMPageClient roomId={roomId} />;
 }

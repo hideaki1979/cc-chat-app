@@ -19,7 +19,7 @@ export function DMPageClient({ roomId }: Props) {
     router
   } = useDMPageLogic(roomId);
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>読み込み中...</p>
