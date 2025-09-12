@@ -64,6 +64,9 @@ async function globalSetup(_config: FullConfig) {
     process.env.TEST_USER_EMAIL = user.email;
     process.env.TEST_USER_PASSWORD = user.password;
 
+    // --- 5. Authentication state will be managed per test context ---
+    // Note: APIRequestContext doesn't provide cookie access, so each test will handle auth individually
+
     console.log('✅ Global setup complete.');
 }
 
