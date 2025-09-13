@@ -20,8 +20,7 @@ export const RegisterForm: React.FC = () => {
   // 画面遷移後の古いエラーを初期化
   useEffect(() => {
     clearError();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [clearError]);
 
   const {
     register,

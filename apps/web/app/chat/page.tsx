@@ -9,7 +9,7 @@ import type { ChatRoom } from '../types/chat';
 
 export default function ChatPage() {
   const router = useRouter();
-  const { user, isLoading, isInitialized, logout } = useAuthStore();
+  const { user, isInitialized, logout } = useAuthStore();
 
   // ルーム関連のローカル状態（将来のAPI接続を想定しつつプレースホルダー）
   const [rooms] = useState<ChatRoom[]>([]);
@@ -30,13 +30,8 @@ export default function ChatPage() {
     router.push('/login');
   };
 
-  if (!isInitialized || isLoading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>ユーザー情報を読み込み中...</p>
-      </div>
-    );
-  }
+  // 初期化中やユーザー未取得時でもレイアウトとプレースホルダーは常時描画し、
+  // 認証未済みであれば上位のAuthInit/middlewareのリダイレクトに委譲する
 
   return (
     <ChatLayout
@@ -46,7 +41,7 @@ export default function ChatPage() {
           currentRoomId={currentRoomId}
           onCreateRoom={() => { }}
           onRoomSelect={() => { }}
-          user={{ id: user.id, name: user.name, email: user.email }}
+          user={user ? { id: user.id, name: user.name, email: user.email } : undefined}
           onLogout={handleLogout}
         />
       }

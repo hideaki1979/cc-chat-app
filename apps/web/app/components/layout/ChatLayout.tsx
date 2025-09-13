@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useResponsive } from './hooks/useResponsive';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -18,26 +19,13 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
   sidebar,
   header,
 }) => {
-  // 画面幅に応じてサイドバーの初期状態を決定
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
-    // SSRでは常にfalse、クライアントでは画面サイズで判定
-    if (typeof window === 'undefined') return false;
-    return window.innerWidth >= 1024;
-  });
-  const [isClient, setIsClient] = useState(false);
+  const { lg, isClient } = useResponsive();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // lg以上の画面サイズでサイドバーを自動開閉
   useEffect(() => {
-    setIsClient(true);
-    const checkSize = () => {
-      // デスクトップ（lg以上）では表示、モバイルでは非表示
-      setIsSidebarOpen(window.innerWidth >= 1024);
-    };
-
-    checkSize();
-    // リサイズイベントも監視
-    window.addEventListener('resize', checkSize);
-    return () => window.removeEventListener('resize', checkSize);
-  }, []);
+    setIsSidebarOpen(lg);
+  }, [lg]);
 
 
   const toggleSidebar = () => {

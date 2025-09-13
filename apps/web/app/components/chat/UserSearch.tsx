@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@repo/ui/button';
@@ -8,6 +8,7 @@ import { Input } from '@repo/ui/input';
 import { UserSearchResult } from '../../types/user';
 import { ChatRoomResponse } from '../../types/chat';
 import { useDirectMessage } from '../../hooks/useDirectMessage';
+import { useDynamicDebounce } from '../../hooks/useDebounce';
 import { 
   performUserSearch,
   validateSearchQuery,
@@ -79,15 +80,11 @@ export const UserSearch: React.FC<UserSearchProps> = ({
     }
   }, [currentUserId]);
 
-  // デバウンス付き検索
-  useEffect(() => {
-    const delay = calculateSearchDebounceDelay(searchQuery.length);
-    const debounceTimer = setTimeout(() => {
-      executeUserSearch(searchQuery);
-    }, delay);
-
-    return () => clearTimeout(debounceTimer);
-  }, [searchQuery, executeUserSearch]);
+  // デバウンス付き検索（useEffectを削除してカスタムフックに統合）
+  const debouncedSearch = useDynamicDebounce(
+    executeUserSearch,
+    (query: string) => calculateSearchDebounceDelay(query.length)
+  );
 
   // DM開始処理
   const handleStartDM = async (user: User) => {
@@ -172,7 +169,11 @@ export const UserSearch: React.FC<UserSearchProps> = ({
         <div className="p-6">
           <Input
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setSearchQuery(value);
+              debouncedSearch(value);
+            }}
             placeholder="ユーザー名またはメールアドレスで検索..."
             className="w-full"
             disabled={isSearching}

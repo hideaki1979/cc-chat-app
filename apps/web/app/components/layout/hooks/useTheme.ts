@@ -9,14 +9,15 @@ export function useTheme() {
   const [theme, setTheme] = useState<Theme>('system');
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
 
+  // 初期化: Cookieからテーマ復元（マウント時1回のみ）
   useEffect(() => {
-    // TASK-002: localStorage依存を排除し、Cookieベースに変更
     const savedTheme = ThemeCookieManager.getTheme();
     if (savedTheme) {
       setTheme(savedTheme);
     }
   }, []);
 
+  // テーマ適用とシステムテーマ監視
   useEffect(() => {
     const root = window.document.documentElement;
     
@@ -27,21 +28,23 @@ export function useTheme() {
     };
 
     if (theme === 'system') {
+      // システムテーマを取得して適用
       const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       applyTheme(systemTheme);
 
-      // システムテーマの変更を監視
+      // システムテーマ変更の監視
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handleChange = () => {
-        if (theme === 'system') {
+      const handleSystemThemeChange = () => {
+        if (theme === 'system') { // 現在もsystemモードの場合のみ適用
           const newSystemTheme = mediaQuery.matches ? 'dark' : 'light';
           applyTheme(newSystemTheme);
         }
       };
 
-      mediaQuery.addEventListener('change', handleChange);
-      return () => mediaQuery.removeEventListener('change', handleChange);
+      mediaQuery.addEventListener('change', handleSystemThemeChange);
+      return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
     } else {
+      // 明示的なテーマ（light/dark）を適用
       applyTheme(theme);
     }
   }, [theme]);

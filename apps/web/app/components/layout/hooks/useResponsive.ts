@@ -28,8 +28,12 @@ export function useResponsive() {
     xl: false,
     '2xl': false,
   });
+  
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
+    
     const checkBreakpoints = () => {
       const width = window.innerWidth;
       setScreenSize({
@@ -66,6 +70,7 @@ export function useResponsive() {
 
   return {
     ...screenSize,
+    isClient,
     isAbove,
     isBelow,
     isMobile,
