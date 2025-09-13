@@ -21,7 +21,7 @@ export function useDMPageLogic(roomId: string) {
   // Store状態
   const { user, isLoading: authLoading, isInitialized, initializeAuth } = useAuthStore();
   const { rooms, currentRoomId, setCurrentRoom, loadRooms, updateRoom, isLoading } = useChatStore();
-  
+
   // 重複実行防止用Ref
   const fetchedRoomRef = useRef<string | null>(null);
 
@@ -73,9 +73,9 @@ export function useDMPageLogic(roomId: string) {
     // Step 2: DM詳細取得（未取得かつ重複防止）
     if (isDM && !currentRoom?.members?.length && fetchedRoomRef.current !== roomId) {
       fetchedRoomRef.current = roomId;
-      
+
       let cancelled = false;
-      
+
       (async () => {
         try {
           const detail = await getChatRoom(roomId);
@@ -84,6 +84,10 @@ export function useDMPageLogic(roomId: string) {
           }
         } catch (error) {
           console.error('ルーム詳細取得に失敗しました', error);
+          // 失敗時は再試行を許可
+          if (!cancelled) {
+            fetchedRoomRef.current = null;
+          }
         }
       })();
 
@@ -110,12 +114,12 @@ export function useDMPageLogic(roomId: string) {
     currentRoom,
     isDM,
     otherUserName: getOtherUserName(),
-    
+
     // 状態
     isLoading: !isInitialized || authLoading || isLoading,
     isAuthenticated: isInitialized && !authLoading && !!user,
     user,
-    
+
     // ナビゲーション
     router
   };

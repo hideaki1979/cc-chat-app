@@ -12,7 +12,7 @@ export function useDebounce<T extends unknown[]>(
   callback: (...args: T) => void,
   delay: number
 ) {
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const callbackRef = useRef(callback);
 
   // 最新のコールバックを保持（依存配列問題を回避）
@@ -54,7 +54,7 @@ export function useDynamicDebounce<T extends unknown[]>(
   callback: (...args: T) => void,
   getDelay: (...args: T) => number
 ) {
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const callbackRef = useRef(callback);
   const getDelayRef = useRef(getDelay);
 

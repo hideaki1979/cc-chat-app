@@ -184,6 +184,8 @@ describe('Sidebar Component', () => {
       
       // UserSearchコンポーネントがレンダリングされることを確認
       // 注：UserSearchコンポーネントの内部実装に依存
+      // UserSearchコンポーネントがレンダリングされることを確認
+      expect(screen.getByRole('heading', { name: 'ユーザーを検索してDMを開始' })).toBeVisible();
     });
   });
 
