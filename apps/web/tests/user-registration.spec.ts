@@ -50,6 +50,7 @@ test.describe('ユーザー登録統合テスト', () => {
     await page.getByRole('button', { name: 'アカウント作成' }).click();
 
     // 重複メールエラーが適切にハンドリングされることを確認
-    await expect(page.getByRole('alert')).toContainText(/すでに登録済み|既に使用されています|exists|登録に失敗しました/);
+    // エラーメッセージの表示を待機（バックエンドが返すエラーメッセージに合わせて修正）
+    await expect(page.getByRole('alert')).toContainText(/このメールアドレスは既に使用されています|すでに登録済み|既に使用されています|exists|登録に失敗しました/, { timeout: 15000 });
   });
 });

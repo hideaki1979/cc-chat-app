@@ -3,8 +3,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { MessageInput } from './MessageInput';
 import { MessageList } from './MessageList';
-import { useChat } from '../../hooks/useChat';
-import { validateMessageContent } from '../../lib/services/chatService';
+import { useChatStore } from '../../stores/chat';
+import {
+  validateMessageContent,
+  sendChatMessage,
+  fetchRoomMessages
+} from '../../lib/services/chatService';
 import { getUserFriendlyMessage, normalizeError } from '../../lib/services/errorService';
 import type { Message } from '../../types/chat';
 
@@ -35,21 +39,59 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   disabled = false,
 }) => {
   const [isSending, setIsSending] = useState(false);
-  const { currentRoomMessages, isLoading, sendMessage, fetchMessages } = useChat();
+
+  // Zustand storeから必要な状態と操作を直接取得
+  const {
+    getCurrentRoomMessages,
+    isLoading,
+    setMessages,
+    addMessage,
+    beginLoading,
+    endLoading
+  } = useChatStore();
+
+  // メッセージ取得関数
+  const fetchMessages = useCallback(async (roomId: string, page = 1) => {
+    try {
+      beginLoading();
+      const messages = await fetchRoomMessages(roomId, page);
+      setMessages(roomId, messages);
+    } catch (error) {
+      const appError = normalizeError(error, 'メッセージ取得');
+      console.error('Failed to fetch messages:', getUserFriendlyMessage(appError));
+      setMessages(roomId, []);
+    } finally {
+      endLoading();
+    }
+  }, [setMessages, beginLoading, endLoading]);
 
   // roomIdが変更された時にメッセージを取得
   useEffect(() => {
     if (roomId) {
       fetchMessages(roomId).catch((error) => {
-        // エラーはuseChat内でログ済み想定。ここではUI側の通知などに限定
         console.error("Failed to fetch messages in component:", error);
       });
     }
   }, [roomId, fetchMessages]);
 
   // 実際に使用するメッセージとローディング状態
+  const currentRoomMessages = getCurrentRoomMessages();
   const actualMessages = propMessages || currentRoomMessages;
   const actualIsLoading = propIsLoading || isLoading;
+
+  // メッセージ送信関数
+  const sendMessage = useCallback(async (roomId: string, content: string): Promise<Message | null> => {
+    try {
+      const message = await sendChatMessage(roomId, content);
+      if (message) {
+        addMessage(message);
+      }
+      return message;
+    } catch (error) {
+      const appError = normalizeError(error, 'メッセージ送信');
+      throw appError;
+    }
+  }, [addMessage]);
 
   const handleSendMessage = useCallback(async (content: string) => {
     if (!roomId || isSending || disabled) return;
@@ -64,7 +106,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
     setIsSending(true);
     try {
-      // カスタムのonSendMessageがある場合はそれを使用、なければuseChatのsendMessageを使用
+      // カスタムのonSendMessageがある場合はそれを使用、なければ自前のsendMessageを使用
       if (onSendMessage) {
         await onSendMessage(content);
       } else {

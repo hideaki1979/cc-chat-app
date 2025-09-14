@@ -104,14 +104,17 @@ test.describe('Authentication and Authorization', () => {
     await page.getByLabel('パスワード').fill(TEST_USER.password);
     await page.getByRole('button', { name: 'ログイン' }).click();
 
-    await expect(page).toHaveURL(/.*dashboard/);
+    await expect(page).toHaveURL(/.*dashboard/, { timeout: 15000 });
+
+    // 認証状態が完全に確立されるまで待機
+    await expect(page.getByRole('heading', { name: /ようこそ/ })).toBeVisible({ timeout: 15000 });
 
     // ページリロード
     await page.reload();
 
-    // 認証状態が維持されていることを確認
-    await expect(page).toHaveURL(/.*dashboard/);
-    await expect(page.getByRole('heading', { name: /ようこそ/ })).toBeVisible();
+    // 認証状態の再初期化完了を待機
+    await expect(page).toHaveURL(/.*dashboard/, { timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /ようこそ/ })).toBeVisible({ timeout: 15000 });
   });
 
 

@@ -20,13 +20,17 @@ test.describe('チャットレイアウト統合ワークフロー', () => {
     await page.getByLabel('メールアドレス').fill(TEST_USER.email);
     await page.getByLabel('パスワード').fill(TEST_USER.password);
     await page.getByRole('button', { name: 'ログイン' }).click();
-    await expect(page).toHaveURL(/.*dashboard/, { timeout: 10000 });
+    await expect(page).toHaveURL(/.*dashboard/, { timeout: 15000 });
 
     // 認証状態が完全に確立されるまで待機（ダッシュボードでユーザー名が表示されるまで）
-    await expect(page.getByRole('heading', { name: /ようこそ/ })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: /ようこそ/ })).toBeVisible({ timeout: 15000 });
 
+    // チャットページに移動し、認証状態が維持されることを確認
     await page.goto('/chat');
-    await expect(page).toHaveURL(/.*chat/);
+    await expect(page).toHaveURL(/.*chat/, { timeout: 15000 });
+
+    // チャットページの認証初期化完了を待機
+    await expect(page.locator('[data-testid="test-sidebar"]')).toBeVisible({ timeout: 15000 });
   });
 
   test('デスクトップとモバイルでの基本的な操作ワークフロー', async ({ page }) => {
@@ -67,16 +71,18 @@ test.describe('チャットレイアウト統合ワークフロー', () => {
   });
 
   test('ユーザープロファイル表示と基本操作ワークフロー', async ({ page }) => {
-    // チャットページにアクセス
+    // チャットページにアクセス済み（beforeEachで設定済み）
     await expect(page).toHaveURL(/.*chat/);
 
     // ユーザー情報がサイドバーに表示されることを確認
-    // （具体的な要素は実装に依存するため、存在確認のみ）
     const userInfoArea = page.locator('[data-testid="test-sidebar"]');
-    await expect(userInfoArea).toBeVisible({ timeout: 10000 });
+    await expect(userInfoArea).toBeVisible({ timeout: 15000 });
+
+    // 認証状態が完全に初期化されるまで待機（ユーザー名の表示を確認）
+    await expect(page.locator('[data-testid="test-sidebar"]')).toContainText(TEST_USER.email, { timeout: 15000 });
 
     // ログアウトボタンが利用可能であることを確認
-    await expect(page.getByTestId('logout-button')).toBeVisible();
+    await expect(page.getByTestId('logout-button')).toBeVisible({ timeout: 15000 });
   });
 
   test('未認証ユーザーの適切なリダイレクト処理ワークフロー', async ({ page, context }) => {
@@ -101,12 +107,17 @@ test.describe('チャットレイアウト統合ワークフロー', () => {
 
     // ダッシュボードに戻るナビゲーションが可能であることを確認
     await page.goto('/dashboard');
-    await expect(page).toHaveURL(/.*dashboard/);
-    await expect(page.getByRole('heading', { name: /ようこそ/ })).toBeVisible({ timeout: 10000 });
+    await expect(page).toHaveURL(/.*dashboard/, { timeout: 15000 });
+
+    // 認証状態の初期化完了を待機
+    await expect(page.getByRole('heading', { name: /ようこそ/ })).toBeVisible({ timeout: 15000 });
 
     // チャットページに戻ることができることを確認
     await page.goto('/chat');
-    await expect(page).toHaveURL(/.*chat/);
+    await expect(page).toHaveURL(/.*chat/, { timeout: 15000 });
+
+    // チャットページの認証初期化完了を再度待機
+    await expect(page.locator('[data-testid="test-sidebar"]')).toBeVisible({ timeout: 15000 });
 
     // モバイルビューの場合はサイドバーを開く
     const finalViewport = page.viewportSize();

@@ -9,13 +9,26 @@ import type { ChatRoom } from '../types/chat';
 
 export default function ChatPage() {
   const router = useRouter();
-  const { user, isInitialized, logout } = useAuthStore();
+  const { user, isInitialized, logout, initializeAuth } = useAuthStore();
 
   // ルーム関連のローカル状態（将来のAPI接続を想定しつつプレースホルダー）
   const [rooms] = useState<ChatRoom[]>([]);
   const [currentRoomId] = useState<string | undefined>(undefined);
 
   const pathname = usePathname();
+
+  // 認証初期化処理
+  useEffect(() => {
+    if (!isInitialized) {
+      initializeAuth({
+        currentPath: pathname,
+        onUnauthorized: (currentPath: string) => {
+          const redirectTo = encodeURIComponent(currentPath);
+          router.replace(`/login?redirect=${redirectTo}`);
+        }
+      });
+    }
+  }, [isInitialized, initializeAuth, pathname, router]);
 
   // 初期化完了後、未ログインならログインへ（元URLを保持）
   useEffect(() => {

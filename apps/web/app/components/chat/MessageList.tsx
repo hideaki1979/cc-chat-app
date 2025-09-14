@@ -3,9 +3,10 @@
 import React, { useMemo, useRef } from 'react';
 import type { Message } from '../../types/chat';
 import { useAutoScroll } from '../layout/hooks/useAutoScroll';
+import { useChatStore } from '../../stores/chat';
 
 interface MessageListProps {
-  messages: Message[];
+  messages?: Message[]; // オプショナルにして、undefinedの場合はstoreから取得
   currentUserId?: string;
   isLoading?: boolean;
   onLoadMore?: () => void;
@@ -13,13 +14,21 @@ interface MessageListProps {
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
-  messages,
+  messages: propMessages,
   currentUserId,
   isLoading = false,
   onLoadMore,
   hasMore = false,
 }) => {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  // Zustand storeから現在のルームのメッセージを取得（propsがない場合のフォールバック）
+  const { getCurrentRoomMessages } = useChatStore();
+  const storeMessages = getCurrentRoomMessages();
+
+  // 実際に使用するメッセージ（propsが優先、なければstoreから）
+  const messages = propMessages ?? storeMessages;
+
   // カスタムフックで自動スクロール機能を利用
   const bottomRef = useAutoScroll(messages.length);
 
