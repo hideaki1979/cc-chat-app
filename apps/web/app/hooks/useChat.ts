@@ -11,8 +11,9 @@ import {
 import { normalizeError, logError } from '../lib/services/errorService';
 import type { Message } from '../types/chat';
 
+const EMPTY_MESSAGES: Message[] = [];
+
 export const useChat = () => {
-  const EMPTY_MESSAGES: Message[] = [];
   const {
     rooms,
     currentRoomId,
