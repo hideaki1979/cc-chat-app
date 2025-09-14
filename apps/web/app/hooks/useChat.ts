@@ -66,22 +66,14 @@ export const useChat = () => {
     // 送信前バリデーションをフック側に集約
     const validation = validateMessageContent(content);
     if (!validation.isValid) {
-      const appError = normalizeError(new Error(validation.error || 'バリデーションエラー'), 'メッセージ送信');
-      logError(appError, 'useChat.sendMessage');
-      throw appError;
+      throw new Error(validation.error || 'バリデーションエラー');
     }
 
-    try {
-      const message = await sendChatMessage(roomId, content);
-      if (message) {
-        addMessage(message);
-      }
-      return message;
-    } catch (error) {
-      const appError = normalizeError(error, 'メッセージ送信');
-      logError(appError, 'useChat.sendMessage');
-      throw appError;
+    const message = await sendChatMessage(roomId, content);
+    if (message) {
+      addMessage(message);
     }
+    return message;
   }, [addMessage]);
 
   // ルーム選択

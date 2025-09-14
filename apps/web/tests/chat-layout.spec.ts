@@ -81,9 +81,6 @@ test.describe('チャットレイアウト統合ワークフロー', () => {
     // まずログアウトボタンが表示されるまで待機（認証状態の確認）
     await expect(page.getByTestId('logout-button')).toBeVisible({ timeout: 15000 });
 
-    // 認証状態が完全に初期化されるまで追加の待機
-    await page.waitForTimeout(2000);
-
     // ユーザー情報（メール）が表示されることを確認
     await expect(page.locator('[data-testid="test-sidebar"]')).toContainText(TEST_USER.email, { timeout: 20000 });
   });

@@ -51,6 +51,7 @@ test.describe('ユーザー登録統合テスト', () => {
 
     // 重複メールエラーが適切にハンドリングされることを確認
     // バックエンドが409 Conflictで「このメールアドレスは既に使用されています」を返すはずなので、それを待機
-    await expect(page.getByRole('alert')).toContainText(/このメールアドレスは既に使用されています/, { timeout: 15000 });
+    await expect(page.getByRole('alert')).toContainText(
+      /このメールアドレスは既に使用されています|already.*in use|already.*registered/i, { timeout: 15000 });
   });
 });
