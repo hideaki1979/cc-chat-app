@@ -23,8 +23,9 @@ export const MessageList: React.FC<MessageListProps> = ({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   // Zustand storeから現在のルームのメッセージを取得（propsがない場合のフォールバック）
-  const { getCurrentRoomMessages } = useChatStore();
-  const storeMessages = getCurrentRoomMessages();
+  const storeMessages = useChatStore((s) => 
+    s.currentRoomId ? s.messages[s.currentRoomId] ?? [] : []
+  );
 
   // 実際に使用するメッセージ（propsが優先、なければstoreから）
   const messages = propMessages ?? storeMessages;
