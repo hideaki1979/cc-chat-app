@@ -13,6 +13,8 @@ interface MessageListProps {
   hasMore?: boolean;
 }
 
+const EMPTY_MESSAGES: Message[] = [];
+
 export const MessageList: React.FC<MessageListProps> = ({
   messages: propMessages,
   currentUserId,
@@ -23,8 +25,8 @@ export const MessageList: React.FC<MessageListProps> = ({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   // Zustand storeから現在のルームのメッセージを取得（propsがない場合のフォールバック）
-  const storeMessages = useChatStore((s) => 
-    s.currentRoomId ? s.messages[s.currentRoomId] ?? [] : []
+  const storeMessages = useChatStore((s) =>
+    s.currentRoomId ? (s.messages[s.currentRoomId] ?? EMPTY_MESSAGES) : EMPTY_MESSAGES
   );
 
   // 実際に使用するメッセージ（propsが優先、なければstoreから）

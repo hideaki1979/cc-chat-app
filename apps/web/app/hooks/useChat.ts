@@ -11,6 +11,8 @@ import {
 import { normalizeError, logError } from '../lib/services/errorService';
 import type { Message } from '../types/chat';
 
+const EMPTY_MESSAGES: Message[] = [];
+
 export const useChat = () => {
   const {
     rooms,
@@ -89,7 +91,7 @@ export const useChat = () => {
     currentRoomId,
     messages,
     isLoading,
-    currentRoomMessages: (currentRoomId && messages[currentRoomId]) || [],
+    currentRoomMessages: (currentRoomId && messages[currentRoomId]) || EMPTY_MESSAGES,
 
     // Actions
     fetchRooms,
