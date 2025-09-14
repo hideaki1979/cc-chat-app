@@ -131,7 +131,6 @@ db.SetMaxOpenConns(100)
 **問題**: 3階層以上のprops受け渡し
 **解決方法**:
 
-- Context API利用
 - Zustandストア活用
   **工数**: 2-3時間
 
@@ -243,8 +242,8 @@ currentRoomMessages vs currentRoomId
 ### Week 3: ロジック整理
 
 - [✔] TASK-006: ビジネスロジック抽出
-- [ ] TASK-007: useEffect最適化
-- [ ] TASK-008: Props drilling解消
+- [✔] TASK-007: useEffect最適化
+- [✔] TASK-008: Props drilling解消
 
 ### Week 4: 品質向上
 

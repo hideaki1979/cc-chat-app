@@ -4,7 +4,6 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { MessageInput } from './MessageInput';
 import { MessageList } from './MessageList';
 import { useChat } from '../../hooks/useChat';
-import { validateMessageContent } from '../../lib/services/chatService';
 import { getUserFriendlyMessage, normalizeError } from '../../lib/services/errorService';
 import type { Message } from '../../types/chat';
 
@@ -35,40 +34,32 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   disabled = false,
 }) => {
   const [isSending, setIsSending] = useState(false);
-  const { currentRoomMessages, isLoading, sendMessage, fetchMessages } = useChat();
+  const { fetchMessages, sendMessage: sendMessageViaHook, isLoading, currentRoomMessages } = useChat();
 
   // roomIdが変更された時にメッセージを取得
   useEffect(() => {
     if (roomId) {
       fetchMessages(roomId).catch((error) => {
-        // エラーはuseChat内でログ済み想定。ここではUI側の通知などに限定
         console.error("Failed to fetch messages in component:", error);
       });
     }
   }, [roomId, fetchMessages]);
 
   // 実際に使用するメッセージとローディング状態
-  const actualMessages = propMessages || currentRoomMessages;
+  const actualMessages = onSendMessage ? (propMessages ?? currentRoomMessages) : currentRoomMessages;
   const actualIsLoading = propIsLoading || isLoading;
 
+  // メッセージ送信関数
   const handleSendMessage = useCallback(async (content: string) => {
     if (!roomId || isSending || disabled) return;
 
-    // ビジネスロジック：事前バリデーション
-    const validation = validateMessageContent(content);
-    if (!validation.isValid) {
-      // TODO: エラートーストを表示
-      console.error('バリデーションエラー:', validation.error);
-      return;
-    }
-
     setIsSending(true);
     try {
-      // カスタムのonSendMessageがある場合はそれを使用、なければuseChatのsendMessageを使用
+      // カスタムのonSendMessageがある場合はそれを使用、なければ自前のsendMessageを使用
       if (onSendMessage) {
         await onSendMessage(content);
       } else {
-        await sendMessage(roomId, content);
+        await sendMessageViaHook(roomId, content);
       }
     } catch (error) {
       const appError = normalizeError(error, 'メッセージ送信');
@@ -78,7 +69,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     } finally {
       setIsSending(false);
     }
-  }, [roomId, onSendMessage, sendMessage, isSending, disabled]);
+  }, [roomId, onSendMessage, sendMessageViaHook, isSending, disabled]);
 
   // ルームが選択されていない場合の表示
   if (!roomId) {

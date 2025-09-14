@@ -45,11 +45,13 @@ test.describe('ユーザー登録統合テスト', () => {
     // 重複メールでの登録試行
     await page.getByLabel('ユーザー名').fill('Duplicate Test User');
     await page.getByLabel('メールアドレス').fill(existingEmail);
-    await page.getByPlaceholder('パスワードを入力').fill('TestPassword123!');
-    await page.getByPlaceholder('パスワードを再入力').fill('TestPassword123!');
+    await page.getByPlaceholder('パスワードを入力').fill('TestPassword123');
+    await page.getByPlaceholder('パスワードを再入力').fill('TestPassword123');
     await page.getByRole('button', { name: 'アカウント作成' }).click();
 
     // 重複メールエラーが適切にハンドリングされることを確認
-    await expect(page.getByRole('alert')).toContainText(/すでに登録済み|既に使用されています|exists|登録に失敗しました/);
+    // バックエンドが409 Conflictで「このメールアドレスは既に使用されています」を返すはずなので、それを待機
+    await expect(page.getByRole('alert')).toContainText(
+      /このメールアドレスは既に使用されています|already.*in use|already.*registered/i, { timeout: 15000 });
   });
 });

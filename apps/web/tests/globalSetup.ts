@@ -34,7 +34,7 @@ async function globalSetup(_config: FullConfig) {
     // --- 3. Create a test user for this run via frontend ---
     const user = {
         email: `test-${Date.now()}@example.com`,
-        password: process.env.TEST_USER_PASSWORD ?? `Test123!${Date.now().toString().slice(-3)}`,
+        password: process.env.TEST_USER_PASSWORD ?? `Test123${Date.now().toString().slice(-3)}`,
         username: 'E2ETestUser',
     };
     console.log(`👤 Registering test user via frontend: ${user.email}`);
@@ -43,7 +43,7 @@ async function globalSetup(_config: FullConfig) {
     try {
         // Frontend registration API経由で登録（proxyHandler経由）
         const response = await browser.post(`/api/backend/register`, {
-            data: { email: user.email, password: user.password, name: user.username },
+            data: { name: user.username, email: user.email, password: user.password },
             timeout: 30_000,
         });
         if (!response.ok()) {
