@@ -49,6 +49,9 @@ func (h *AuthHandler) Register(c echo.Context) error {
 
 	ctx := c.Request().Context()
 
+	// デバッグ: リクエストの内容をログ出力
+	c.Logger().Infof("Register request: Name='%s', Email='%s', Password length=%d", req.Name, req.Email, len(req.Password))
+
 	// サービス層でユーザー登録処理（ユーザー情報とトークンを取得）
 	result, err := h.authService.RegisterUser(ctx, req)
 	if err != nil {

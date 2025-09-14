@@ -3,12 +3,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { MessageInput } from './MessageInput';
 import { MessageList } from './MessageList';
-import { useChatStore } from '../../stores/chat';
-import {
-  validateMessageContent,
-  sendChatMessage,
-  fetchRoomMessages
-} from '../../lib/services/chatService';
+import { useChat } from '../../hooks/useChat';
 import { getUserFriendlyMessage, normalizeError } from '../../lib/services/errorService';
 import type { Message } from '../../types/chat';
 
@@ -39,31 +34,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   disabled = false,
 }) => {
   const [isSending, setIsSending] = useState(false);
-
-  // Zustand storeから必要な状態と操作を直接取得
-  const {
-    getCurrentRoomMessages,
-    isLoading,
-    setMessages,
-    addMessage,
-    beginLoading,
-    endLoading
-  } = useChatStore();
-
-  // メッセージ取得関数
-  const fetchMessages = useCallback(async (roomId: string, page = 1) => {
-    try {
-      beginLoading();
-      const messages = await fetchRoomMessages(roomId, page);
-      setMessages(roomId, messages);
-    } catch (error) {
-      const appError = normalizeError(error, 'メッセージ取得');
-      console.error('Failed to fetch messages:', getUserFriendlyMessage(appError));
-      setMessages(roomId, []);
-    } finally {
-      endLoading();
-    }
-  }, [setMessages, beginLoading, endLoading]);
+  const { fetchMessages, sendMessage: sendMessageViaHook, isLoading, currentRoomMessages } = useChat();
 
   // roomIdが変更された時にメッセージを取得
   useEffect(() => {
@@ -75,34 +46,12 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   }, [roomId, fetchMessages]);
 
   // 実際に使用するメッセージとローディング状態
-  const currentRoomMessages = getCurrentRoomMessages();
-  const actualMessages = propMessages || currentRoomMessages;
+  const actualMessages = onSendMessage ? (propMessages ?? currentRoomMessages) : currentRoomMessages;
   const actualIsLoading = propIsLoading || isLoading;
 
   // メッセージ送信関数
-  const sendMessage = useCallback(async (roomId: string, content: string): Promise<Message | null> => {
-    try {
-      const message = await sendChatMessage(roomId, content);
-      if (message) {
-        addMessage(message);
-      }
-      return message;
-    } catch (error) {
-      const appError = normalizeError(error, 'メッセージ送信');
-      throw appError;
-    }
-  }, [addMessage]);
-
   const handleSendMessage = useCallback(async (content: string) => {
     if (!roomId || isSending || disabled) return;
-
-    // ビジネスロジック：事前バリデーション
-    const validation = validateMessageContent(content);
-    if (!validation.isValid) {
-      // TODO: エラートーストを表示
-      console.error('バリデーションエラー:', validation.error);
-      return;
-    }
 
     setIsSending(true);
     try {
@@ -110,7 +59,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       if (onSendMessage) {
         await onSendMessage(content);
       } else {
-        await sendMessage(roomId, content);
+        await sendMessageViaHook(roomId, content);
       }
     } catch (error) {
       const appError = normalizeError(error, 'メッセージ送信');
@@ -120,7 +69,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     } finally {
       setIsSending(false);
     }
-  }, [roomId, onSendMessage, sendMessage, isSending, disabled]);
+  }, [roomId, onSendMessage, sendMessageViaHook, isSending, disabled]);
 
   // ルームが選択されていない場合の表示
   if (!roomId) {

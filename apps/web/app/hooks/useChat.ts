@@ -2,10 +2,11 @@
 
 import { useCallback } from 'react';
 import { useChatStore } from '../stores/chat';
-import { 
-  fetchChatRooms, 
-  fetchRoomMessages, 
-  sendChatMessage 
+import {
+  fetchChatRooms,
+  fetchRoomMessages,
+  sendChatMessage,
+  validateMessageContent,
 } from '../lib/services/chatService';
 import { normalizeError, logError } from '../lib/services/errorService';
 import type { Message } from '../types/chat';
@@ -33,7 +34,7 @@ export const useChat = () => {
     } catch (error) {
       const appError = normalizeError(error, 'チャットルーム取得');
       logError(appError, 'useChat.fetchRooms');
-      
+
       // UI層では空の配列を設定してエラーを隠す（UX向上）
       setRooms([]);
       throw appError;
@@ -51,7 +52,7 @@ export const useChat = () => {
     } catch (error) {
       const appError = normalizeError(error, 'メッセージ取得');
       logError(appError, 'useChat.fetchMessages');
-      
+
       // UI層では空の配列を設定してエラーを隠す（UX向上）
       setMessages(roomId, []);
       throw appError;
@@ -62,6 +63,14 @@ export const useChat = () => {
 
   // メッセージ送信
   const sendMessage = useCallback(async (roomId: string, content: string): Promise<Message | null> => {
+    // 送信前バリデーションをフック側に集約
+    const validation = validateMessageContent(content);
+    if (!validation.isValid) {
+      const appError = normalizeError(new Error(validation.error || 'バリデーションエラー'), 'メッセージ送信');
+      logError(appError, 'useChat.sendMessage');
+      throw appError;
+    }
+
     try {
       const message = await sendChatMessage(roomId, content);
       if (message) {

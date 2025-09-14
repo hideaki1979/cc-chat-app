@@ -64,6 +64,7 @@ func (cv *CustomValidator) Validate(i interface{}) error {
 func ValidateRequest(c echo.Context, req interface{}) error {
 	// リクエストをバインド
 	if err := c.Bind(req); err != nil {
+		c.Logger().Errorf("JSON binding error: %v", err)
 		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
 			Message: "Invalid request format",
 			Code:    "INVALID_REQUEST",

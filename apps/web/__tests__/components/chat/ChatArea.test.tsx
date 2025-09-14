@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { ChatArea } from '../../../app/components/chat/ChatArea';
 import type { Message } from '../../../app/components/chat';
+import { fetchRoomMessages, sendChatMessage } from '../../../app/lib/services/chatService';
 
 // useChatStoreのモック
 jest.mock('../../../app/stores/chat', () => ({
@@ -192,7 +193,7 @@ describe('ChatArea', () => {
 
     const input = screen.getByTestId('message-input-field');
     await user.type(input, 'test message');
-    
+
     // 送信開始
     user.keyboard('{Enter}');
 
@@ -300,12 +301,8 @@ describe('ChatArea', () => {
   });
 
   test('roomIdが変更された時にメッセージを取得', () => {
-    const mockFetchRoomMessages = jest.fn();
-    jest.doMock('../../../app/lib/services/chatService', () => ({
-      validateMessageContent: jest.fn(),
-      sendChatMessage: jest.fn(),
-      fetchRoomMessages: mockFetchRoomMessages,
-    }));
+    // 既存のトップレベルmockを上書き
+    (fetchRoomMessages as jest.Mock).mockResolvedValue([]);
 
     const { rerender } = render(
       <ChatArea
@@ -353,6 +350,13 @@ describe('ChatArea', () => {
 
     // 新しい実装では内部のsendMessage関数が呼ばれる
     // MessageInputのonSendMessageが実際に呼ばれることを確認
+    expect(input).toHaveValue('');
+
+    await waitFor(() => {
+      expect(sendChatMessage).toHaveBeenCalledWith('room1', 'test message');
+    });
+
+    // MessageInputのonSendMessageが実際に呼ばれることでinputがクリアされることを確認
     expect(input).toHaveValue('');
   });
 
