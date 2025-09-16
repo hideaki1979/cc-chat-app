@@ -11,8 +11,7 @@ test.describe('404 Not Found ページ', () => {
     await expect(page.locator('[data-testid="not-found-description"]')).toContainText('お探しのページは存在しないか');
 
     // タイトルが設定されることを確認（動的設定のため少し待機）
-    await page.waitForTimeout(1000);
-    await expect(page).toHaveTitle(/ページが見つかりません/);
+    await expect(page).toHaveTitle(/ページが見つかりません/, { timeout: 2000 });
   });
 
   test('404ページの基本要素が正しく表示される', async ({ page }) => {
@@ -217,7 +216,10 @@ test.describe('404 Not Found ページ', () => {
     await expect(page).toHaveTitle('ページが見つかりません - CC Chat');
 
     // メタディスクリプションの確認（動的設定されたもの）
-    await page.waitForTimeout(1000);
+    await page.waitForFunction(
+      () => document.querySelector('meta[name="description"]')?.getAttribute('content')?.includes('お探しのページが見つかりませんでした'),
+      { timeout: 2000 }
+    );
     const metaDescription = page.locator('meta[name="description"]').last();
     await expect(metaDescription).toHaveAttribute('content', /お探しのページが見つかりませんでした/);
   });

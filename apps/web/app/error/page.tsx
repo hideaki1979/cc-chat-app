@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface ErrorDetails {
   message: string;
@@ -17,6 +18,7 @@ interface ErrorDetails {
  * Error Boundaryからリダイレクトされた際にエラー詳細を表示
  */
 export default function ErrorPage() {
+  const router = useRouter();
   const [errorDetails, setErrorDetails] = useState<ErrorDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -41,7 +43,7 @@ export default function ErrorPage() {
    */
   const clearErrorAndGoHome = () => {
     sessionStorage.removeItem('errorBoundaryDetails');
-    window.location.href = '/';
+    router.push('/');
   };
 
   /**

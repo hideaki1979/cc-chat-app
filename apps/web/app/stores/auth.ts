@@ -245,18 +245,7 @@ export const useAuthStore = create<AuthStore>()(
         const isPublicPage = PUBLIC_PAGES.some((p) => path.startsWith(p));
 
         // 存在しないページ（404）の可能性をチェック
-        // ルートページ以外で、既知のページパターンにマッチしない場合は404の可能性が高い
-        const isLikelyNotFound = path !== '/' &&
-          !path.startsWith('/login') &&
-          !path.startsWith('/register') &&
-          !path.startsWith('/dashboard') &&
-          !path.startsWith('/chat') &&
-          !path.startsWith('/profile') &&
-          !path.startsWith('/error') &&
-          !path.startsWith('/test-error') &&
-          !path.startsWith('/api/');
-
-        if (isPublicPage || isLikelyNotFound) {
+        if (isPublicPage) {
           set({ isInitialized: true, isLoading: false, error: null });
           return;
         }

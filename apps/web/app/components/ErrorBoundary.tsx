@@ -66,9 +66,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     }
 
     // リダイレクトが有効な場合はエラーページに遷移
-    if (this.props.redirectToErrorPage) {
+    if (this.props.redirectToErrorPage && !this.props.fallback) {
       // 設定可能な遅延でリダイレクト（ユーザーがエラーを認識できるように）
-      const delay = this.props.redirectDelay ?? 2000;
+      const delay = this.props.redirectDelay ?? 1000;
       setTimeout(() => {
         window.location.href = '/error';
       }, delay);

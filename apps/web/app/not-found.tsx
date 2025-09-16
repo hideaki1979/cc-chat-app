@@ -1,7 +1,6 @@
-'use client';
-
 import Link from 'next/link';
-import { useEffect } from 'react';
+import type { Metadata } from 'next';
+import { BackButton } from './components';
 
 /**
  * 404 Not Found ページ
@@ -11,23 +10,12 @@ import { useEffect } from 'react';
  * - 存在しないルートへのアクセス
  * - notFound() 関数の呼び出し
  */
-export default function NotFoundPage() {
-  // Client Componentでmetadataを動的に設定（即座に実行）
-  useEffect(() => {
-    // タイトルを即座に設定
-    document.title = 'ページが見つかりません - CC Chat';
+export const metadata: Metadata = {
+  title: 'ページが見つかりません - CC Chat',
+  description: 'お探しのページが見つかりませんでした。URLをご確認ください。',
+};
 
-    // メタディスクリプションを設定または更新
-    let metaDescription = document.querySelector('meta[name="description"]');
-    if (metaDescription) {
-      metaDescription.setAttribute('content', 'お探しのページが見つかりませんでした。URLをご確認ください。');
-    } else {
-      metaDescription = document.createElement('meta');
-      metaDescription.setAttribute('name', 'description');
-      metaDescription.setAttribute('content', 'お探しのページが見つかりませんでした。URLをご確認ください。');
-      document.head.appendChild(metaDescription);
-    }
-  }, []);
+export default function NotFoundPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* メインコンテンツ */}
@@ -98,27 +86,7 @@ export default function NotFoundPage() {
             </Link>
 
             {/* 前のページに戻るボタン */}
-            <button
-              onClick={() => window.history.back()}
-              className="inline-flex items-center justify-center w-full sm:w-auto px-6 py-3 bg-gray-100 text-gray-700 text-base font-medium rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-200 ml-0 sm:ml-4"
-              data-testid="back-button"
-            >
-              <svg
-                className="mr-2 h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M7 16l-4-4m0 0l4-4m-4 4h18"
-                />
-              </svg>
-              前のページに戻る
-            </button>
+            <BackButton />
           </div>
         </div>
       </div>
