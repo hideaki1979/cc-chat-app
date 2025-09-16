@@ -11,7 +11,7 @@ import type {
 } from '../types/auth';
 // import { isAxiosError } from 'axios';
 import type { User } from '../types/auth';
-import { LOGIN_PAGE_PATH, REGISTER_PAGE_PATH } from '../constants/constants';
+import { PUBLIC_PAGES } from '../constants/constants';
 
 // 同一タブ内でのrefresh多重実行を防止するシンプルなsingleflightロック
 let refreshPromise: Promise<void> | null = null;
@@ -241,9 +241,11 @@ export const useAuthStore = create<AuthStore>()(
         // パス情報を外部から受け取る（Next.jsのusePathnameを使用するため）
         const path = options.currentPath || '';
 
-        // ゲストページ（/login, /register）では自動リフレッシュを行わず初期化のみ行う
-        const guestOnly = [LOGIN_PAGE_PATH, REGISTER_PAGE_PATH];
-        if (guestOnly.some((p) => path.startsWith(p))) {
+        // パブリックページ（認証不要）では自動リフレッシュを行わず初期化のみ行う
+        const isPublicPage = PUBLIC_PAGES.some((p) => path.startsWith(p));
+
+        // 存在しないページ（404）の可能性をチェック
+        if (isPublicPage) {
           set({ isInitialized: true, isLoading: false, error: null });
           return;
         }
