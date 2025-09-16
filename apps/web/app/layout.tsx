@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { AuthInit } from "./components/AuthInit";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -21,8 +22,10 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body className={`${geistSans.variable}`}>
-        <AuthInit />
-        {children}
+        <ErrorBoundary>
+          <AuthInit />
+          {children}
+        </ErrorBoundary>
       </body>
     </html>
   );
