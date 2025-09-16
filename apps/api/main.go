@@ -105,7 +105,7 @@ func main() {
 		AllowOrigins:     allowOrigins,
 		AllowCredentials: true,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowHeaders:     []string{"Content-Type", "Authorization", "X-CSRF-Token"},
 	}))
 
 	// コンテキストにEntクライアントを設定
@@ -125,6 +125,8 @@ func main() {
 
 	// ハンドラー初期化
 	authHandler := handlers.NewAuthHandler(authService, tokenService)
+	profileHandler := handlers.NewProfileHandler()
+	userHandler := handlers.NewUserHandler()
 	chatRoomHandler := handlers.NewChatRoomHandler(client)
 	messageHandler := handlers.NewMessageHandler(client)
 
@@ -141,17 +143,34 @@ func main() {
 	authGroup.POST("/register", authHandler.Register)
 	authGroup.POST("/login", authHandler.Login)
 	authGroup.POST("/logout", authHandler.Logout)
-	authGroup.POST("/refresh", authHandler.RefreshToken)
+	authGroup.POST("/refresh", middleware.CSRFProtection()(authHandler.RefreshToken))
+
+	// CSRFトークン取得エンドポイント（認証不要）
+	e.GET("/csrf", func(c echo.Context) error {
+		token, err := middleware.GenerateCSRFToken()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"message": "Failed to generate CSRF token",
+			})
+		}
+		middleware.SetCSRFTokenCookie(c, token)
+		return c.JSON(http.StatusOK, map[string]string{
+			"csrf_token": token,
+		})
+	})
 
 	// 認証が必要なエンドポイント
 	protectedGroup := e.Group("/api")
 	protectedGroup.Use(middleware.JWTAuth())
+	protectedGroup.Use(middleware.CSRFProtection())
+
+	// プロフィール関連
+	protectedGroup.GET("/profile", profileHandler.GetProfile)
+	protectedGroup.PUT("/profile", profileHandler.UpdateProfile)
+	protectedGroup.POST("/avatar/upload", profileHandler.UploadAvatar)
 
 	// ユーザー関連
-	protectedGroup.GET("/profile", authHandler.Profile)
-	protectedGroup.PUT("/profile", authHandler.UpdateProfile)
-	protectedGroup.GET("/users/search", authHandler.SearchUsers)
-	protectedGroup.POST("/avatar/upload", authHandler.UploadAvatar)
+	protectedGroup.GET("/users/search", userHandler.SearchUsers)
 
 	// チャットルーム関連
 	protectedGroup.POST("/chatrooms", chatRoomHandler.CreateChatRoom)

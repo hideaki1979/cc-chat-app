@@ -237,7 +237,7 @@ currentRoomMessages vs currentRoomId
 
 - [✔] TASK-003: ハンドラー関数分割
 - [✔] TASK-004: コンポーネント分割
-- [ ] TASK-009: Handler責務分離
+- [✔] TASK-009: Handler責務分離
 
 ### Week 3: ロジック整理
 
@@ -247,7 +247,7 @@ currentRoomMessages vs currentRoomId
 
 ### Week 4: 品質向上
 
-- [ ] TASK-010: エラーハンドリング
+- [✔] TASK-010: エラーハンドリング
 - [ ] TASK-011: 定数化
 - [ ] TASK-012: ファイル責務整理
 - [ ] TASK-013: 命名規則統一

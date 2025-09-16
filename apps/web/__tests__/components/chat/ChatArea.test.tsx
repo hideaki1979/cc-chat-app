@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { ChatArea } from '../../../app/components/chat/ChatArea';
@@ -361,9 +361,10 @@ describe('ChatArea', () => {
   });
 
   test('useChatStoreからのメッセージとローディング状態を使用', () => {
-    // useChatStoreからのデータを使用する場合
+    // useChatStoreからのデータを使用する場合（onSendMessageを渡さない）
     mockedUseChatStore.mockReturnValue({
       ...mockChatStoreReturn,
+      messages: { room1: [mockMessages[0]!] }, // 1件のみにする
       getCurrentRoomMessages: jest.fn().mockReturnValue([mockMessages[0]!]), // 1件のみ
       isLoading: true,
     });
@@ -373,7 +374,7 @@ describe('ChatArea', () => {
         roomId="room1"
         roomName="テストルーム"
         currentUserId="current_user"
-        onSendMessage={mockOnSendMessage}
+        // onSendMessageを渡さないことでcurrentRoomMessagesが使用される
       />
     );
 

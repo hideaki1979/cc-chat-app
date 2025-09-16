@@ -1,13 +1,13 @@
 package middleware
 
 import (
-	"net/http"
+	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/services"
 	"github.com/labstack/echo/v4"
 )
 
@@ -62,13 +62,15 @@ func (cv *CustomValidator) Validate(i interface{}) error {
 
 // ValidateRequest リクエストをバリデーションし、エラーがあればレスポンスを返す
 func ValidateRequest(c echo.Context, req interface{}) error {
+	// Content-Lengthが0で、リクエストボディが空の場合はエラー
+	if c.Request().ContentLength == 0 {
+		return fmt.Errorf("%w: request body is required", services.ErrInvalidInput)
+	}
+
 	// リクエストをバインド
 	if err := c.Bind(req); err != nil {
 		c.Logger().Errorf("JSON binding error: %v", err)
-		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Message: "Invalid request format",
-			Code:    "INVALID_REQUEST",
-		})
+		return fmt.Errorf("%w: invalid request format", services.ErrInvalidInput)
 	}
 
 	// バリデーション実行
@@ -76,15 +78,9 @@ func ValidateRequest(c echo.Context, req interface{}) error {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
 			// バリデーションエラーの場合、わかりやすいメッセージに変換
 			errorMessage := formatValidationError(validationErrors)
-			return c.JSON(http.StatusBadRequest, models.ErrorResponse{
-				Message: errorMessage,
-				Code:    "VALIDATION_ERROR",
-			})
+			return fmt.Errorf("%w: %s", services.ErrInvalidInput, errorMessage)
 		}
-		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Message: "Validation failed",
-			Code:    "VALIDATION_ERROR",
-		})
+		return fmt.Errorf("%w: validation failed", services.ErrInvalidInput)
 	}
 
 	return nil

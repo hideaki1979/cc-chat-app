@@ -65,8 +65,9 @@ export const useAuthStore = create<AuthStore>()(
             set({ isLoading: false, error: errorMessage, user: null, accessToken: null });
             return false;
           }
-          const { user, token: accessToken } = (await res.json()) as AuthResponse;
-          set({ user, accessToken, isLoading: false, error: null, isInitialized: true });
+          const { user } = (await res.json()) as AuthResponse;
+          // accessTokenはCookieで管理されるためストアに保存不要
+          set({ user, accessToken: null, isLoading: false, error: null, isInitialized: true });
           return true;
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : 'ログインに失敗しました';
@@ -98,8 +99,9 @@ export const useAuthStore = create<AuthStore>()(
             set({ isLoading: false, error: errorMessage, user: null, accessToken: null });
             return { ok: false as const, status: res.status, code: data?.code };
           }
-          const { user, token: accessToken } = (await res.json()) as AuthResponse;
-          set({ user, accessToken, isLoading: false, error: null, isInitialized: true });
+          const { user } = (await res.json()) as AuthResponse;
+          // accessTokenはCookieで管理されるためストアに保存不要
+          set({ user, accessToken: null, isLoading: false, error: null, isInitialized: true });
           return { ok: true as const };
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : '登録に失敗しました';
@@ -154,9 +156,9 @@ export const useAuthStore = create<AuthStore>()(
               }
               throw new Error(`Failed to refresh token: ${response.status}`);
             }
-            const data = await response.json();
-            const { token: accessToken } = data as { token: string };
-            set({ accessToken });
+            // accessTokenはCookieで管理されるためストア更新不要
+            // レスポンスの確認のみ行う
+            await response.json();
           })();
 
           await refreshPromise;
@@ -178,14 +180,8 @@ export const useAuthStore = create<AuthStore>()(
         const { refreshAccessToken } = get();
         await refreshAccessToken(options);
 
-        const { accessToken } = get();
-        if (!accessToken) {
-          throw new Error('認証セッションが確立できませんでした');
-        }
-
-        const headers: HeadersInit = { Authorization: `Bearer ${accessToken}` };
+        // accessTokenはCookieで管理されるためAuthorizationヘッダ付与不要
         const res = await fetch('/api/backend/profile', {
-          headers,
           credentials: 'include'
         });
         if (!res.ok) {
@@ -200,42 +196,29 @@ export const useAuthStore = create<AuthStore>()(
         try {
           setLoading(true);
 
-          let { accessToken } = get();
-          
-          // アクセストークンが無い場合、リフレッシュを試行
-          if (!accessToken) {
-            try {
-              await get().refreshAccessToken();
-              const newState = get();
-              accessToken = newState.accessToken;
-            } catch (error) {
-              // リフレッシュ失敗時はログアウト状態にする（バックエンド接続失敗も含む）
-              console.warn('Token refresh failed, redirecting to login:', error);
-              set({ 
-                user: null,
-                accessToken: null,
-                isLoading: false, 
-                isInitialized: true,
-                error: null
-              });
-              // バックエンドが起動していない場合のエラーメッセージを改善
-              const isConnectionError = error instanceof Error && error.message.includes('fetch failed');
-              const errorMessage = isConnectionError 
-                ? 'サーバーに接続できません。しばらくしてから再度お試しください。'
-                : '認証の有効期限が切れています。再度ログインしてください。';
-              throw new Error(errorMessage);
-            }
-          }
-          
-          // まだトークンが無い場合はエラー
-          if (!accessToken) {
-            set({ isLoading: false, isInitialized: true });
-            throw new Error('Access token is not available');
+          // accessTokenはストアで管理しないため、直接リフレッシュを試行
+          try {
+            await get().refreshAccessToken();
+          } catch (error) {
+            // リフレッシュ失敗時はログアウト状態にする（バックエンド接続失敗も含む）
+            console.warn('Token refresh failed, redirecting to login:', error);
+            set({
+              user: null,
+              accessToken: null,
+              isLoading: false,
+              isInitialized: true,
+              error: null
+            });
+            // バックエンドが起動していない場合のエラーメッセージを改善
+            const isConnectionError = error instanceof Error && error.message.includes('fetch failed');
+            const errorMessage = isConnectionError
+              ? 'サーバーに接続できません。しばらくしてから再度お試しください。'
+              : '認証の有効期限が切れています。再度ログインしてください。';
+            throw new Error(errorMessage);
           }
 
-          const headers: HeadersInit = { Authorization: `Bearer ${accessToken}` };
+          // accessTokenはCookieで管理されるためAuthorizationヘッダ付与不要
           const res = await fetch('/api/backend/profile', {
-            headers,
             credentials: 'include',
           });
           if (!res.ok) {

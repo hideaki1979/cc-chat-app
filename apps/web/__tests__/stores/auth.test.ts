@@ -67,7 +67,7 @@ describe('Auth Store', () => {
 
       expect(loginResult).toBe(true)
       expect(result.current.user).toEqual(mockUser)
-      expect(result.current.accessToken).toBe('access-token')
+      expect(result.current.accessToken).toBeNull() // Cookie管理のためnull
       expect(result.current.isLoading).toBe(false)
       expect(result.current.isInitialized).toBe(true)
       expect(result.current.error).toBeNull()
@@ -133,7 +133,7 @@ describe('Auth Store', () => {
 
       expect(registerResult.ok).toBe(true)
       expect(result.current.user).toEqual(mockUser)
-      expect(result.current.accessToken).toBe('access-token')
+      expect(result.current.accessToken).toBeNull() // Cookie管理のためnull
       expect(result.current.isLoading).toBe(false)
       expect(result.current.isInitialized).toBe(true)
       expect(result.current.error).toBeNull()
@@ -194,7 +194,7 @@ describe('Auth Store', () => {
       })
 
       expect(result.current.user).toEqual(mockUser)
-      expect(result.current.accessToken).toBe('new-access-token')
+      expect(result.current.accessToken).toBeNull() // Cookie管理のためnull
       expect(result.current.isInitialized).toBe(true)
       expect(result.current.isLoading).toBe(false)
       expect(result.current.error).toBeNull()
@@ -229,7 +229,7 @@ describe('Auth Store', () => {
       })
 
       expect(result.current.user).toEqual(mockUser)
-      expect(result.current.accessToken).toBe('new-access-token')
+      expect(result.current.accessToken).toBeNull() // Cookie管理のためnull
       expect(result.current.isInitialized).toBe(true)
       expect(result.current.isLoading).toBe(false)
       expect(result.current.error).toBeNull()

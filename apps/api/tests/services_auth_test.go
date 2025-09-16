@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -183,14 +184,15 @@ func TestAuthService_RegisterUser(t *testing.T) {
 			errType:   services.ErrEmailExists,
 		},
 		{
-			name: "invalid request data",
+			name: "database error during email check",
 			request: models.RegisterRequest{
-				Name:     "", // 無効（空文字）
+				Name:     "ValidUser",
 				Email:    "test@example.com",
 				Password: "Password123",
 			},
 			setupMock: func(userRepo *MockUserRepository, tokenSvc *MockTokenServiceForAuth) {
-				// バリデーションエラーのためモックは呼ばれない
+				// データベースエラーをシミュレート
+				userRepo.On("GetUserByEmail", mock.Anything, "test@example.com").Return(nil, fmt.Errorf("database error"))
 			},
 			expectErr: true,
 		},
