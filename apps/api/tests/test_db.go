@@ -18,8 +18,11 @@ import (
 // SetupTestDB creates an in-memory SQLite database for testing
 func SetupTestDB(t *testing.T) (*ent.Client, func()) {
 	// Create in-memory SQLite database with foreign keys enabled
-	db, err := sql.Open("sqlite3", ":memory:?_fk=1")
+	db, err := sql.Open("sqlite3", "file:ccchat_test?mode=memory&cache=shared&_fk=1")
 	require.NoError(t, err)
+
+	// :memory: のフレーク防止。単一接続に固定。
+	db.SetMaxOpenConns(1)
 
 	// Create ent client
 	drv := entsql.OpenDB(dialect.SQLite, db)

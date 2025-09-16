@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-
 func TestUserHandler_SearchUsers(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -211,7 +210,7 @@ func TestUserHandler_SearchUsers_ValidationEdgeCases(t *testing.T) {
 			name: "maximum reasonable limit",
 			requestBody: `{
 				"query": "test",
-				"limit": 100
+				"limit": 20
 			}`,
 			expectValid: true,
 		},
@@ -308,39 +307,39 @@ func TestUserHandler_AuthenticationRequired(t *testing.T) {
 func TestUserHandler_RequestStructure(t *testing.T) {
 	// Test various request structure scenarios
 	tests := []struct {
-		name            string
-		requestBody     string
-		contentType     string
-		expectedStatus  int
-		description     string
+		name           string
+		requestBody    string
+		contentType    string
+		expectedStatus int
+		description    string
 	}{
 		{
-			name:            "valid JSON request",
-			requestBody:     `{"query": "test", "limit": 5}`,
-			contentType:     echo.MIMEApplicationJSON,
-			expectedStatus:  http.StatusOK, // Assuming valid user context
-			description:     "Well-formed JSON request",
+			name:           "valid JSON request",
+			requestBody:    `{"query": "test", "limit": 5}`,
+			contentType:    echo.MIMEApplicationJSON,
+			expectedStatus: http.StatusOK, // Assuming valid user context
+			description:    "Well-formed JSON request",
 		},
 		{
-			name:            "malformed JSON",
-			requestBody:     `{"query": "test", "limit":}`,
-			contentType:     echo.MIMEApplicationJSON,
-			expectedStatus:  http.StatusBadRequest,
-			description:     "Invalid JSON syntax",
+			name:           "malformed JSON",
+			requestBody:    `{"query": "test", "limit":}`,
+			contentType:    echo.MIMEApplicationJSON,
+			expectedStatus: http.StatusBadRequest,
+			description:    "Invalid JSON syntax",
 		},
 		{
-			name:            "empty request body",
-			requestBody:     ``,
-			contentType:     echo.MIMEApplicationJSON,
-			expectedStatus:  http.StatusBadRequest,
-			description:     "Empty request body",
+			name:           "empty request body",
+			requestBody:    ``,
+			contentType:    echo.MIMEApplicationJSON,
+			expectedStatus: http.StatusBadRequest,
+			description:    "Empty request body",
 		},
 		{
-			name:            "wrong content type",
-			requestBody:     `{"query": "test"}`,
-			contentType:     "text/plain",
-			expectedStatus:  http.StatusBadRequest,
-			description:     "Incorrect content type",
+			name:           "wrong content type",
+			requestBody:    `{"query": "test"}`,
+			contentType:    "text/plain",
+			expectedStatus: http.StatusBadRequest,
+			description:    "Incorrect content type",
 		},
 	}
 
@@ -362,6 +361,7 @@ func TestUserHandler_RequestStructure(t *testing.T) {
 			err := handler.SearchUsers(c)
 
 			// Check that the response indicates the expected result
+			assert.Equal(t, tt.expectedStatus, rec.Code, tt.description)
 			assert.NotEmpty(t, tt.description) // Ensure test has description
 			_ = err                            // Error handling varies by implementation
 		})

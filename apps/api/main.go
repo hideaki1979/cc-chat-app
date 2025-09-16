@@ -143,7 +143,7 @@ func main() {
 	authGroup.POST("/register", authHandler.Register)
 	authGroup.POST("/login", authHandler.Login)
 	authGroup.POST("/logout", authHandler.Logout)
-	authGroup.POST("/refresh", authHandler.RefreshToken)
+	authGroup.POST("/refresh", middleware.CSRFProtection()(authHandler.RefreshToken))
 
 	// CSRFトークン取得エンドポイント（認証不要）
 	e.GET("/csrf", func(c echo.Context) error {

@@ -31,7 +31,7 @@ func (h *UserHandler) SearchUsers(c echo.Context) error {
 
 	var req models.UserSearchRequest
 	if err := middleware.ValidateRequest(c, &req); err != nil {
-		return h.handleError(c, err)
+		return err
 	}
 
 	// デフォルトのlimit設定
@@ -39,7 +39,10 @@ func (h *UserHandler) SearchUsers(c echo.Context) error {
 		req.Limit = 10
 	}
 
-	client := h.getDBClient(c)
+	client, err := h.getDBClient(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
 	ctx := c.Request().Context()
 
 	// 総件数を取得

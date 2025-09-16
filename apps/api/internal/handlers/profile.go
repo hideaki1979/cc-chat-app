@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,8 +8,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/user"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/constants"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/middleware"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/services"
 
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
@@ -35,15 +36,15 @@ func (h *ProfileHandler) GetProfile(c echo.Context) error {
 		return h.handleError(c, err)
 	}
 
-	client := h.getDBClient(c)
-	ctx := context.Background()
+	client, err := h.getDBClient(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+	ctx := c.Request().Context()
 
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Message: "無効なユーザーIDです",
-			Code:    "INVALID_USER_ID",
-		})
+		return h.handleError(c, fmt.Errorf("%w: invalid user id", services.ErrInvalidInput))
 	}
 
 	existingUser, err := client.User.Query().
@@ -75,18 +76,18 @@ func (h *ProfileHandler) UpdateProfile(c echo.Context) error {
 
 	var req models.UpdateProfileRequest
 	if err := middleware.ValidateRequest(c, &req); err != nil {
-		return h.handleError(c, err)
+		return err
 	}
 
-	client := h.getDBClient(c)
+	client, err := h.getDBClient(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
 	ctx := c.Request().Context()
 
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Message: "無効なユーザーIDです",
-			Code:    "INVALID_USER_ID",
-		})
+		return h.handleError(c, fmt.Errorf("%w: invalid user id", services.ErrInvalidInput))
 	}
 
 	// 更新するフィールドを動的に設定
@@ -134,19 +135,13 @@ func (h *ProfileHandler) UploadAvatar(c echo.Context) error {
 	// マルチパートフォームからファイルを取得
 	file, err := c.FormFile("avatar")
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Message: "アバター画像ファイルが見つかりません",
-			Code:    "FILE_NOT_FOUND",
-		})
+		return h.handleError(c, services.ErrFileNotFound)
 	}
 
 	// ファイルサイズチェック (5MB制限)
-	const maxFileSize = 5 * 1024 * 1024
+	const maxFileSize = constants.MaxFileSize
 	if file.Size > maxFileSize {
-		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Message: "ファイルサイズが大きすぎます（5MB以下にしてください）",
-			Code:    "FILE_TOO_LARGE",
-		})
+		return h.handleError(c, services.ErrFileTooLarge)
 	}
 
 	// ファイル形式チェック
@@ -161,10 +156,7 @@ func (h *ProfileHandler) UploadAvatar(c echo.Context) error {
 	// ファイルを開いてMIMEタイプをチェック
 	src, err := file.Open()
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Message: "ファイルの読み込みに失敗しました",
-			Code:    "FILE_READ_ERROR",
-		})
+		return h.handleError(c, services.ErrFileReadError)
 	}
 	defer src.Close()
 
@@ -172,27 +164,18 @@ func (h *ProfileHandler) UploadAvatar(c echo.Context) error {
 	buffer := make([]byte, 512)
 	_, err = src.Read(buffer)
 	if err != nil && err != io.EOF {
-		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Message: "ファイルの読み込みに失敗しました",
-			Code:    "FILE_READ_ERROR",
-		})
+		return h.handleError(c, services.ErrFileReadError)
 	}
 
 	// ファイルを先頭に戻す
 	_, err = src.Seek(0, 0)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Message: "ファイルの読み込みに失敗しました",
-			Code:    "FILE_READ_ERROR",
-		})
+		return h.handleError(c, services.ErrFileReadError)
 	}
 
 	contentType := http.DetectContentType(buffer)
 	if !allowedTypes[contentType] {
-		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Message: "サポートされていないファイル形式です（JPEG、PNG、GIF、WebPのみ）",
-			Code:    "INVALID_FILE_TYPE",
-		})
+		return h.handleError(c, services.ErrInvalidFileType)
 	}
 
 	// 一時的にファイル名として現在時刻 + ユーザーIDを使用
@@ -212,15 +195,15 @@ func (h *ProfileHandler) UploadAvatar(c echo.Context) error {
 	// TODO: 本番環境では実際のオブジェクトストレージにアップロードする
 	avatarURL := fmt.Sprintf("https://example.com/uploads/avatars/%s", fileName)
 
-	client := h.getDBClient(c)
+	client, err := h.getDBClient(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
 	ctx := c.Request().Context()
 
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Message: "無効なユーザーIDです",
-			Code:    "INVALID_USER_ID",
-		})
+		return h.handleError(c, fmt.Errorf("%w: invalid user id", services.ErrInvalidInput))
 	}
 
 	// プロフィール画像URLを更新

@@ -1,15 +1,13 @@
 package handlers
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/hideaki1979/cc-chat-app/apps/api/ent/user"
-	"github.com/hideaki1979/cc-chat-app/apps/api/internal/auth"
+	"github.com/google/uuid"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/middleware"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/services"
@@ -41,11 +39,11 @@ func (h *AuthHandler) setAccessTokenCookie(c echo.Context, accessToken string) {
 		Name:     "access_token",
 		Value:    accessToken,
 		Path:     "/",
-		Domain:   "",                                // 空文字でcurrent hostに設定
-		MaxAge:   int(15 * time.Minute.Seconds()),   // 15分間（秒単位）
-		HttpOnly: true,                              // XSS攻撃を防ぐ
-		Secure:   util.IsProduction(),               // 本番環境のみHTTPS必須
-		SameSite: http.SameSiteLaxMode,              // 開発環境でのクロスサイト許可
+		Domain:   "",                              // 空文字でcurrent hostに設定
+		MaxAge:   int(15 * time.Minute.Seconds()), // 15分間（秒単位）
+		HttpOnly: true,                            // XSS攻撃を防ぐ
+		Secure:   util.IsProduction(),             // 本番環境のみHTTPS必須
+		SameSite: http.SameSiteLaxMode,            // 開発環境でのクロスサイト許可
 	}
 	c.SetCookie(cookie)
 }
@@ -108,10 +106,10 @@ func (h *AuthHandler) generateCSRFToken() (string, error) {
 func (h *AuthHandler) Register(c echo.Context) error {
 	var req models.RegisterRequest
 	if err := middleware.ValidateRequest(c, &req); err != nil {
-		h.logError(c, err, "Validation failed for registration request", logrus.Fields{
+		h.logWarn(c, "Validation failed for registration request", logrus.Fields{
 			"operation": "register",
 		})
-		return h.handleError(c, err)
+		return err
 	}
 
 	ctx := c.Request().Context()
@@ -163,10 +161,10 @@ func (h *AuthHandler) Register(c echo.Context) error {
 func (h *AuthHandler) Login(c echo.Context) error {
 	var req models.LoginRequest
 	if err := middleware.ValidateRequest(c, &req); err != nil {
-		h.logError(c, err, "Validation failed for login request", logrus.Fields{
+		h.logWarn(c, "Validation failed for login request", logrus.Fields{
 			"operation": "login",
 		})
-		return h.handleError(c, err)
+		return err
 	}
 
 	ctx := c.Request().Context()
@@ -208,22 +206,18 @@ func (h *AuthHandler) Login(c echo.Context) error {
 
 // Logout ユーザーログアウトハンドラー
 func (h *AuthHandler) Logout(c echo.Context) error {
-	client := h.getDBClient(c)
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
-	// Cookieからリフレッシュトークンを取得してDBから削除
-	cookie, err := c.Cookie("refresh_token")
-	if err == nil && cookie.Value != "" {
-		hashedToken := auth.HashRefreshToken(cookie.Value)
-		_, updateErr := client.User.Update().
-			Where(user.RefreshTokenHashEQ(hashedToken)).
-			ClearRefreshTokenHash().
-			ClearRefreshTokenExpiresAt().
-			Save(ctx)
-		if updateErr != nil {
-			h.logError(c, updateErr, "Failed to clear refresh token from database during logout", logrus.Fields{
-				"operation": "logout",
-			})
+	// Cookieからリフレッシュトークンを検証し、該当ユーザーのトークンを失効
+	if cookie, err := c.Cookie("refresh_token"); err == nil && strings.TrimSpace(cookie.Value) != "" {
+		if claims, vErr := h.tokenService.ValidateRefreshToken(ctx, cookie.Value); vErr == nil {
+			if userID, pErr := uuid.Parse(claims.UserID); pErr == nil {
+				if rErr := h.tokenService.RevokeRefreshToken(ctx, userID); rErr != nil {
+					h.logError(c, rErr, "Failed to revoke refresh token during logout", logrus.Fields{
+						"operation": "logout",
+					})
+				}
+			}
 		}
 	}
 

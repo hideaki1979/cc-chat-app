@@ -35,6 +35,56 @@ func (h *BaseHandler) handleError(c echo.Context, err error) error {
 	var errorResponse models.ErrorResponse
 
 	switch {
+	case errors.Is(err, services.ErrInvalidInput):
+		statusCode = http.StatusBadRequest
+		errorResponse = models.ErrorResponse{
+			Message: "入力データが不正です",
+			Code:    "INVALID_INPUT",
+		}
+		h.structuredLogger.WarnWithContext(c, "Invalid input", logrus.Fields{
+			"error_code": "INVALID_INPUT",
+		})
+
+	case errors.Is(err, services.ErrFileNotFound):
+		statusCode = http.StatusBadRequest
+		errorResponse = models.ErrorResponse{
+			Message: "ファイルが見つかりません",
+			Code:    "FILE_NOT_FOUND",
+		}
+		h.structuredLogger.WarnWithContext(c, "File not found", logrus.Fields{
+			"error_code": "FILE_NOT_FOUND",
+		})
+
+	case errors.Is(err, services.ErrFileTooLarge):
+		statusCode = http.StatusBadRequest
+		errorResponse = models.ErrorResponse{
+			Message: "ファイルサイズが大きすぎます（5MB以下にしてください）",
+			Code:    "FILE_TOO_LARGE",
+		}
+		h.structuredLogger.WarnWithContext(c, "File too large", logrus.Fields{
+			"error_code": "FILE_TOO_LARGE",
+		})
+
+	case errors.Is(err, services.ErrInvalidFileType):
+		statusCode = http.StatusBadRequest
+		errorResponse = models.ErrorResponse{
+			Message: "サポートされていないファイル形式です（JPEG、PNG、GIF、WebPのみ）",
+			Code:    "INVALID_FILE_TYPE",
+		}
+		h.structuredLogger.WarnWithContext(c, "Invalid file type", logrus.Fields{
+			"error_code": "INVALID_FILE_TYPE",
+		})
+
+	case errors.Is(err, services.ErrFileReadError):
+		statusCode = http.StatusInternalServerError
+		errorResponse = models.ErrorResponse{
+			Message: "ファイルの読み込みに失敗しました",
+			Code:    "FILE_READ_ERROR",
+		}
+		h.structuredLogger.ErrorWithContext(c, err, "File read error", logrus.Fields{
+			"error_code": "FILE_READ_ERROR",
+		})
+
 	case errors.Is(err, services.ErrNotAuthenticated):
 		statusCode = http.StatusUnauthorized
 		errorResponse = models.ErrorResponse{
@@ -145,6 +195,11 @@ func (h *BaseHandler) getUserID(c echo.Context) (string, error) {
 }
 
 // getDBClient データベースクライアントを取得
-func (h *BaseHandler) getDBClient(c echo.Context) *ent.Client {
-	return c.Get("db").(*ent.Client)
+func (h *BaseHandler) getDBClient(c echo.Context) (*ent.Client, error) {
+	v := c.Get("db")
+	client, ok := v.(*ent.Client)
+	if !ok || client == nil {
+		return nil, services.ErrDBNotAvailable
+	}
+	return client, nil
 }

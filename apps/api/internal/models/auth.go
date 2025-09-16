@@ -21,7 +21,7 @@ type LoginRequest struct {
 
 // 認証レスポンス構造体（refresh_tokenはCookieで送信されるためレスポンスに含まない）
 type AuthResponse struct {
-	Token string   `json:"token"`
+	Token string   `json:"token,omitempty"`
 	User  UserInfo `json:"user"`
 }
 
@@ -32,7 +32,7 @@ type RefreshTokenRequest struct {
 
 // トークンリフレッシュレスポンス構造体（refresh_tokenはCookieで送信されるためレスポンスに含まない）
 type RefreshTokenResponse struct {
-	Token string `json:"token"`
+	Token string `json:"token,omitempty"`
 }
 
 // ユーザー情報構造体（パスワードを除く）

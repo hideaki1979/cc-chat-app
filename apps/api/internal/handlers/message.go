@@ -12,6 +12,7 @@ import (
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/roommember"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
 	"github.com/labstack/echo/v4"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/constants"
 )
 
 // MessageHandler メッセージ関連のハンドラー
@@ -277,7 +278,7 @@ func (h *MessageHandler) UpdateMessage(c echo.Context) error {
 	}
 
 	// メッセージ更新（作成から5分以内のみ編集可能）
-	if time.Since(msg.CreatedAt) > MessageEditTimeLimit {
+	if time.Since(msg.CreatedAt) > constants.MessageEditTimeLimit {
 		return echo.NewHTTPError(http.StatusBadRequest, "Message can only be edited within 5 minutes")
 	}
 

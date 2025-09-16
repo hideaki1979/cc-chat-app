@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/base64"
 	"net/http"
 	"strings"
@@ -50,7 +51,10 @@ func CSRFProtection() echo.MiddlewareFunc {
 			}
 
 			// ヘッダーとCookieのトークンを比較
-			if strings.TrimSpace(csrfToken) != strings.TrimSpace(csrfCookie.Value) {
+			if subtle.ConstantTimeCompare(
+				[]byte(strings.TrimSpace(csrfToken)),
+				[]byte(strings.TrimSpace(csrfCookie.Value)),
+			) != 1 {
 				return c.JSON(http.StatusForbidden, models.ErrorResponse{
 					Message: "CSRF token mismatch",
 					Code:    "CSRF_TOKEN_MISMATCH",
@@ -68,11 +72,11 @@ func SetCSRFTokenCookie(c echo.Context, token string) {
 		Name:     "csrf_token",
 		Value:    token,
 		Path:     "/",
-		Domain:   "",                    // 空文字でcurrent hostに設定
-		MaxAge:   int(24 * 60 * 60),     // 24時間（秒単位）
-		HttpOnly: false,                 // JavaScript からアクセス可能にする（X-CSRF-Tokenヘッダ用）
-		Secure:   util.IsProduction(),   // 本番環境のみHTTPS必須
-		SameSite: http.SameSiteLaxMode,  // 開発環境でのクロスサイト許可
+		Domain:   "",                   // 空文字でcurrent hostに設定
+		MaxAge:   int(24 * 60 * 60),    // 24時間（秒単位）
+		HttpOnly: false,                // JavaScript からアクセス可能にする（X-CSRF-Tokenヘッダ用）
+		Secure:   util.IsProduction(),  // 本番環境のみHTTPS必須
+		SameSite: http.SameSiteLaxMode, // 開発環境でのクロスサイト許可
 	}
 	c.SetCookie(cookie)
 }
