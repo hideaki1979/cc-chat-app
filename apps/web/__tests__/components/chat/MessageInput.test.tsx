@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { MessageInput } from '../../../app/components/chat/MessageInput';
@@ -88,14 +88,18 @@ describe('MessageInput', () => {
 
     // 80文字以上入力すると文字数カウンターが表示される
     const longMessage = 'a'.repeat(85);
-    await user.type(textarea, longMessage);
+    await act(async () => {
+      await user.type(textarea, longMessage);
+    });
 
     expect(screen.getByText('85/100')).toBeInTheDocument();
 
     // 上限に達すると赤色になる
     const maxMessage = 'a'.repeat(100);
-    await user.clear(textarea);
-    await user.type(textarea, maxMessage);
+    await act(async () => {
+      await user.clear(textarea);
+      await user.type(textarea, maxMessage);
+    });
 
     const counter = screen.getByText('100/100');
     expect(counter).toHaveClass('text-red-500');

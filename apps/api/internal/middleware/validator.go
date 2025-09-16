@@ -62,6 +62,14 @@ func (cv *CustomValidator) Validate(i interface{}) error {
 
 // ValidateRequest リクエストをバリデーションし、エラーがあればレスポンスを返す
 func ValidateRequest(c echo.Context, req interface{}) error {
+	// Content-Lengthが0で、リクエストボディが空の場合はエラー
+	if c.Request().ContentLength == 0 {
+		return c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Message: "Request body is required",
+			Code:    "EMPTY_REQUEST_BODY",
+		})
+	}
+
 	// リクエストをバインド
 	if err := c.Bind(req); err != nil {
 		c.Logger().Errorf("JSON binding error: %v", err)

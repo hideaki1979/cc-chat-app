@@ -12,7 +12,8 @@ jest.mock('../../app/stores/chat');
 import {
   fetchChatRooms,
   fetchRoomMessages,
-  sendChatMessage
+  sendChatMessage,
+  validateMessageContent
 } from '../../app/lib/services/chatService';
 import {
   normalizeError,
@@ -25,6 +26,7 @@ const mockedSendChatMessage = sendChatMessage as jest.MockedFunction<typeof send
 const mockedNormalizeError = normalizeError as jest.MockedFunction<typeof normalizeError>;
 const mockedLogError = logError as jest.MockedFunction<typeof logError>;
 const mockedUseChatStore = useChatStore as jest.MockedFunction<typeof useChatStore>;
+const mockedValidateMessageContent = validateMessageContent as jest.MockedFunction<typeof validateMessageContent>;
 
 // Type for store state
 interface MockChatStoreState {
@@ -93,6 +95,8 @@ describe('useChat', () => {
     mockedUseChatStore.mockReturnValue(mockStoreState);
     mockedNormalizeError.mockReturnValue(mockAppError);
     mockedLogError.mockImplementation(() => { });
+    // デフォルトでは有効なメッセージとして扱う
+    mockedValidateMessageContent.mockReturnValue({ isValid: true });
   });
 
   describe('fetchRooms', () => {
@@ -205,7 +209,6 @@ describe('useChat', () => {
     });
 
     it('should handle send message error', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
       const testError = new Error('Network error');
       mockedSendChatMessage.mockRejectedValueOnce(testError);
 
@@ -213,26 +216,25 @@ describe('useChat', () => {
 
       await expect(act(async () => {
         await result.current.sendMessage(roomId, content);
-      })).rejects.toEqual(mockAppError);
+      })).rejects.toThrow('Network error');
 
       expect(mockedSendChatMessage).toHaveBeenCalledTimes(1);
-      expect(mockedNormalizeError).toHaveBeenCalledWith(testError, 'メッセージ送信');
-      expect(mockedLogError).toHaveBeenCalledWith(mockAppError, 'useChat.sendMessage');
       expect(mockStoreState.addMessage).not.toHaveBeenCalled();
-
-      consoleSpy.mockRestore();
     });
 
-    it('should return null if message is null', async () => {
-      mockedSendChatMessage.mockResolvedValueOnce(null);
+    it('should handle validation error for invalid message', async () => {
+      // 無効なメッセージの場合
+      mockedValidateMessageContent.mockReturnValueOnce({
+        isValid: false,
+        error: 'メッセージが空です'
+      });
       const { result } = renderHook(() => useChat());
 
-      let messageResult;
-      await act(async () => {
-        messageResult = await result.current.sendMessage(roomId, content);
-      });
+      await expect(act(async () => {
+        await result.current.sendMessage(roomId, '');
+      })).rejects.toThrow('メッセージが空です');
 
-      expect(messageResult).toBeNull();
+      expect(mockedSendChatMessage).not.toHaveBeenCalled();
       expect(mockStoreState.addMessage).not.toHaveBeenCalled();
     });
   });

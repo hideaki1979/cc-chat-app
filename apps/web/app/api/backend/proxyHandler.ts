@@ -5,8 +5,7 @@ const BACKEND_URL = process.env.BACKEND_INTERNAL_URL || 'http://backend:8080';
 export async function proxyRequest(request: Request, backendPath: string): Promise<NextResponse> {
     const method = request.method;
     const cookie = request.headers.get('cookie') || '';
-    const authHeader = request.headers.get('authorization') || ''// プロフィールルート用
-
+    // Authorization ヘッダ転送削除（Cookie完全移行のため）
 
     const requestHeaders: Record<string, string> = { cookie };
     const incomingContentType = request.headers.get('content-type');
@@ -18,9 +17,7 @@ export async function proxyRequest(request: Request, backendPath: string): Promi
         requestHeaders['Accept'] = incomingAccept;
     }
 
-    if (authHeader) {
-        requestHeaders['Authorization'] = authHeader;
-    }
+    // Authorization ヘッダ転送を削除（access_token は Cookie で送信される）
 
     let requestBody: string | undefined;
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {

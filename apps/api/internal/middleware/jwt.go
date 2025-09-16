@@ -9,34 +9,31 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// JWTAuth JWT認証ミドルウェア
+// JWTAuth JWT認証ミドルウェア（Cookie優先、Authorizationヘッダーをフォールバックとしてサポート）
 func JWTAuth() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			// Authorizationヘッダーを取得
-			authHeader := c.Request().Header.Get("Authorization")
-			if authHeader == "" {
-				return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-					Message: "Missing authorization header",
-					Code:    "MISSING_AUTH_HEADER",
-				})
+			var tokenString string
+
+			// 1. Cookieからaccess_tokenを取得を優先する
+			if accessTokenCookie, err := c.Cookie("access_token"); err == nil && accessTokenCookie.Value != "" {
+				tokenString = strings.TrimSpace(accessTokenCookie.Value)
+			} else {
+				// 2. フォールバック: Authorizationヘッダーから取得
+				authHeader := c.Request().Header.Get("Authorization")
+				if authHeader != "" {
+					const bearerPrefix = "Bearer "
+					if strings.HasPrefix(authHeader, bearerPrefix) {
+						tokenString = strings.TrimSpace(authHeader[len(bearerPrefix):])
+					}
+				}
 			}
 
-			// "Bearer " プレフィックスをチェック
-			const bearerPrefix = "Bearer "
-			if !strings.HasPrefix(authHeader, bearerPrefix) {
-				return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-					Message: "Invalid authorization header format",
-					Code:    "INVALID_AUTH_HEADER",
-				})
-			}
-
-			// トークンを抽出
-			tokenString := authHeader[len(bearerPrefix):]
+			// トークンが無い場合は認証失敗
 			if tokenString == "" {
 				return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-					Message: "Missing token",
-					Code:    "MISSING_TOKEN",
+					Message: "Missing access token in cookie or authorization header",
+					Code:    "MISSING_ACCESS_TOKEN",
 				})
 			}
 
@@ -44,8 +41,8 @@ func JWTAuth() echo.MiddlewareFunc {
 			claims, err := auth.ValidateJWT(tokenString)
 			if err != nil {
 				return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-					Message: "Invalid or expired token",
-					Code:    "INVALID_TOKEN",
+					Message: "Invalid or expired access token",
+					Code:    "INVALID_ACCESS_TOKEN",
 				})
 			}
 

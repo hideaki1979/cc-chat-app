@@ -262,7 +262,7 @@ func TestAuthHandler_Login(t *testing.T) {
 				"password": "wrongpassword"
 			}`,
 			setupMock: func(authSvc *MockAuthService, tokenSvc *MockTokenService) {
-				authSvc.On("AuthenticateUser", mock.Anything, mock.AnythingOfType("models.LoginRequest")).Return(nil, errors.New("invalid credentials"))
+				authSvc.On("AuthenticateUser", mock.Anything, mock.AnythingOfType("models.LoginRequest")).Return(nil, services.ErrInvalidCredentials)
 			},
 			expectedStatus: http.StatusUnauthorized,
 			checkCookie:    false,
