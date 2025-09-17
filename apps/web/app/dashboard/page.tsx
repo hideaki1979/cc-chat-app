@@ -1,113 +1,25 @@
-'use client';
+import type { Metadata } from 'next';
+import { AuthenticatedPageWrapper } from '../components/auth/AuthenticatedPageWrapper';
+import { DashboardPageClient } from '../components/pages/DashboardPageClient';
 
-import { useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuthStore } from '../stores/auth';
-import { Button } from '@repo/ui/button';
+// SSR設定: 認証が必要なページは動的レンダリング
+export const dynamic = 'force-dynamic';
 
+// SEO最適化のメタデータ生成
+export const metadata: Metadata = {
+  title: 'ダッシュボード - CC Chat',
+  description: 'CC Chatダッシュボード。ユーザー情報の確認とチャット機能へのアクセス。',
+  robots: 'noindex', // 認証が必要なページは検索エンジンにインデックスしない
+};
+
+// Server Component（静的コンテンツとメタデータを提供）
 export default function DashboardPage() {
-  const router = useRouter();
-  const { user, isLoading, isInitialized, logout, loadCurrentUser } = useAuthStore();
-  const didLoadRef = useRef(false);
-
-  // 初回マウント時にユーザー取得（React StrictModeの二重実行を防止）
-  useEffect(() => {
-    if (didLoadRef.current) return;
-    if (!isInitialized) return; // 初期化が完了してからユーザー取得を試みる
-    didLoadRef.current = true;
-    if (!user) {
-      loadCurrentUser().catch(() => { });
-    }
-  }, [isInitialized, user, loadCurrentUser]);
-
-  // 初期化完了後、未ログインならログインページへ（元URLを保持）
-  useEffect(() => {
-    if (isInitialized && !isLoading && !user) {
-      const redirectTo = encodeURIComponent('/dashboard');
-      router.replace(`/login?redirect=${redirectTo}`);
-    }
-  }, [isInitialized, isLoading, user, router]);
-
-  const handleLogout = () => {
-    logout();
-    router.push('/login');
-  };
-
-  if (isLoading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>ユーザー情報を読み込み中...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white shadow rounded-lg p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">
-              ダッシュボード
-            </h1>
-            <Button onClick={handleLogout} variant="secondary" className="mr-2 px-8">
-              ログアウト
-            </Button>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-700 mb-2">
-                ようこそ、{user.name}さん！
-              </h2>
-              <p className="text-gray-600">
-                メールアドレス: {user.email}
-              </p>
-              <p className="text-gray-600">
-                ユーザーID: {user.id}
-              </p>
-              <p className="text-gray-600">
-                登録日: {new Date(user.created_at).toLocaleDateString('ja-JP')}
-              </p>
-            </div>
-
-            <div className="mt-8">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                利用可能な機能
-              </h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="bg-green-50 border border-green-200 rounded-md p-4">
-                  <h4 className="font-medium text-green-800 mb-2">リアルタイムチャット</h4>
-                  <p className="text-green-700 text-sm mb-3">
-                    グループチャットや個人チャットが利用できます。
-                  </p>
-                  <Button
-                    onClick={() => {
-                      router.push('/chat');
-                    }}
-                    className="w-full"
-                  >
-                    チャットを開始
-                  </Button>
-                </div>
-
-                <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
-                  <h4 className="font-medium text-gray-800 mb-2">プロフィール設定</h4>
-                  <p className="text-gray-700 text-sm mb-3">
-                    ユーザー名やアバター画像を変更できます。
-                  </p>
-                  <Button
-                    variant="secondary"
-                    className="w-full"
-                    disabled
-                  >
-                    近日公開
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <AuthenticatedPageWrapper
+      title="ダッシュボード"
+      description="ユーザー情報とチャット機能へのアクセス"
+    >
+      <DashboardPageClient />
+    </AuthenticatedPageWrapper>
   );
 }

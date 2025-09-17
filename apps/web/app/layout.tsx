@@ -1,13 +1,8 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
 import "./globals.css";
 import { AuthInit } from "./components/AuthInit";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-});
+import { inter, notoSansJP, geistSans } from "./fonts";
 
 export const metadata: Metadata = {
   title: "CC Chat",
@@ -20,8 +15,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ja">
-      <body className={`${geistSans.variable}`}>
+    <html lang="ja" className={`${inter.variable} ${notoSansJP.variable} ${geistSans.variable}`}>
+      <body className="font-sans">
         <ErrorBoundary>
           <AuthInit />
           {children}
