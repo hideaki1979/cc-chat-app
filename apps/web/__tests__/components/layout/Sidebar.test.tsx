@@ -3,6 +3,37 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { Sidebar } from '../../../app/components/layout/Sidebar';
 import type { ChatRoom } from '../../../app/types/chat';
 
+// 動的インポートされたUserSearchのモック
+jest.mock('next/dynamic', () => {
+  return function mockDynamic(dynamicFunction: () => Promise<{ default: React.ComponentType<unknown> }>) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const React = require('react');
+
+    interface MockUserSearchProps {
+      isOpen?: boolean;
+      onClose?: () => void;
+      currentUserId?: string;
+      onUserSelect?: (user: unknown) => void;
+    }
+
+    const DynamicComponent = React.forwardRef((props: MockUserSearchProps, ref: React.Ref<HTMLDivElement>) => {
+      if (dynamicFunction.toString().includes('UserSearch')) {
+        return React.createElement('div', {
+          'data-testid': 'user-search-modal',
+          ref,
+        }, props.isOpen ? [
+          React.createElement('h2', { key: 'heading' }, 'ユーザーを検索してDMを開始'),
+          React.createElement('div', { key: 'content' }, 'UserSearch Modal Open')
+        ] : null);
+      }
+      return React.createElement('div', { ref }, 'Dynamic Component');
+    });
+
+    DynamicComponent.displayName = 'DynamicComponent';
+    return DynamicComponent;
+  };
+});
+
 // MockデータとUtility Functions
 const mockUser = {
   id: '1',

@@ -1,13 +1,29 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { MessageInput } from './MessageInput';
-import { MessageList } from './MessageList';
 import { useChat } from '../../hooks/useChat';
 import { getUserFriendlyMessage, normalizeError } from '../../lib/services/errorService';
 import type { Message } from '../../types/chat';
 
-export { MessageInput, MessageList };
+// MessageListを動的インポート化（メッセージ表示は重いため、必要時のみロード）
+const MessageList = dynamic(() =>
+  import('./MessageList').then(mod => ({ default: mod.MessageList })),
+  {
+    loading: () => (
+      <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="flex items-center space-x-2 text-gray-500 dark:text-gray-400">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+          <span>メッセージを読み込み中...</span>
+        </div>
+      </div>
+    ),
+    ssr: false // メッセージリストはクライアント側でのみ動作
+  }
+);
+
+export { MessageInput };
 export type { Message };
 
 interface ChatAreaProps {

@@ -1,8 +1,24 @@
 'use client';
 
-import { ChatArea } from '../../components/chat';
+import dynamic from 'next/dynamic';
 import { Button } from '@repo/ui/button';
 import { useDMPageLogic } from '../../hooks/useDMPageLogic';
+
+// ChatAreaを動的インポート化（チャット機能は重いため、必要時のみロード）
+const ChatArea = dynamic(() =>
+  import('../../components/chat').then(mod => ({ default: mod.ChatArea })),
+  {
+    loading: () => (
+      <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="flex items-center space-x-2 text-gray-500 dark:text-gray-400">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+          <span>チャットを読み込み中...</span>
+        </div>
+      </div>
+    ),
+    ssr: false // チャット機能はクライアント側でのみ動作
+  }
+);
 
 interface Props {
   roomId: string;

@@ -1,9 +1,27 @@
 'use client';
 
 import React, { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Button } from '@repo/ui/button';
 import type { ChatRoom } from '../../types/chat';
-import { UserSearch } from '../chat/UserSearch';
+
+// UserSearchを動的インポート化（検索機能は使用時のみロード）
+const UserSearch = dynamic(() =>
+  import('../chat/UserSearch').then(mod => ({ default: mod.UserSearch })),
+  {
+    loading: () => (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6">
+          <div className="flex items-center space-x-2 text-gray-500 dark:text-gray-400">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+            <span>検索機能を読み込み中...</span>
+          </div>
+        </div>
+      </div>
+    ),
+    ssr: false // ユーザー検索はクライアント側でのみ動作
+  }
+);
 
 interface SidebarProps {
   rooms?: ChatRoom[];
