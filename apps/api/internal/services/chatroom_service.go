@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"sort"
@@ -90,11 +91,11 @@ func (s *ChatRoomService) CreateDMRoom(ctx context.Context, currentUserID, targe
 		return nil, err
 	}
 	defer func() {
-		if err := tx.Rollback(); err != nil {
+		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
 			s.logger.Error(err, "Failed to rollback transaction", logrus.Fields{
-				"operation": "create_dm_room",
+				"operation":       "create_dm_room",
 				"current_user_id": currentUserID.String(),
-				"target_user_id": targetUserID.String(),
+				"target_user_id":  targetUserID.String(),
 			})
 		}
 	}()

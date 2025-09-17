@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { ChatArea } from '../../../app/components/chat/ChatArea';
@@ -395,7 +395,7 @@ describe('ChatArea', () => {
         roomId="room1"
         roomName="テストルーム"
         currentUserId="current_user"
-        // onSendMessageを渡さないことでcurrentRoomMessagesが使用される
+      // onSendMessageを渡さないことでcurrentRoomMessagesが使用される
       />
     );
 

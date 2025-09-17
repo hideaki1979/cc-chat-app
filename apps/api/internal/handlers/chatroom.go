@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"database/sql"
 
 	"github.com/google/uuid"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent"
@@ -68,7 +69,7 @@ func (h *ChatRoomHandler) CreateChatRoom(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to start transaction")
 	}
 	defer func() {
-		if err := tx.Rollback(); err != nil {
+		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
 			h.logger.ErrorWithContext(c, err, "Failed to rollback transaction", logrus.Fields{
 				"operation": "create_chatroom",
 			})
