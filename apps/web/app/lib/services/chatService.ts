@@ -2,6 +2,7 @@ import { apiProxy } from '../api';
 import type { Message, ChatRoom } from '../../types/chat';
 import axios from 'axios';
 import { MAX_MESSAGE_LENGTH, PAGE_SIZE } from '../../constants/constants';
+import { http } from '../http';
 
 /**
  * チャット関連のビジネスロジックを管理するサービス層
@@ -102,25 +103,14 @@ export const sendChatMessage = async (roomId: string, content: string): Promise<
 
   try {
     const encodeRoomId = encodeURIComponent(roomId.trim());
-    const response = await apiProxy.post(`/chatrooms/${encodeRoomId}/messages`, {
-      content: trimmed,
-    });
-
-    const message: Message = response.data;
-    if (message) {
-      return message;
-    }
-    return null;
+    const message = await http.postJSON<Message>(`/api/backend/chatrooms/${encodeRoomId}/messages`, { content: trimmed });
+    return message ?? null;
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      switch (error.response?.status) {
-        case 400:
-          throw new Error('不正なメッセージです');
-        case 403:
-          throw new Error('このルームへの投稿権限がありません');
-        case 404:
-          throw new Error('指定されたルームが見つかりません');
-      }
+      const status = error.response?.status;
+      if (status === 400) throw new Error('不正なメッセージです');
+      if (status === 403) throw new Error('このルームへの投稿権限がありません');
+      if (status === 404) throw new Error('指定されたルームが見つかりません');
     }
     throw new Error(`メッセージ送信に失敗しました: ${error}`);
   }

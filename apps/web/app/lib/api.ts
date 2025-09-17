@@ -3,6 +3,7 @@ import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { ChatRoom, ChatRoomResponse } from '../types/chat';
 import { UserSearchResponse } from '../types/user';
 import { useAuthStore } from '../stores/auth';
+import { http } from '../lib/http';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -62,10 +63,7 @@ apiProxy.interceptors.response.use(
  * 既存のDMがある場合はそれを返し、なければ新規作成
  */
 export const createDirectMessage = async (targetUserId: string): Promise<ChatRoomResponse> => {
-  const { data } = await apiProxy.post('/chatrooms/dm', {
-    target_user_id: targetUserId,
-  });
-  return data;
+  return http.postJSON<ChatRoomResponse>('/api/backend/chatrooms/dm', { target_user_id: targetUserId });
 };
 
 /**

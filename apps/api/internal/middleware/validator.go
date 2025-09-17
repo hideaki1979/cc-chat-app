@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fmt"
+	"net/http"
 	"reflect"
 	"regexp"
 	"strings"
@@ -62,14 +63,17 @@ func (cv *CustomValidator) Validate(i interface{}) error {
 
 // ValidateRequest リクエストをバリデーションし、エラーがあればレスポンスを返す
 func ValidateRequest(c echo.Context, req interface{}) error {
-	// Content-Lengthが0で、リクエストボディが空の場合はエラー
-	if c.Request().ContentLength == 0 {
+	method := c.Request().Method
+
+	// JSONボディ必須のメソッドのみボディ有無をチェック
+	requiresBody := method == http.MethodPost || method == http.MethodPut || method == http.MethodPatch
+	if requiresBody && c.Request().ContentLength == 0 {
 		return fmt.Errorf("%w: request body is required", services.ErrInvalidInput)
 	}
 
-	// リクエストをバインド
+	// リクエストをバインド（Echoはqueryタグ/フォーム/JSONをまとめてサポート）
 	if err := c.Bind(req); err != nil {
-		c.Logger().Errorf("JSON binding error: %v", err)
+		c.Logger().Errorf("binding error: %v", err)
 		return fmt.Errorf("%w: invalid request format", services.ErrInvalidInput)
 	}
 

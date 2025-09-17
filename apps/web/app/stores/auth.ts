@@ -12,6 +12,7 @@ import type {
 // import { isAxiosError } from 'axios';
 import type { User } from '../types/auth';
 import { PUBLIC_PAGES } from '../constants/constants';
+import { http } from '../lib/http';
 
 // 同一タブ内でのrefresh多重実行を防止するシンプルなsingleflightロック
 let refreshPromise: Promise<void> | null = null;
@@ -138,32 +139,27 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           refreshPromise = (async () => {
-            // Next.js Route Handler 経由でバックエンドへ
-            const response = await fetch('/api/backend/refresh', { method: 'POST', credentials: 'include' });
-            if (!response.ok) {
-              // 401 の場合は即ログアウトし、外部にリダイレクト処理を委譲
-              if (response.status === 401) {
+            // 共通HTTPユーティリティ経由でCSRF付与
+            const res = await http.post('/api/backend/refresh');
+            if (!res.ok) {
+              if (res.status === 401 || res.status === 403) {
                 try {
                   const { logout } = get();
                   await logout();
                 } finally {
-                  // リダイレクト処理を外部に委譲（Next.jsルーターを使用するため）
                   if (options.onUnauthorized) {
                     const pathToUse = options.currentPath || '/';
                     options.onUnauthorized(pathToUse);
                   }
                 }
               }
-              throw new Error(`Failed to refresh token: ${response.status}`);
+              throw new Error(`Failed to refresh token: ${res.status}`);
             }
-            // accessTokenはCookieで管理されるためストア更新不要
-            // レスポンスの確認のみ行う
-            await response.json();
+            await res.json().catch(() => ({}));
           })();
 
           await refreshPromise;
         } catch (error) {
-          // リフレッシュ失敗時はログアウト状態にする（ログアウトAPIは呼ばない）
           set({
             user: null,
             accessToken: null,
@@ -209,7 +205,6 @@ export const useAuthStore = create<AuthStore>()(
               isInitialized: true,
               error: null
             });
-            // バックエンドが起動していない場合のエラーメッセージを改善
             const isConnectionError = error instanceof Error && error.message.includes('fetch failed');
             const errorMessage = isConnectionError
               ? 'サーバーに接続できません。しばらくしてから再度お試しください。'
@@ -238,28 +233,20 @@ export const useAuthStore = create<AuthStore>()(
         const state = get();
         if (state.isInitialized) return; // 既に初期化済みなら何もしない
 
-        // パス情報を外部から受け取る（Next.jsのusePathnameを使用するため）
         const path = options.currentPath || '';
-
-        // パブリックページ（認証不要）では自動リフレッシュを行わず初期化のみ行う
         const isPublicPage = PUBLIC_PAGES.some((p) => path.startsWith(p));
 
-        // 存在しないページ（404）の可能性をチェック
         if (isPublicPage) {
           set({ isInitialized: true, isLoading: false, error: null });
           return;
         }
 
-        // localStorage からの認証状態の復元は廃止（XSS耐性強化のため）
-
         try {
           set({ isLoading: true });
 
-          // onUnauthorizedコールバックを_fetchUserProfileAfterRefreshに渡す
           const user = await get()._fetchUserProfileAfterRefresh(options);
           set({ user, isInitialized: true, isLoading: false, error: null });
         } catch (error) {
-          // 初期化失敗時もログアウト状態にする（バックエンド接続失敗を含む）
           console.warn('Auth initialization failed:', error);
           set({
             user: null,

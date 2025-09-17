@@ -7,12 +7,13 @@
 export function getCSRFTokenFromCookie(): string | null {
   if (typeof document === 'undefined') return null;
 
-  const cookies = document.cookie.split(';');
-  const csrfCookie = cookies
-    .find(cookie => cookie.trim().startsWith('csrf_token='))
-    ?.split('=')[1];
-
-  return csrfCookie || null;
+  const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
 }
 
 // CSRF トークンを新規取得（初回アクセス時など）
@@ -76,7 +77,11 @@ export async function fetchWithCSRF(
     }
   }
 
-  const headers = addCSRFHeader(options.headers);
+  // 取得したトークンを直接ヘッダに設定（Cookie再読込による競合を回避）
+  const originalHeaders = options.headers ?? {};
+  const headers: HeadersInit = Array.isArray(originalHeaders) || originalHeaders instanceof Headers
+    ? { 'X-CSRF-Token': csrfToken }
+    : { ...(originalHeaders as Record<string, string>), 'X-CSRF-Token': csrfToken };
 
   return fetch(url, {
     ...options,

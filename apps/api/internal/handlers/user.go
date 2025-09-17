@@ -31,7 +31,7 @@ func (h *UserHandler) SearchUsers(c echo.Context) error {
 
 	var req models.UserSearchRequest
 	if err := middleware.ValidateRequest(c, &req); err != nil {
-		return err
+		return h.handleError(c, err)
 	}
 
 	// デフォルトのlimit設定

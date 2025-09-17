@@ -19,6 +19,23 @@ export async function proxyRequest(request: Request, backendPath: string): Promi
 
     // Authorization ヘッダ転送を削除（access_token は Cookie で送信される）
 
+    // Forward CSRF header when present
+    let csrfHeader = request.headers.get('x-csrf-token') || request.headers.get('X-CSRF-Token');
+    if (!csrfHeader && cookie) {
+        // ヘッダが無い場合はクッキーから抽出
+        const parts = cookie.split(';');
+        for (const part of parts) {
+            const [k, v] = part.split('=');
+            if (k && k.trim() === 'csrf_token' && typeof v === 'string') {
+                csrfHeader = v.trim();
+                break;
+            }
+        }
+    }
+    if (csrfHeader) {
+        requestHeaders['X-CSRF-Token'] = csrfHeader;
+    }
+
     let requestBody: string | undefined;
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
         requestBody = await request.text();
