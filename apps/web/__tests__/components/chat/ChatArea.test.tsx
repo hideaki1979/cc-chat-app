@@ -24,15 +24,36 @@ jest.mock('../../../app/lib/services/errorService', () => ({
   normalizeError: jest.fn((error, context) => ({ message: error.message || 'Unknown error', context })),
 }));
 
-// MessageListとMessageInputのモック
-jest.mock('../../../app/components/chat/MessageList', () => ({
-  MessageList: ({ messages, currentUserId }: { messages: Message[], currentUserId: string }) => (
-    <div data-testid="message-list">
-      <div>Messages: {messages.length}</div>
-      <div>Current User: {currentUserId}</div>
-    </div>
-  ),
-}));
+// 動的インポートされたMessageListのモック
+jest.mock('next/dynamic', () => {
+  return function mockDynamic(dynamicFunction: () => Promise<{ default: React.ComponentType<unknown> }>) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const React = require('react');
+
+    interface MockMessageListProps {
+      messages?: Message[];
+      currentUserId?: string;
+    }
+
+    const DynamicComponent = React.forwardRef((props: MockMessageListProps, ref: React.Ref<HTMLDivElement>) => {
+      if (dynamicFunction.toString().includes('MessageList')) {
+        return React.createElement('div', {
+          'data-testid': 'message-list',
+          ref,
+        }, [
+          React.createElement('div', { key: 'messages' }, `Messages: ${props.messages?.length || 0}`),
+          React.createElement('div', { key: 'user' }, `Current User: ${props.currentUserId || 'unknown'}`)
+        ]);
+      }
+      return React.createElement('div', { ref }, 'Dynamic Component');
+    });
+
+    DynamicComponent.displayName = 'DynamicComponent';
+    return DynamicComponent;
+  };
+});
+
+// MessageInputのモック（こちらは動的インポートではない）
 
 jest.mock('../../../app/components/chat/MessageInput', () => {
   interface MockMessageInputProps {

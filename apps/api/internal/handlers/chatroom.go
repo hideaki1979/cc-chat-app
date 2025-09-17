@@ -11,19 +11,25 @@ import (
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/chatroom"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/roommember"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/user"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/logging"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/services"
 	"github.com/labstack/echo/v4"
+	"github.com/sirupsen/logrus"
 )
 
 // ChatRoomHandler チャットルーム関連のハンドラー
 type ChatRoomHandler struct {
 	client *ent.Client
+	logger logging.StructuredLogger
 }
 
 // NewChatRoomHandler ChatRoomHandlerのコンストラクタ
 func NewChatRoomHandler(client *ent.Client) *ChatRoomHandler {
-	return &ChatRoomHandler{client: client}
+	return &ChatRoomHandler{
+		client: client,
+		logger: logging.NewStructuredLogger(),
+	}
 }
 
 // CreateChatRoom チャットルーム作成
@@ -61,7 +67,13 @@ func (h *ChatRoomHandler) CreateChatRoom(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to start transaction")
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			h.logger.ErrorWithContext(c, err, "Failed to rollback transaction", logrus.Fields{
+				"operation": "create_chatroom",
+			})
+		}
+	}()
 
 	// メンバーのユーザーIDリストにログインユーザーを追加
 	memberSet := make(map[uuid.UUID]struct{})

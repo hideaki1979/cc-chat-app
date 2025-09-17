@@ -12,6 +12,8 @@ import (
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/chatroom"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/user"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/logging"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -22,11 +24,15 @@ var (
 // ChatRoomService チャットルームに関するビジネスロジック
 type ChatRoomService struct {
 	client *ent.Client
+	logger logging.StructuredLogger
 }
 
 // NewChatRoomService ChatRoomServiceのコンストラクタ
 func NewChatRoomService(client *ent.Client) *ChatRoomService {
-	return &ChatRoomService{client: client}
+	return &ChatRoomService{
+		client: client,
+		logger: logging.NewStructuredLogger(),
+	}
 }
 
 // buildDMKey 2つのUUIDから正規化されたDMキーを生成
@@ -83,7 +89,15 @@ func (s *ChatRoomService) CreateDMRoom(ctx context.Context, currentUserID, targe
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			s.logger.Error(err, "Failed to rollback transaction", logrus.Fields{
+				"operation": "create_dm_room",
+				"current_user_id": currentUserID.String(),
+				"target_user_id": targetUserID.String(),
+			})
+		}
+	}()
 
 	newRoom, err := tx.ChatRoom.Create().
 		SetName(roomName).
