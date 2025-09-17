@@ -1,5 +1,22 @@
 import Link from 'next/link';
 import { Button } from '@repo/ui/button';
+import type { Metadata } from 'next';
+
+// SSG設定: 静的生成を有効にし、ISR（Incremental Static Regeneration）で日次更新
+export const dynamic = 'force-static';
+export const revalidate = 86400; // 24時間（86400秒）
+
+// SEO最適化のメタデータ生成
+export const metadata: Metadata = {
+  title: 'CC Chat - チャットアプリへようこそ',
+  description: 'リアルタイムチャットアプリケーション。ユーザー登録・ログインしてチャットを始めましょう。',
+  keywords: ['チャット', 'リアルタイム', 'コミュニケーション', 'メッセージ'],
+  openGraph: {
+    title: 'CC Chat - チャットアプリへようこそ',
+    description: 'リアルタイムチャットアプリケーション。ユーザー登録・ログインしてチャットを始めましょう。',
+    type: 'website',
+  },
+};
 
 export default function Home() {
   return (

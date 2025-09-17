@@ -32,6 +32,20 @@ test.describe('Authentication and Authorization', () => {
     await page.getByLabel('パスワード').fill(TEST_USER.password);
     await page.getByRole('button', { name: 'ログイン' }).click();
 
+    // ログイン処理の完了を待つ（認証状態の反映とリダイレクト）
+    await page.waitForLoadState('networkidle');
+
+    // refresh_tokenクッキーが設定されるまで待機
+    await expect
+      .poll(
+        async () => {
+          const cookies = await page.context().cookies();
+          return cookies.some(cookie => cookie.name === 'refresh_token');
+        },
+        { timeout: 10000 }
+      )
+      .toBe(true);
+
     await expect(page).toHaveURL(/.*dashboard/);
     // ログイン後のダッシュボードにユーザー名が表示されることを確認
     await expect(page.getByRole('heading', { name: /ようこそ/ })).toBeVisible();
@@ -43,6 +57,21 @@ test.describe('Authentication and Authorization', () => {
     await page.getByLabel('メールアドレス').fill(TEST_USER.email);
     await page.getByLabel('パスワード').fill(TEST_USER.password);
     await page.getByRole('button', { name: 'ログイン' }).click();
+
+    // ログイン処理の完了を待つ
+    await page.waitForLoadState('networkidle');
+
+    // refresh_tokenクッキーが設定されるまで待機
+    await expect
+      .poll(
+        async () => {
+          const cookies = await page.context().cookies();
+          return cookies.some(cookie => cookie.name === 'refresh_token');
+        },
+        { timeout: 10000 }
+      )
+      .toBe(true);
+
     await expect(page).toHaveURL(/.*dashboard/);
 
     // ログイン状態で/loginにアクセス
