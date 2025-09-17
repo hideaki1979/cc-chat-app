@@ -80,10 +80,8 @@ export async function fetchWithCSRF(
   }
 
   // 取得したトークンを直接ヘッダに設定（Cookie再読込による競合を回避）
-  const originalHeaders = options.headers ?? {};
-  const headers: HeadersInit = Array.isArray(originalHeaders) || originalHeaders instanceof Headers
-    ? { 'X-CSRF-Token': csrfToken }
-    : { ...(originalHeaders as Record<string, string>), 'X-CSRF-Token': csrfToken };
+  const headers = new Headers(options.headers as HeadersInit);
+  headers.set('X-CSRF-Token', csrfToken);
 
   return fetch(url, {
     ...options,

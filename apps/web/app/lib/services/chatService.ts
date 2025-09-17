@@ -105,14 +105,12 @@ export const sendChatMessage = async (roomId: string, content: string): Promise<
     const encodeRoomId = encodeURIComponent(roomId.trim());
     const message = await http.postJSON<Message>(`/api/backend/chatrooms/${encodeRoomId}/messages`, { content: trimmed });
     return message ?? null;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      const status = error.response?.status;
-      if (status === 400) throw new Error('不正なメッセージです');
-      if (status === 403) throw new Error('このルームへの投稿権限がありません');
-      if (status === 404) throw new Error('指定されたルームが見つかりません');
-    }
-    throw new Error(`メッセージ送信に失敗しました: ${error}`);
+  } catch (error: unknown) {
+    const status = (error as { status?: number } | null)?.status;
+    if (status === 400) throw new Error('不正なメッセージです');
+    if (status === 403) throw new Error('このルームへの投稿権限がありません');
+    if (status === 404) throw new Error('指定されたルームが見つかりません');
+    throw new Error(`メッセージ送信に失敗しました: ${error instanceof Error ? error.message : String(error)}`);
   }
 };
 

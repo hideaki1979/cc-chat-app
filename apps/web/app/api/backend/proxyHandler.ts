@@ -23,12 +23,12 @@ export async function proxyRequest(request: Request, backendPath: string): Promi
     let csrfHeader = request.headers.get('x-csrf-token') || request.headers.get('X-CSRF-Token');
     if (!csrfHeader && cookie) {
         // ヘッダが無い場合はクッキーから抽出
-        const parts = cookie.split(';');
-        for (const part of parts) {
-            const [k, v] = part.split('=');
-            if (k && k.trim() === 'csrf_token' && typeof v === 'string') {
-                csrfHeader = v.trim();
-                break;
+        const match = cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+        if (match && match[1]) {
+            try {
+                csrfHeader = decodeURIComponent(match[1]);
+            } catch {
+                csrfHeader = match[1];
             }
         }
     }
