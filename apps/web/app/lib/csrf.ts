@@ -10,9 +10,11 @@ export function getCSRFTokenFromCookie(): string | null {
   const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
   if (!match) return null;
   try {
-    return decodeURIComponent(match[1]);
+    const value = match[1];
+    if (!value) return null;
+    return decodeURIComponent(value);
   } catch {
-    return match[1];
+    return match[1] ?? null;
   }
 }
 
