@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import { ChatPageClient } from '../../../app/components/pages/ChatPageClient';
 import { useAuthStore } from '../../../app/stores/auth';
@@ -101,12 +101,13 @@ describe('ChatPageClient', () => {
       expect(screen.getByText('左のサイドバーからチャットルームを選択するか、')).toBeInTheDocument();
     });
 
-    test('ダッシュボードに戻るボタンが機能する', () => {
+    test('ダッシュボードに戻るボタンをクリックするとダッシュボードに遷移する', () => {
       render(<ChatPageClient />);
 
-      const backButton = screen.getByTestId('back-to-dashboard-button');
-      expect(backButton).toBeInTheDocument();
-      expect(backButton).toHaveTextContent('ダッシュボードに戻る');
+      const backButton = screen.getByRole('button', { name: 'ダッシュボードに戻る' });
+      fireEvent.click(backButton)
+
+      expect(mockRouter.push).toHaveBeenCalledWith('/dashboard');
     });
   });
 

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import { DashboardPageClient } from '../../../app/components/pages/DashboardPageClient';
 import { useAuthStore } from '../../../app/stores/auth';
@@ -62,6 +62,15 @@ describe('DashboardPageClient', () => {
       const chatButton = screen.getByText('チャットを開始');
       expect(chatButton).toBeInTheDocument();
       expect(chatButton).not.toBeDisabled();
+    });
+
+    test('チャット開始ボタンをクリックするとチャットページに遷移する', () => {
+      render(<DashboardPageClient />);
+
+      const chatButton = screen.getByRole('button', { name: 'チャットを開始' });
+      fireEvent.click(chatButton);
+
+      expect(mockRouter.push).toHaveBeenCalledWith('/chat');
     });
 
     test('プロフィール設定ボタンが無効状態', () => {

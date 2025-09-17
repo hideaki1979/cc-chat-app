@@ -41,7 +41,7 @@ export interface AuthState {
 export interface AuthActions {
   login: (credentials: LoginCredentials) => Promise<boolean>;
   register: (credentials: RegisterCredentials) => Promise<RegisterResult>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshAccessToken: (options?: { currentPath?: string; onUnauthorized?: (currentPath: string) => void }) => Promise<void>;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;

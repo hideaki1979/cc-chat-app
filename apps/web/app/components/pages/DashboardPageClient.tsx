@@ -16,15 +16,23 @@ export function DashboardPageClient() {
   // 認証チェックはmiddleware.tsに委譲（Next.js App Routerベストプラクティス）
   // useEffectでの複雑な認証ロジックは無限ループリスクがあるため簡素化
 
-  const handleLogout = () => {
-    logout();
-    router.push('/login');
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      router.replace('/login');
+    }
   };
 
   // 認証チェックはmiddleware.tsで実施済み、userがnullの場合は既にリダイレクト済み
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div
+        className="min-h-screen flex items-center justify-center"
+        role='status'
+        aria-live='polite'
+        aria-busy="true"
+      >
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-300">ユーザー情報を読み込み中...</p>

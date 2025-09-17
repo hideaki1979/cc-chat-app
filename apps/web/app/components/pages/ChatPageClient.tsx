@@ -20,8 +20,8 @@ export function ChatPageClient() {
   const [rooms] = useState<ChatRoom[]>([]);
   const [currentRoomId] = useState<string | undefined>(undefined);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     router.push('/login');
   };
 
