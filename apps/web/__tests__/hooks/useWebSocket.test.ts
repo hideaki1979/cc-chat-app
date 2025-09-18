@@ -15,6 +15,14 @@ interface MockClient {
 }
 
 describe('useWebSocket', () => {
+  const mockUser = {
+    id: 'user1',
+    email: 'test@example.com',
+    name: 'Test User',
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+  }
+
   const mockWebSocketStore = {
     client: null,
     isConnected: false,
@@ -36,7 +44,7 @@ describe('useWebSocket', () => {
 
   const mockAuthStore = {
     accessToken: 'test-token',
-    isLoggedIn: true,
+    user: mockUser,
   };
 
   beforeEach(() => {
@@ -56,7 +64,7 @@ describe('useWebSocket', () => {
       // 最初はログイン済み
       mockUseAuthStore.mockReturnValue({
         accessToken: 'test-token',
-        isLoggedIn: true,
+        user: mockUser,
       });
 
       const { rerender } = renderHook(() => useWebSocket());
@@ -64,7 +72,7 @@ describe('useWebSocket', () => {
       // ログアウト状態に変更
       mockUseAuthStore.mockReturnValue({
         accessToken: null,
-        isLoggedIn: false,
+        user: null,
       });
 
       const mockClient: MockClient = { disconnect: jest.fn() };
@@ -81,7 +89,7 @@ describe('useWebSocket', () => {
     test('トークンがない場合は接続しないこと', () => {
       mockUseAuthStore.mockReturnValue({
         accessToken: null,
-        isLoggedIn: true,
+        user: mockUser,
       });
 
       renderHook(() => useWebSocket());
@@ -116,7 +124,7 @@ describe('useWebSocket', () => {
     test('トークンがない場合は手動接続できないこと', () => {
       mockUseAuthStore.mockReturnValue({
         accessToken: null,
-        isLoggedIn: false,
+        user: null,
       });
 
       const { result } = renderHook(() => useWebSocket());

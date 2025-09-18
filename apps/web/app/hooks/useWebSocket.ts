@@ -24,7 +24,8 @@ export function useWebSocket() {
     clearMessages,
   } = useWebSocketStore();
 
-  const { accessToken, isLoggedIn } = useAuthStore();
+  const { accessToken, user } = useAuthStore();
+  const isLoggedIn = !!user;
 
   // 認証状態とアクセストークンに基づいてWebSocket接続を管理
   useEffect(() => {

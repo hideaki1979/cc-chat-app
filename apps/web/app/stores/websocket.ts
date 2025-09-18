@@ -26,6 +26,7 @@ export interface WebSocketStore {
   addMessage: (message: ChatMessage) => void;
   setTypingUser: (userId: string, isTyping: boolean) => void;
   clearMessages: () => void;
+  handleWebSocketMessage: (message: WebSocketMessage) => void;
 }
 
 export interface ChatMessage {

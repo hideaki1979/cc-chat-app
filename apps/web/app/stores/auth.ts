@@ -249,8 +249,10 @@ export const useAuthStore = create<AuthStore>()(
         if (state.isInitialized) return; // 既に初期化済みなら何もしない
 
         const path = options.currentPath || '';
-        // パブリックページの判定（ログイン、登録ページなど）
-        const isPublicPage = PUBLIC_PAGES.some((p) => path.startsWith(p));
+        // パブリックページの判定（ルート'/'は完全一致、それ以外は前方一致を許可）
+        const nonRootPublicPaths = PUBLIC_PAGES.filter((p) => p != '/');
+        const isPublicPage = path === '/' ||
+          nonRootPublicPaths.some((p) => path === p || path.startsWith(p + '/'));
 
         // パブリックページでは認証チェックをスキップ
         if (isPublicPage) {

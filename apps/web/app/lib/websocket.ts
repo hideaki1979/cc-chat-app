@@ -39,7 +39,7 @@ export interface WebSocketCallbacks {
 
 export class WebSocketClient {
   private ws: WebSocket | null = null;
-  private config: Required<WebSocketConfig>;
+  private config: Required<Omit<WebSocketConfig, 'token'>> & Pick<WebSocketConfig, 'token'>;
   private callbacks: WebSocketCallbacks = {};
   private reconnectAttempts = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
