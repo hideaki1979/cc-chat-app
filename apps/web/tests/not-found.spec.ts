@@ -164,15 +164,15 @@ test.describe('404 Not Found ページ', () => {
   });
 
   test('複数の異なる存在しないパスでの404ページ表示確認', async ({ page }) => {
-    const nonExistentPaths = [
+    const publicNonExistentPaths = [
       '/admin/secret',
       '/api/nonexistent',
       '/user/999999',
-      '/chat/invalid-room',
       '/deeply/nested/non/existent/path'
     ];
 
-    for (const path of nonExistentPaths) {
+    // 公開パス（未認証でもアクセス可能）の404確認
+    for (const path of publicNonExistentPaths) {
       await page.goto(path);
 
       // 各パスで404ページが正しく表示されることを確認
@@ -181,6 +181,11 @@ test.describe('404 Not Found ページ', () => {
       await expect(page.locator('[data-testid="not-found-description"]')).toBeVisible();
       await expect(page.locator('[data-testid="home-link"]')).toBeVisible();
     }
+
+    // 保護されたパス（認証が必要）はログインページにリダイレクトされることを確認
+    const protectedPath = '/chat/invalid-room';
+    await page.goto(protectedPath);
+    await expect(page).toHaveURL(`/login?redirect=${encodeURIComponent(protectedPath)}`);
   });
 
   test('404ページからの正常なナビゲーションフロー', async ({ page }) => {
@@ -202,7 +207,7 @@ test.describe('404 Not Found ページ', () => {
     await page.waitForURL('/register', { timeout: 5000 });
     await expect(page).toHaveURL('/register');
 
-    // 5. 最終的にホームに戻る
+    // 5. 最終的にホームに戻る（未認証ユーザーはルートページへ）
     await page.goto('/final-test-404');
     await page.locator('[data-testid="home-link"]').click();
     await page.waitForURL('/', { timeout: 5000 });

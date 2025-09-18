@@ -17,7 +17,8 @@ export interface AppError {
  */
 export const normalizeError = (error: unknown, context?: string): AppError => {
   const contextPrefix = context ? `${context}: ` : '';
-  
+
+  // Error オブジェクトの場合（標準的なJavaScriptエラー）
   if (error instanceof Error) {
     return {
       message: `${contextPrefix}${error.message}`,
@@ -25,7 +26,8 @@ export const normalizeError = (error: unknown, context?: string): AppError => {
       originalError: error,
     };
   }
-  
+
+  // 文字列エラーの場合（throwで直接文字列が投げられた場合）
   if (typeof error === 'string') {
     return {
       message: `${contextPrefix}${error}`,
@@ -33,7 +35,8 @@ export const normalizeError = (error: unknown, context?: string): AppError => {
       originalError: error,
     };
   }
-  
+
+  // その他の予期しない型のエラー（null, undefined, オブジェクトなど）
   return {
     message: `${contextPrefix}予期しないエラーが発生しました`,
     type: 'unknown',
@@ -47,8 +50,13 @@ export const normalizeError = (error: unknown, context?: string): AppError => {
  * @returns ネットワークエラーかどうか
  */
 export const isNetworkError = (error: unknown): boolean => {
+  // エラーオブジェクトにcodeプロパティが存在するかチェック
   if (error && typeof error === 'object' && 'code' in error) {
     const code = (error as { code: string }).code;
+    // 一般的なネットワークエラーコードを判定
+    // NETWORK_ERROR: 一般的なネットワークエラー
+    // ECONNABORTED: 接続タイムアウト
+    // ERR_NETWORK: fetch APIのネットワークエラー
     return code === 'NETWORK_ERROR' || code === 'ECONNABORTED' || code === 'ERR_NETWORK';
   }
   return false;
@@ -99,12 +107,13 @@ export const generateErrorLogInfo = (error: AppError, additionalInfo?: Record<st
  */
 export const logError = (error: AppError, context?: string): void => {
   const logInfo = generateErrorLogInfo(error, context ? { context } : undefined);
-  
-  // 開発環境では詳細なエラー情報を出力
+
+  // 開発環境では詳細なエラー情報を出力（デバッグ用）
   if (process.env.NODE_ENV === 'development') {
     console.error('Application Error:', logInfo);
   } else {
     // 本番環境ではユーザーフレンドリーなメッセージのみ
+    // セキュリティ上、内部実装の詳細は出力しない
     console.error('Error:', error.type, getUserFriendlyMessage(error));
   }
 };

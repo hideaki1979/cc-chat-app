@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import type { Message } from '../../types/chat';
 import { useAutoScroll } from '../layout/hooks/useAutoScroll';
 import { useChatStore } from '../../stores/chat';
+import { useWebSocket } from '../../hooks/useWebSocket';
 
 interface MessageListProps {
   messages?: Message[]; // オプショナルにして、undefinedの場合はstoreから取得
   currentUserId?: string;
+  roomId?: string; // WebSocket用のルームID
   isLoading?: boolean;
   onLoadMore?: () => void;
   hasMore?: boolean;
@@ -18,19 +20,50 @@ const EMPTY_MESSAGES: Message[] = [];
 export const MessageList: React.FC<MessageListProps> = ({
   messages: propMessages,
   currentUserId,
+  roomId,
   isLoading = false,
   onLoadMore,
   hasMore = false,
 }) => {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
+  // WebSocket機能
+  const { messages: wsMessages, joinRoom, isConnected } = useWebSocket();
+
   // Zustand storeから現在のルームのメッセージを取得（propsがない場合のフォールバック）
   const storeMessages = useChatStore((s) =>
     s.currentRoomId ? (s.messages[s.currentRoomId] ?? EMPTY_MESSAGES) : EMPTY_MESSAGES
   );
 
-  // 実際に使用するメッセージ（propsが優先、なければstoreから）
-  const messages = propMessages ?? storeMessages;
+  // WebSocketメッセージを従来のMessage型に変換
+  const convertedWsMessages = useMemo(() => {
+    if (!roomId) return EMPTY_MESSAGES;
+
+    return wsMessages
+      .filter(msg => msg.roomId === roomId)
+      .map(msg => ({
+        id: msg.id,
+        content: msg.content,
+        created_at: new Date(msg.timestamp).toISOString(),
+        sender_id: msg.userId,
+        user_id: msg.userId,
+        sender_name: msg.userId, // 実際の実装では適切なユーザー名を取得
+        message_type: msg.type === 'system' ? 'system' : 'text',
+        is_edited: false,
+      } as Message));
+  }, [wsMessages, roomId]);
+
+  // 実際に使用するメッセージ（WebSocket > props > store の優先順位）
+  const messages = roomId && convertedWsMessages.length > 0
+    ? convertedWsMessages
+    : (propMessages ?? storeMessages);
+
+  // ルーム参加（WebSocket）
+  useEffect(() => {
+    if (isConnected && roomId) {
+      joinRoom(roomId);
+    }
+  }, [isConnected, roomId, joinRoom]);
 
   // カスタムフックで自動スクロール機能を利用
   const bottomRef = useAutoScroll(messages.length);

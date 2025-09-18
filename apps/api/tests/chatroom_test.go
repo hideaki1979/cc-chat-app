@@ -13,6 +13,7 @@ import (
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/handlers"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/middleware"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/websocket"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -141,8 +142,12 @@ func TestMessageHandlers(t *testing.T) {
 		Save(ctx)
 	require.NoError(t, err)
 
+	// WebSocket Hub作成
+	hub := websocket.NewHub()
+	go hub.Run()
+
 	// ハンドラー初期化
-	messageHandler := handlers.NewMessageHandler(client)
+	messageHandler := handlers.NewMessageHandler(client, hub)
 
 	t.Run("SendMessage", func(t *testing.T) {
 		req := models.SendMessageRequest{

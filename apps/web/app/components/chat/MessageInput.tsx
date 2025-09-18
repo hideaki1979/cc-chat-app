@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, useCallback, useRef, KeyboardEvent } from 'react';
+import React, { useState, useCallback, useRef, useEffect, KeyboardEvent } from 'react';
 import { Button } from '@repo/ui/button';
 
 interface MessageInputProps {
   onSendMessage: (content: string) => void | Promise<void>;
+  onTypingStart?: () => void;
+  onTypingStop?: () => void;
   disabled?: boolean;
   placeholder?: string;
   maxLength?: number;
@@ -12,16 +14,54 @@ interface MessageInputProps {
 
 export const MessageInput: React.FC<MessageInputProps> = ({
   onSendMessage,
+  onTypingStart,
+  onTypingStop,
   disabled = false,
   placeholder = 'メッセージを入力してください...',
   maxLength = 1000,
 }) => {
   const [message, setMessage] = useState('');
   const [isComposing, setIsComposing] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // テキストエリアの最大高さを設定
   const MAX_TEXTAREA_HEIGHT = 120; // 約5行分
+
+  // タイピング通知の処理
+  const handleTypingStart = useCallback(() => {
+    if (!isTyping && onTypingStart) {
+      setIsTyping(true);
+      onTypingStart();
+    }
+  }, [isTyping, onTypingStart]);
+
+  const handleTypingStop = useCallback(() => {
+    if (isTyping && onTypingStop) {
+      setIsTyping(false);
+      onTypingStop();
+    }
+  }, [isTyping, onTypingStop]);
+
+  // タイピング停止のタイマーをリセット
+  const resetTypingTimer = useCallback(() => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    typingTimeoutRef.current = setTimeout(() => {
+      handleTypingStop();
+    }, 2000); // 2秒間入力がなければタイピング停止
+  }, [handleTypingStop]);
+
+  // コンポーネントアンマウント時にタイマーをクリア
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // テキストエリアの高さを内容に応じて自動調整する関数
   const adjustTextareaHeight = useCallback((textarea: HTMLTextAreaElement) => {
@@ -46,12 +86,23 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     if (newValue.length <= maxLength) {
       setMessage(newValue);
       adjustTextareaHeight(e.target);
+
+      // タイピング通知
+      if (newValue.trim() && !isComposing) {
+        handleTypingStart();
+        resetTypingTimer();
+      } else if (!newValue.trim()) {
+        handleTypingStop();
+      }
     }
   };
 
   const handleSendMessage = useCallback(async () => {
     const trimmedMessage = message.trim();
     if (!trimmedMessage || disabled || isComposing) return;
+
+    // タイピング停止
+    handleTypingStop();
 
     await onSendMessage(trimmedMessage);
     setMessage('');
@@ -60,7 +111,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-  }, [message, disabled, isComposing, onSendMessage]);
+  }, [message, disabled, isComposing, onSendMessage, handleTypingStop]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // IME入力中は送信しない

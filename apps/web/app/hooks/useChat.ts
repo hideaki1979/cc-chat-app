@@ -65,14 +65,16 @@ export const useChat = () => {
 
   // メッセージ送信
   const sendMessage = useCallback(async (roomId: string, content: string): Promise<Message | null> => {
-    // 送信前バリデーションをフック側に集約
+    // 送信前バリデーションをフック側に集約（サービス層の責務分離）
     const validation = validateMessageContent(content);
     if (!validation.isValid) {
       throw new Error(validation.error || 'バリデーションエラー');
     }
 
+    // バックエンドへメッセージ送信
     const message = await sendChatMessage(roomId, content);
     if (message) {
+      // 送信成功時は即座にローカル状態に追加（楽観的更新）
       addMessage(message);
     }
     return message;
@@ -80,8 +82,9 @@ export const useChat = () => {
 
   // ルーム選択
   const selectRoom = useCallback(async (roomId: string): Promise<void> => {
+    // 現在選択中のルームを変更
     setCurrentRoom(roomId);
-    // ルーム選択時にメッセージも取得
+    // ルーム選択時にメッセージも取得（UX向上のため）
     await fetchMessages(roomId);
   }, [setCurrentRoom, fetchMessages]);
 

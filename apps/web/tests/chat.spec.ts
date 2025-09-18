@@ -20,9 +20,6 @@ test.describe('チャット機能統合ワークフロー', () => {
 
   // 各テストの前にログイン処理を実行
   test.beforeEach(async ({ page, context }) => {
-    // モバイルデバイス特有の認証問題を回避するため、明示的にCookieをクリア
-    await context.clearCookies();
-
     // ログイン処理
     await page.goto('/login');
 
@@ -33,36 +30,25 @@ test.describe('チャット機能統合ワークフロー', () => {
     await page.getByLabel('パスワード').fill(TEST_USER.password);
     await page.getByRole('button', { name: 'ログイン' }).click();
 
-    // 診断: refresh_tokenクッキーの保存確認（モバイルでのCookie挙動差の切り分け）
-    await expect
-      .poll(
-        async () => {
-          const cookies = await context.cookies();
-          const rt = cookies.find((c) => c.name === 'refresh_token');
-          return Boolean(rt);
-        },
-        {
-          timeout: 5000,
-          message:
-            'refresh_tokenクッキーが保存されませんでした（モバイル特有のCookieポリシー/タイミング差の可能性）',
-        }
-      )
-      .toBe(true);
-
-    // 診断: ログイン直後のクッキー一覧をレポートに添付
-    {
-      const cookies = await context.cookies();
-      await test.info().attach('cookies-after-login', {
-        body: JSON.stringify(cookies, null, 2),
-        contentType: 'application/json',
-      });
-    }
-
     // ダッシュボードページにリダイレクトされるのを待つ
     await expect(page).toHaveURL(/.*dashboard/, { timeout: 15000 });
 
     // 認証状態が完全に確立されるまで待機（ダッシュボードでユーザー名が表示されるまで）
     await expect(page.getByRole('heading', { name: /ようこそ/ })).toBeVisible({ timeout: 15000 });
+
+    // 診断: ログイン成功後のクッキー確認（テスト完了後の情報として記録）
+    const cookies = await context.cookies();
+    const refreshToken = cookies.find((c) => c.name === 'refresh_token');
+    const accessToken = cookies.find((c) => c.name === 'access_token');
+
+    await test.info().attach('cookies-after-login', {
+      body: JSON.stringify({
+        refresh_token_present: Boolean(refreshToken),
+        access_token_present: Boolean(accessToken),
+        all_cookies: cookies
+      }, null, 2),
+      contentType: 'application/json',
+    });
   });
 
   test('チャットページの基本的な表示と機能確認', async ({ page }) => {

@@ -68,14 +68,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   upsertRoom: (room) =>
     set((state) => {
+      // 既存ルームの検索（IDベースで判定）
       const existingIndex = state.rooms.findIndex((r) => r.id === room.id);
+      // 新規追加 or 既存更新の分岐処理
       const updateRooms = existingIndex === -1
-        ? [...state.rooms, room]  // 新規追加
-        : state.rooms.map((r, i) => i === existingIndex ? { ...r, ...room } : r); // 既存を更新
+        ? [...state.rooms, room]  // 新規追加: 配列末尾に追加
+        : state.rooms.map((r, i) => i === existingIndex ? { ...r, ...room } : r); // 既存更新: 該当インデックスのみ更新
 
       return {
         rooms: updateRooms,
-        currentRoomId: room.id,   // 追加/更新したルームを現在のルームに設定
+        currentRoomId: room.id,   // 追加/更新したルームを現在のルームに設定（自動選択）
       }
     }),
 
@@ -88,8 +90,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   removeRoom: (roomId) =>
     set((state) => ({
+      // 指定されたルームを配列から除去
       rooms: state.rooms.filter(room => room.id !== roomId),
+      // 削除されたルームが現在選択中の場合は選択を解除
       currentRoomId: state.currentRoomId === roomId ? null : state.currentRoomId,
+      // 削除されたルームのメッセージ履歴も同時に削除（メモリリーク防止）
       messages: Object.fromEntries(
         Object.entries(state.messages).filter(([rid]) => rid !== roomId)
       )
@@ -131,18 +136,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
       let changed = false;
       const newMessages: Record<string, Message[]> = {};
 
+      // 全ルームを走査してメッセージを検索・更新
       for (const [roomId, roomMessages = []] of Object.entries(state.messages)) {
         const idx = roomMessages.findIndex((m) => m.id === messageId);
         if (idx !== -1) {
+          // メッセージが見つかった場合: 配列をコピーして該当メッセージを更新
           const next = roomMessages.slice();
           next[idx] = { ...roomMessages[idx], ...updates } as Message;
           newMessages[roomId] = next;
           changed = true;
         } else {
+          // メッセージが見つからない場合: 元の配列をそのまま保持
           newMessages[roomId] = roomMessages;
         }
       }
 
+      // 変更があった場合のみ状態を更新（パフォーマンス最適化）
       return changed ? { messages: newMessages } : {};
     }),
 
@@ -171,13 +180,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // 読み込み状態
   setLoading: (loading) => set({ isLoading: loading }),
   beginLoading: () => set((state) => ({
+    // 複数の非同期処理の同時実行に対応（カウンタベース）
     pendingCount: state.pendingCount + 1,
     isLoading: true
   })),
   endLoading: () => set((state) => {
+    // カウンタを減らし、0以下にならないよう制限
     const nextCount = Math.max(0, state.pendingCount - 1);
     return {
       pendingCount: nextCount,
+      // 全ての非同期処理が完了した場合のみローディング状態を解除
       isLoading: nextCount > 0
     };
   }),

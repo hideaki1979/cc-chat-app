@@ -718,8 +718,8 @@ refreshAccessToken: async () => {
 #### Week 2: 構造改善 + エラーハンドリング
 
 - [✔] TASK-003: 巨大関数分割
-- [ ] TASK-004: コンポーネント分割
-- [ ] TASK-015: Error Boundary実装
+- [✔] TASK-004: コンポーネント分割
+- [✔] TASK-015: Error Boundary実装
 - [ ] TASK-016: 構造化ログ実装
 
 #### Week 3-4: 総仕上げ + 最適化
