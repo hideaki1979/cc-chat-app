@@ -124,7 +124,7 @@ export class WebSocketClient {
   // チャットメッセージ送信
   sendChatMessage(content: string, roomId: string): boolean {
     const data: ChatMessageData = { content, room_id: roomId };
-    return this.send('chat_message', data);
+    return this.send('send_message', data);
   }
 
   // タイピング開始通知

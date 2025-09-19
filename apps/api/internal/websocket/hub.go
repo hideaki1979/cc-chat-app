@@ -92,12 +92,7 @@ func (h *Hub) registerClient(client *Client) {
 	log.Printf("Client %s connected to room %s", client.ID, client.RoomID)
 
 	// 接続確認メッセージを送信
-	select {
-	case client.Send <- []byte(`{"type":"connected","data":{"message":"WebSocket connected"}}`):
-	default:
-		close(client.Send)
-		delete(h.clients, client)
-	}
+	client.Send <- []byte(`{"type":"connected","data":{"message":"WebSocket connected"}}`)
 }
 
 // unregisterClient クライアントの登録を解除する

@@ -128,6 +128,9 @@ func (c *Client) writePump() {
 // handleMessage 受信したWebSocketメッセージを処理する
 func (c *Client) handleMessage(msg *Message) {
 	switch msg.Type {
+	case "send_message":
+		// 新仕様: send_message を正式採用
+		c.handleChatMessage((msg.Data))
 	case "chat_message":
 		c.handleChatMessage(msg.Data)
 	case "join_room":

@@ -44,7 +44,9 @@ export const MessageList: React.FC<MessageListProps> = ({
       .map(msg => ({
         id: msg.id,
         content: msg.content,
+        room_id: roomId,
         created_at: new Date(msg.timestamp).toISOString(),
+        updated_at: new Date(msg.timestamp).toISOString(),
         sender_id: msg.userId,
         user_id: msg.userId,
         sender_name: msg.userId,  // 暫定的にuseｒIDを設定

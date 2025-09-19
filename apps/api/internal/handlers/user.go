@@ -105,8 +105,12 @@ func (h *UserHandler) SearchUsers(c echo.Context) error {
 }
 
 func (h *UserHandler) GetUserBatch(c echo.Context) error {
+	// 認証チェック（JWT）
+	if _, err := h.getUserID(c); err != nil {
+		return h.handleError(c, err)
+	}
 	var req struct {
-		UserIDs []string `json:"user_ids" validate:"required,min=1, max=100"`
+		UserIDs []string `json:"user_ids" validate:"required,min=1,max=100"`
 	}
 
 	if err := middleware.ValidateRequest(c, &req); err != nil {
@@ -128,6 +132,10 @@ func (h *UserHandler) GetUserBatch(c echo.Context) error {
 			continue // 無効なUUIDはスキップ
 		}
 		userUUIDs = append(userUUIDs, userUUID)
+	}
+
+	if len(userUUIDs) == 0 {
+		return c.JSON(200, map[string]any{"users": []any{}})
 	}
 
 	users, err := client.User.Query().

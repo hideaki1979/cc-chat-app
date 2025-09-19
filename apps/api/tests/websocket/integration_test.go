@@ -111,7 +111,7 @@ func TestWebSocketIntegration_MultipleClients(t *testing.T) {
 
 	// クライアント1からチャットメッセージを送信
 	chatMsg := map[string]interface{}{
-		"type": "chat_message",
+		"type": "send_message",
 		"data": map[string]string{
 			"content": "Hello, World!",
 			"room_id": "test-room-1",
@@ -338,7 +338,7 @@ func TestWebSocketIntegration_RoomIsolation(t *testing.T) {
 
 	// クライアント1から room-1 にメッセージ送信
 	chatMsg := map[string]interface{}{
-		"type": "chat_message",
+		"type": "send_message",
 		"data": map[string]string{
 			"content": "Hello Room 1!",
 			"room_id": "room-1",

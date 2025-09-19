@@ -265,7 +265,7 @@ export const useWebSocketStore = create<WebSocketStore>()(
               type: 'text'
             };
 
-            state.addMessage(chatMessage);
+            state.upsertMessage(chatMessage);
             break;
           }
 
@@ -280,7 +280,7 @@ export const useWebSocketStore = create<WebSocketStore>()(
               timestamp: Date.now(),
               type: 'system'
             };
-            state.addMessage(systemMessage);
+            state.upsertMessage(systemMessage);
             break;
           }
 
@@ -295,7 +295,7 @@ export const useWebSocketStore = create<WebSocketStore>()(
               timestamp: Date.now(),
               type: 'system'
             };
-            state.addMessage(systemMessage);
+            state.upsertMessage(systemMessage);
             // 退出したユーザーのタイピング状態を削除
             state.setTypingUser(data.user_id, false);
             break;

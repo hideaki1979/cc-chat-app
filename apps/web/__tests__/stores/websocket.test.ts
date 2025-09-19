@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { useWebSocketStore, ChatMessage } from '../../app/stores/websocket';
-import { WebSocketClient, WebSocketMessage, WebSocketCallbacks } from '../../app/lib/websocket';
+import { WebSocketMessage, WebSocketCallbacks } from '../../app/lib/websocket';
 
 // WebSocketClientのモック型定義
 interface MockWebSocketClient {
@@ -250,7 +250,7 @@ describe('WebSocketStore', () => {
       consoleSpy.mockRestore();
     });
 
-    test('メッセージを追加できること', () => {
+    test('メッセージをupsertできること', () => {
       const { result } = renderHook(() => useWebSocketStore());
 
       const message: ChatMessage = {
@@ -263,10 +263,45 @@ describe('WebSocketStore', () => {
       };
 
       act(() => {
-        result.current.addMessage(message);
+        result.current.upsertMessage(message);
       });
 
       expect(result.current.messages).toContain(message);
+    });
+
+    test('同じIDのメッセージをupsertすると更新されること', () => {
+      const { result } = renderHook(() => useWebSocketStore());
+
+      const originalMessage: ChatMessage = {
+        id: 'msg123',
+        content: 'Hello',
+        userId: 'user123',
+        roomId: 'room123',
+        timestamp: Date.now(),
+        type: 'text'
+      };
+
+      const updateMessage: ChatMessage = {
+        ...originalMessage,
+        content: 'Updated Hello',
+        timestamp: Date.now() + 1000
+      };
+
+      // 最初のメッセージを追加
+      act(() => {
+        result.current.upsertMessage(originalMessage);
+      });
+
+      expect(result.current.messages).toHaveLength(1);
+      expect(result.current.messages[0]!.content).toBe('Hello');
+
+      // 同じIDで更新
+      act(() => {
+        result.current.upsertMessage(updateMessage);
+      });
+
+      expect(result.current.messages).toHaveLength(1);
+      expect(result.current.messages[0]!.content).toBe('Update Hello');
     });
 
     test('メッセージをクリアできること', () => {
