@@ -54,9 +54,13 @@ export const MessageList: React.FC<MessageListProps> = ({
   }, [wsMessages, roomId]);
 
   // 実際に使用するメッセージ（WebSocket > props > store の優先順位）
-  const messages = roomId && convertedWsMessages.length > 0
-    ? convertedWsMessages
-    : (propMessages ?? storeMessages);
+  const messages = useMemo(() => {
+    const allMessages = [...(propMessages ?? storeMessages), ...convertedWsMessages];
+    const uniqueMessages = Array.from(new Map(allMessages.map(msg => 
+      [msg.id, msg])).values());
+
+    return uniqueMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  }, [propMessages, storeMessages, convertedWsMessages]);
 
   // メッセージからユーザーIDを抽出
   const userIds = useMemo(() => {
