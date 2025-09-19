@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"sync"
-	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -25,12 +24,6 @@ type Hub struct {
 
 	// ルームごとのクライアント管理
 	rooms map[string]map[*Client]bool
-
-	// ユーザーIDごとのオンライン状態管理
-	onlineUsers map[string]*Client
-
-	// ユーザーIDごとのタイピング状態管理
-	typingUsers map[string]map[string]time.Time // roomID -> userID -> lastTypingTime
 
 	// クライアントからのメッセージ
 	broadcast chan *BroadcastMessage
@@ -57,13 +50,11 @@ type BroadcastMessage struct {
 // NewHub 新しいHubを作成する
 func NewHub() *Hub {
 	return &Hub{
-		clients:     make(map[*Client]bool),
-		rooms:       make(map[string]map[*Client]bool),
-		onlineUsers: make(map[string]*Client),
-		typingUsers: make(map[string]map[string]time.Time),
-		broadcast:   make(chan *BroadcastMessage),
-		register:    make(chan *Client),
-		unregister:  make(chan *Client),
+		clients:    make(map[*Client]bool),
+		rooms:      make(map[string]map[*Client]bool),
+		broadcast:  make(chan *BroadcastMessage, 1024),
+		register:   make(chan *Client),
+		unregister: make(chan *Client),
 	}
 }
 
@@ -132,8 +123,8 @@ func (h *Hub) unregisterClient(client *Client) {
 
 // broadcastMessage 適切なクライアントにメッセージをブロードキャストする
 func (h *Hub) broadcastMessage(message *BroadcastMessage) {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
 	var targetClients map[*Client]bool
 
@@ -166,8 +157,10 @@ func (h *Hub) broadcastMessage(message *BroadcastMessage) {
 		case client.Send <- messageBytes:
 		default:
 			// 送信できない場合はクライアントを削除
-			delete(h.clients, client)
-			close(client.Send)
+			if _, ok := h.clients[client]; ok {
+				delete(h.clients, client)
+				close(client.Send)
+			}
 			if client.RoomID != "" && h.rooms[client.RoomID] != nil {
 				delete(h.rooms[client.RoomID], client)
 			}
@@ -176,7 +169,7 @@ func (h *Hub) broadcastMessage(message *BroadcastMessage) {
 }
 
 // BroadcastToRoom 特定のルームにメッセージをブロードキャストする
-func (h *Hub) BroadcastToRoom(roomID string, messageType string, data interface{}, exclude *Client) {
+func (h *Hub) BroadcastToRoom(roomID string, messageType string, data any, exclude *Client) {
 	message := &BroadcastMessage{
 		Type:    messageType,
 		Data:    data,
@@ -184,11 +177,7 @@ func (h *Hub) BroadcastToRoom(roomID string, messageType string, data interface{
 		Exclude: exclude,
 	}
 
-	select {
-	case h.broadcast <- message:
-	default:
-		log.Printf("Broadcast channel is full, dropping message")
-	}
+	h.broadcast <- message
 }
 
 // BroadcastToAll 接続されている全クライアントにメッセージをブロードキャストする
@@ -198,11 +187,7 @@ func (h *Hub) BroadcastToAll(messageType string, data interface{}) {
 		Data: data,
 	}
 
-	select {
-	case h.broadcast <- message:
-	default:
-		log.Printf("Broadcast channel is full, dropping message")
-	}
+	h.broadcast <- message
 }
 
 // GetRoomClients ルーム内のクライアント数を返す

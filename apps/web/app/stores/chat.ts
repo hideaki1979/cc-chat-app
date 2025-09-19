@@ -1,5 +1,3 @@
-'use client';
-
 import { create } from 'zustand';
 import type { Message, ChatRoom } from '../types/chat';
 import { getChatRooms } from '../lib/api';
@@ -30,6 +28,7 @@ interface ChatState {
   // メッセージ操作
   setMessages: (roomId: string, messages: Message[]) => void;
   addMessage: (message: Message) => void;
+  upsertMessage: (message: Message) => void;
   updateMessage: (messageId: string, updates: Partial<Message>) => void;
   removeMessage: (messageId: string) => void;
 
@@ -77,7 +76,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       return {
         rooms: updateRooms,
-        currentRoomId: room.id,   // 追加/更新したルームを現在のルームに設定（自動選択）
+        // 未選択かつ新規作成の場合のみ自動選択
+        currentRoomId: state.currentRoomId ?? (existingIndex === -1 ? room.id : state.currentRoomId),
       }
     }),
 
@@ -127,6 +127,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
         messages: {
           ...state.messages,
           [message.room_id]: [...roomMessages, message],
+        },
+      };
+    }),
+
+  upsertMessage: (message: Message) =>
+    set((state) => {
+      const roomMessages = state.messages[message.room_id] || [];
+      const existingIndex = roomMessages.findIndex(m => m.id === message.id);
+
+      const updatedMessages = existingIndex >= 0
+        ? roomMessages.map((m, i) => i === existingIndex ? message : m)
+        : [...roomMessages, message];
+
+      return {
+        messages: {
+          ...state.messages,
+          [message.room_id]: updatedMessages,
         },
       };
     }),

@@ -54,10 +54,10 @@ describe('useWebSocket', () => {
   });
 
   describe('初期化と認証管理', () => {
-    test('ログイン済みでトークンがある場合は自動接続すること', () => {
+    test('ログイン済みの場合は自動接続すること', () => {
       renderHook(() => useWebSocket());
 
-      expect(mockWebSocketStore.connect).toHaveBeenCalledWith('test-token');
+      expect(mockWebSocketStore.connect).toHaveBeenCalledWith();
     });
 
     test('ログアウト時は自動切断すること', () => {
@@ -86,10 +86,10 @@ describe('useWebSocket', () => {
       expect(mockWebSocketStore.disconnect).toHaveBeenCalled();
     });
 
-    test('トークンがない場合は接続しないこと', () => {
+    test('未ログインの場合は接続しないこと', () => {
       mockUseAuthStore.mockReturnValue({
         accessToken: null,
-        user: mockUser,
+        user: null,
       });
 
       renderHook(() => useWebSocket());
@@ -121,7 +121,7 @@ describe('useWebSocket', () => {
       expect(mockWebSocketStore.connect).toHaveBeenCalledWith('test-token');
     });
 
-    test('トークンがない場合は手動接続できないこと', () => {
+    test('未ログインの場合は手動接続できないこと', () => {
       mockUseAuthStore.mockReturnValue({
         accessToken: null,
         user: null,

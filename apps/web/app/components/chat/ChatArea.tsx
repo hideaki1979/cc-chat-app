@@ -6,6 +6,7 @@ import { MessageInput } from './MessageInput';
 import { useChat } from '../../hooks/useChat';
 import { getUserFriendlyMessage, normalizeError } from '../../lib/services/errorService';
 import type { Message } from '../../types/chat';
+import { useWebSocketStore } from '../../stores/websocket';
 
 // MessageListを動的インポート化（メッセージ表示は重いため、必要時のみロード）
 const MessageList = dynamic(() =>
@@ -51,6 +52,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 }) => {
   const [isSending, setIsSending] = useState(false);
   const { fetchMessages, sendMessage: sendMessageViaHook, isLoading, currentRoomMessages } = useChat();
+  const { startTyping, stopTyping, joinRoom } = useWebSocketStore()
 
   // roomIdが変更された時にメッセージを取得
   useEffect(() => {
@@ -60,6 +62,18 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       });
     }
   }, [roomId, fetchMessages]);
+
+  useEffect(() => {
+    if (roomId) joinRoom(roomId);
+  }, [roomId, joinRoom]);
+
+  const handleTypingStartWS = useCallback(() => {
+    if (roomId) startTyping(roomId);
+  }, [roomId, startTyping]);
+
+  const handleTypingStopWS = useCallback(() => {
+    if (roomId) stopTyping(roomId);
+  }, [roomId, stopTyping]);
 
   // 実際に使用するメッセージとローディング状態
   const actualMessages = onSendMessage ? (propMessages ?? currentRoomMessages) : currentRoomMessages;
@@ -135,6 +149,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 ? `${roomName}にメッセージを送信...`
                 : 'メッセージを入力してください...'
           }
+          onTypingStart={handleTypingStartWS}
+          onTypingStop={handleTypingStopWS}
         />
       </div>
 

@@ -5,6 +5,7 @@ import type { Message } from '../../types/chat';
 import { useAutoScroll } from '../layout/hooks/useAutoScroll';
 import { useChatStore } from '../../stores/chat';
 import { useWebSocket } from '../../hooks/useWebSocket';
+import { useUserResolver } from '../../hooks/useUserResolver';
 
 interface MessageListProps {
   messages?: Message[]; // オプショナルにして、undefinedの場合はstoreから取得
@@ -34,7 +35,6 @@ export const MessageList: React.FC<MessageListProps> = ({
   const storeMessages = useChatStore((s) =>
     s.currentRoomId ? (s.messages[s.currentRoomId] ?? EMPTY_MESSAGES) : EMPTY_MESSAGES
   );
-
   // WebSocketメッセージを従来のMessage型に変換
   const convertedWsMessages = useMemo(() => {
     if (!roomId) return EMPTY_MESSAGES;
@@ -47,7 +47,7 @@ export const MessageList: React.FC<MessageListProps> = ({
         created_at: new Date(msg.timestamp).toISOString(),
         sender_id: msg.userId,
         user_id: msg.userId,
-        sender_name: msg.userId, // 実際の実装では適切なユーザー名を取得
+        sender_name: msg.userId,  // 暫定的にuseｒIDを設定
         message_type: msg.type === 'system' ? 'system' : 'text',
         is_edited: false,
       } as Message));
@@ -57,6 +57,15 @@ export const MessageList: React.FC<MessageListProps> = ({
   const messages = roomId && convertedWsMessages.length > 0
     ? convertedWsMessages
     : (propMessages ?? storeMessages);
+
+  // メッセージからユーザーIDを抽出
+  const userIds = useMemo(() => {
+    return messages.map(msg => msg.sender?.id || msg.sender_id || msg.user_id).filter(Boolean);
+  }, [messages]);
+
+  // ユーザー名解決フック
+  const { getUserName } = useUserResolver(userIds);
+
 
   // ルーム参加（WebSocket）
   useEffect(() => {
@@ -111,6 +120,11 @@ export const MessageList: React.FC<MessageListProps> = ({
     const showSender = !prevMessage || getSenderId(prevMessage) !== getSenderId(message);
     const isSystemMessage = message.message_type === 'system';
 
+    // ユーザー名の解決
+    const senderName = message.sender?.name ||
+      message.sender_name ||
+      getUserName(getSenderId(message));
+
     if (isSystemMessage) {
       return (
         <div key={message.id} className="flex justify-center my-4">
@@ -130,7 +144,7 @@ export const MessageList: React.FC<MessageListProps> = ({
           {/* アバター（自分のメッセージでない場合のみ表示） */}
           {!isOwn && showSender && (
             <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-              {(message.sender?.name || message.sender_name || '?').charAt(0).toUpperCase()}
+              {senderName.charAt(0).toUpperCase()}
             </div>
           )}
           {!isOwn && !showSender && <div className="w-8 h-8" />}
@@ -139,7 +153,7 @@ export const MessageList: React.FC<MessageListProps> = ({
           <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
             {/* 送信者名（自分のメッセージでない場合のみ表示） */}
             {!isOwn && showSender && (
-              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 px-2">{message.sender?.name || message.sender_name || '不明なユーザー'}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 px-2">{senderName}</div>
             )}
 
             {/* メッセージバブル */}

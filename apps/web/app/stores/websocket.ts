@@ -16,7 +16,7 @@ export interface WebSocketStore {
   typingUsers: Set<string>;
 
   // アクション
-  connect: (token: string) => void;
+  connect: () => void;
   disconnect: () => void;
   joinRoom: (roomId: string) => void;
   leaveRoom: () => void;
@@ -24,6 +24,7 @@ export interface WebSocketStore {
   startTyping: (roomId: string) => void;
   stopTyping: (roomId: string) => void;
   addMessage: (message: ChatMessage) => void;
+  upsertMessage: (message: ChatMessage) => void;
   setTypingUser: (userId: string, isTyping: boolean) => void;
   clearMessages: () => void;
   handleWebSocketMessage: (message: WebSocketMessage) => void;
@@ -52,7 +53,7 @@ export const useWebSocketStore = create<WebSocketStore>()(
       typingUsers: new Set(),
 
       // WebSocket接続
-      connect: (token: string) => {
+      connect: () => {
         const { client: existingClient } = get();
 
         // 既存の接続があれば切断
@@ -62,7 +63,7 @@ export const useWebSocketStore = create<WebSocketStore>()(
 
         set({ isConnecting: true, connectionError: null });
 
-        const client = createWebSocketClient(token);
+        const client = createWebSocketClient();
 
         // コールバック設定
         client.setCallbacks({
@@ -208,6 +209,18 @@ export const useWebSocketStore = create<WebSocketStore>()(
         set((state) => ({
           messages: [...state.messages, message]
         }));
+      },
+
+      // メッセージのUpsert
+      upsertMessage: (message: ChatMessage) => {
+        set((state) => {
+          const existingIndex = state.messages.findIndex(m => m.id === message.id);
+
+          const updateMessages = existingIndex >= 0
+            ? state.messages.map((m, i) => i === existingIndex ? message : m)
+            : [...state.messages, message];
+          return { messages: updateMessages };
+        })
       },
 
       // タイピング状態設定

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"github.com/google/uuid"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/user"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/middleware"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
@@ -101,4 +102,56 @@ func (h *UserHandler) SearchUsers(c echo.Context) error {
 	}
 
 	return c.JSON(200, response)
+}
+
+func (h *UserHandler) GetUserBatch(c echo.Context) error {
+	var req struct {
+		UserIDs []string `json:"user_ids" validate:"required,min=1, max=100"`
+	}
+
+	if err := middleware.ValidateRequest(c, &req); err != nil {
+		return h.handleError(c, err)
+	}
+
+	client, err := h.getDBClient(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	ctx := c.Request().Context()
+
+	// UUIDに変換
+	var userUUIDs []uuid.UUID
+	for _, id := range req.UserIDs {
+		userUUID, err := uuid.Parse(id)
+		if err != nil {
+			continue // 無効なUUIDはスキップ
+		}
+		userUUIDs = append(userUUIDs, userUUID)
+	}
+
+	users, err := client.User.Query().
+		Where(user.IDIn(userUUIDs...)).
+		Select(user.FieldID, user.FieldName, user.FieldProfileImageURL).
+		All(ctx)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	// レスポンス形式に変換
+	var response []map[string]interface{}
+	for _, u := range users {
+		userData := map[string]any{
+			"id":   u.ID.String(),
+			"name": u.Name,
+		}
+		if u.ProfileImageURL != nil {
+			userData["profile_image_url"] = *u.ProfileImageURL
+		}
+		response = append(response, userData)
+	}
+
+	return c.JSON(200, map[string]any{
+		"users": response,
+	})
 }

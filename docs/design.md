@@ -242,6 +242,15 @@ WS /ws?token=<jwt_token>
 }
 ```
 
+#### ハートビート（接続維持）
+
+- ハートビートはWebSocketの制御フレーム（Ping/Pong）で行います。
+  - サーバは `pingPeriod = (pongWait * 9) / 10` の間隔で Ping を送信します（現在 `pongWait=60s` のため約54秒）。
+  - ブラウザは仕様により自動で Pong を返答します。クライアントアプリ層での `ping`/`pong` メッセージは使用しません。
+  - サーバ側では `readPump` の `SetPongHandler` により `pongWait` を延長し、`writePump` が定期的に `websocket.PingMessage` を送信します。
+
+注意: アプリ層の `{"type":"ping"}`/`{"type":"pong"}` はプロトコルから削除しました。
+
 ## 4. フロントエンド設計
 
 ### 4.1 ページ構成

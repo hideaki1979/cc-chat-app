@@ -59,9 +59,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     return () => {
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
       }
+      // アンマウント時にタイピング停止を送信（idempotent）
+      handleTypingStop()
     };
-  }, []);
+  }, [handleTypingStop]);
 
   // テキストエリアの高さを内容に応じて自動調整する関数
   const adjustTextareaHeight = useCallback((textarea: HTMLTextAreaElement) => {

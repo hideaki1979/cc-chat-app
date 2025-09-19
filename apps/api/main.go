@@ -193,8 +193,10 @@ func main() {
 	protectedGroup.PUT("/messages/:id", messageHandler.UpdateMessage)
 	protectedGroup.DELETE("/messages/:id", messageHandler.DeleteMessage)
 
-	// WebSocket関連
-	protectedGroup.GET("/ws", wsHandler.HandleWebSocket)
+	// WebSocket関連（CSRFは適用しない）
+	wsGroup := e.Group("/api")
+	wsGroup.Use(middleware.JWTAuth())
+	wsGroup.GET("/ws", wsHandler.HandleWebSocket)
 
 	// グレースフルシャットダウンの設定
 	go func() {

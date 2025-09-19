@@ -41,11 +41,15 @@ test.describe('チャット機能統合ワークフロー', () => {
     const refreshToken = cookies.find((c) => c.name === 'refresh_token');
     const accessToken = cookies.find((c) => c.name === 'access_token');
 
+    // 値は記憶しない（name/domain/json）
+    const safeCookies = cookies.map(({name, domain, path, expires, httpOnly, secure, sameSite}) => ({
+      name, domain, path, expires, httpOnly, secure, sameSite
+    }));
     await test.info().attach('cookies-after-login', {
       body: JSON.stringify({
         refresh_token_present: Boolean(refreshToken),
         access_token_present: Boolean(accessToken),
-        all_cookies: cookies
+        cookies_meta:safeCookies,
       }, null, 2),
       contentType: 'application/json',
     });

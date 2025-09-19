@@ -291,29 +291,6 @@ describe('WebSocketClient', () => {
     });
   });
 
-  describe('ハートビート', () => {
-    test('定期的にpingメッセージを送信すること', (done) => {
-      jest.useFakeTimers();
-
-      const sendSpy = jest.spyOn(client, 'send');
-
-      client.connect();
-
-      setTimeout(() => {
-        // ハートビート間隔を進める（30秒）
-        jest.advanceTimersByTime(30000);
-
-        expect(sendSpy).toHaveBeenCalledWith('ping', {});
-
-        jest.useRealTimers();
-        sendSpy.mockRestore();
-        done();
-      }, 50);
-
-      jest.advanceTimersByTime(50);
-    });
-  });
-
   describe('接続状態取得', () => {
     test('接続前の状態を取得できること', () => {
       expect(client.getConnectionState()).toBe(WebSocket.CLOSED);
@@ -334,8 +311,7 @@ describe('WebSocketClient', () => {
 
 describe('createWebSocketClient', () => {
   test('正しいURLでWebSocketClientを作成すること', () => {
-    const token = 'test-token';
-    const client = createWebSocketClient(token);
+    const client = createWebSocketClient();
 
     expect(client).toBeInstanceOf(WebSocketClient);
   });
@@ -344,8 +320,7 @@ describe('createWebSocketClient', () => {
     const originalEnv = process.env.NEXT_PUBLIC_API_URL;
     process.env.NEXT_PUBLIC_API_URL = 'http://custom-api.com/api/backend';
 
-    const token = 'test-token';
-    const client = createWebSocketClient(token);
+    const client = createWebSocketClient();
 
     expect(client).toBeInstanceOf(WebSocketClient);
 

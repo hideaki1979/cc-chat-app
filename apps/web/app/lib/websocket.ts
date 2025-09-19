@@ -23,7 +23,6 @@ export interface TypingData {
 
 export interface WebSocketConfig {
   url: string;
-  token?: string;
   reconnectInterval?: number;
   maxReconnectAttempts?: number;
 }
@@ -39,13 +38,11 @@ export interface WebSocketCallbacks {
 
 export class WebSocketClient {
   private ws: WebSocket | null = null;
-  private config: Required<Omit<WebSocketConfig, 'token'>> & Pick<WebSocketConfig, 'token'>;
+  private config: Required<WebSocketConfig>;
   private callbacks: WebSocketCallbacks = {};
   private reconnectAttempts = 0;
-  private reconnectTimer: NodeJS.Timeout | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private isManualClose = false;
-  private heartbeatTimer: NodeJS.Timeout | null = null;
-  private readonly heartbeatInterval = 30000; // 30秒
 
   constructor(config: WebSocketConfig) {
     this.config = {
@@ -62,7 +59,11 @@ export class WebSocketClient {
 
   // WebSocket接続
   connect(): void {
-    if (this.ws?.readyState === WebSocket.OPEN) {
+    if (typeof window === 'undefined' || typeof WebSocket === 'undefined') {
+      console.warn('WebSocket未対応環境のため接続をスキップします');
+      return;
+    }
+    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
       console.log('WebSocket already connected');
       return;
     }
@@ -138,7 +139,8 @@ export class WebSocketClient {
 
   // 接続状態取得
   getConnectionState(): number {
-    return this.ws?.readyState ?? WebSocket.CLOSED;
+    const CLOSED = typeof WebSocket !== 'undefined' ? WebSocket.CLOSED : 3;
+    return this.ws?.readyState ?? CLOSED;
   }
 
   // 接続中かどうか
@@ -154,7 +156,6 @@ export class WebSocketClient {
       console.log('WebSocket接続成功');
       this.reconnectAttempts = 0;
       this.isManualClose = false;
-      this.startHeartbeat();
       this.callbacks.onOpen?.(event);
     };
 
@@ -188,11 +189,6 @@ export class WebSocketClient {
   private handleMessage(message: WebSocketMessage): void {
     console.log('WebSocketメッセージ受信:', message);
 
-    // ハートビート応答
-    if (message.type === 'pong') {
-      return;
-    }
-
     // コールバック実行
     this.callbacks.onMessage?.(message);
   }
@@ -214,36 +210,21 @@ export class WebSocketClient {
     }, this.config.reconnectInterval);
   }
 
-  // ハートビート開始
-  private startHeartbeat(): void {
-    this.heartbeatTimer = setInterval(() => {
-      if (this.isConnected()) {
-        this.send('ping', {});
-      }
-    }, this.heartbeatInterval);
-  }
-
   // タイマー削除
   private clearTimers(): void {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
-    }
   }
 }
 
 // WebSocketインスタンス作成ファクトリ
-export function createWebSocketClient(token: string): WebSocketClient {
+export function createWebSocketClient(): WebSocketClient {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003/api/backend';
-  const wsUrl = `${baseUrl}/ws?token=${encodeURIComponent(token)}`;
+  const wsUrl = `${baseUrl}/ws`;
 
   return new WebSocketClient({
     url: wsUrl,
-    token,
   });
 }

@@ -42,9 +42,16 @@ export async function proxyRequest(request: Request, backendPath: string): Promi
     }
 
     // リクエストボディの処理（データ変更系のHTTPメソッドのみ）
-    let requestBody: string | undefined;
+    let requestBody: BodyInit | undefined;
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
-        requestBody = await request.text();
+        const ct = (incomingContentType || '').toLowerCase();
+        if (ct.includes('application/json') || ct.startsWith('text/') || ct.includes('application/x-www-form-urlencoded')) {
+            requestBody = await request.text();
+        } else {
+            // バイナリ/マルチパート等は生のバイト列で転送
+            const buf = await request.arrayBuffer()
+            requestBody = Buffer.from(buf)
+        }
     }
 
     // バックエンドへのリクエスト設定を構築

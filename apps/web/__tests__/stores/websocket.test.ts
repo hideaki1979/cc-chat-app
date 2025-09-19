@@ -31,7 +31,7 @@ const mockWebSocketClient: MockWebSocketClient = {
 // createWebSocketClientをモック
 jest.mock('../../app/lib/websocket', () => ({
   ...jest.requireActual('../../app/lib/websocket'),
-  createWebSocketClient: jest.fn(() => mockWebSocketClient as WebSocketClient),
+  createWebSocketClient: jest.fn(() => mockWebSocketClient as unknown),
 }));
 
 describe('WebSocketStore', () => {
@@ -72,7 +72,7 @@ describe('WebSocketStore', () => {
       const { result } = renderHook(() => useWebSocketStore());
 
       act(() => {
-        result.current.connect('test-token');
+        result.current.connect();
       });
 
       expect(result.current.isConnecting).toBe(true);
@@ -87,12 +87,12 @@ describe('WebSocketStore', () => {
 
       // 最初の接続
       act(() => {
-        result.current.connect('test-token');
+        result.current.connect();
       });
 
       // 2回目の接続
       act(() => {
-        result.current.connect('new-token');
+        result.current.connect();
       });
 
       expect(mockWebSocketClient.disconnect).toHaveBeenCalled();
@@ -103,7 +103,7 @@ describe('WebSocketStore', () => {
 
       // 先に接続
       act(() => {
-        result.current.connect('test-token');
+        result.current.connect();
       });
 
       // 切断
@@ -125,7 +125,7 @@ describe('WebSocketStore', () => {
     beforeEach(() => {
       const { result } = renderHook(() => useWebSocketStore());
       act(() => {
-        result.current.connect('test-token');
+        result.current.connect();
       });
       mockWebSocketClient.isConnected.mockReturnValue(true);
       mockWebSocketClient.joinRoom.mockReturnValue(true);
@@ -219,7 +219,7 @@ describe('WebSocketStore', () => {
     beforeEach(() => {
       const { result } = renderHook(() => useWebSocketStore());
       act(() => {
-        result.current.connect('test-token');
+        result.current.connect();
       });
       mockWebSocketClient.isConnected.mockReturnValue(true);
     });
@@ -299,7 +299,7 @@ describe('WebSocketStore', () => {
     beforeEach(() => {
       const { result } = renderHook(() => useWebSocketStore());
       act(() => {
-        result.current.connect('test-token');
+        result.current.connect();
       });
       mockWebSocketClient.isConnected.mockReturnValue(true);
     });
@@ -346,7 +346,7 @@ describe('WebSocketStore', () => {
       const { result } = renderHook(() => useWebSocketStore());
 
       act(() => {
-        result.current.connect('test-token');
+        result.current.connect();
       });
 
       // setCallbacksに渡されたコールバックを取得
@@ -368,7 +368,7 @@ describe('WebSocketStore', () => {
       const { result } = renderHook(() => useWebSocketStore());
 
       act(() => {
-        result.current.connect('test-token');
+        result.current.connect();
       });
 
       const setCallbacksCall = mockWebSocketClient.setCallbacks.mock.calls[0];
@@ -388,7 +388,7 @@ describe('WebSocketStore', () => {
       const { result } = renderHook(() => useWebSocketStore());
 
       act(() => {
-        result.current.connect('test-token');
+        result.current.connect();
       });
 
       const setCallbacksCall = mockWebSocketClient.setCallbacks.mock.calls[0];
@@ -408,7 +408,7 @@ describe('WebSocketStore', () => {
       const { result } = renderHook(() => useWebSocketStore());
 
       act(() => {
-        result.current.connect('test-token');
+        result.current.connect();
       });
 
       const setCallbacksCall = mockWebSocketClient.setCallbacks.mock.calls[0];
@@ -427,7 +427,7 @@ describe('WebSocketStore', () => {
       const { result } = renderHook(() => useWebSocketStore());
 
       act(() => {
-        result.current.connect('test-token');
+        result.current.connect();
       });
 
       const setCallbacksCall = mockWebSocketClient.setCallbacks.mock.calls[0];
@@ -446,7 +446,7 @@ describe('WebSocketStore', () => {
       const { result } = renderHook(() => useWebSocketStore());
 
       act(() => {
-        result.current.connect('test-token');
+        result.current.connect();
       });
 
       const setCallbacksCall = mockWebSocketClient.setCallbacks.mock.calls[0];

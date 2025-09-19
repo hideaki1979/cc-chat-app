@@ -24,19 +24,19 @@ export function useWebSocket() {
     clearMessages,
   } = useWebSocketStore();
 
-  const { accessToken, user } = useAuthStore();
+  const { user } = useAuthStore();
   const isLoggedIn = !!user;
 
-  // 認証状態とアクセストークンに基づいてWebSocket接続を管理
+  // 認証状態に基づいてWebSocket接続を管理
   useEffect(() => {
-    if (isLoggedIn && accessToken && !client) {
-      // ログイン済みでトークンがあり、まだ接続していない場合は接続
-      connect(accessToken);
+    if (isLoggedIn && !client) {
+      // ログイン済みでまだ接続していない場合は接続
+      connect();
     } else if (!isLoggedIn && client) {
       // ログアウトした場合は切断
       disconnect();
     }
-  }, [isLoggedIn, accessToken, client, connect, disconnect]);
+  }, [isLoggedIn, client, connect, disconnect]);
 
   // コンポーネントのアンマウント時に切断
   useEffect(() => {
@@ -49,10 +49,10 @@ export function useWebSocket() {
 
   // WebSocket接続を手動で開始
   const handleConnect = useCallback(() => {
-    if (accessToken) {
-      connect(accessToken);
+    if (isLoggedIn) {
+      connect();
     }
-  }, [accessToken, connect]);
+  }, [isLoggedIn, connect]);
 
   // WebSocket接続を手動で切断
   const handleDisconnect = useCallback(() => {

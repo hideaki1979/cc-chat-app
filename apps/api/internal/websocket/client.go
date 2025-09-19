@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 )
@@ -28,8 +31,14 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		// 開発環境用の設定（本番環境では適切なオリジンチェックが必要）
-		return true
+		allowed := strings.Split(os.Getenv("FRONTEND_URL"), ",")
+		origin := r.Header.Get("Origin")
+		for _, a := range allowed {
+			if strings.TrimSpace(a) != "" && strings.EqualFold(strings.TrimSpace(a), origin) {
+				return true
+			}
+		}
+		return false
 	},
 }
 
@@ -103,13 +112,6 @@ func (c *Client) writePump() {
 			}
 			w.Write(message)
 
-			// キューに入っているチャットメッセージを現在のWebSocketメッセージに追加
-			n := len(c.Send)
-			for i := 0; i < n; i++ {
-				w.Write([]byte{'\n'})
-				w.Write(<-c.Send)
-			}
-
 			if err := w.Close(); err != nil {
 				return
 			}
@@ -149,16 +151,29 @@ func (c *Client) handleChatMessage(data json.RawMessage) {
 		return
 	}
 
+	// ルーム検証：参加中ルームのみ許可
+	if c.RoomID == "" {
+		log.Printf("未参加ルームへの送信拒否: user=%s", c.ID)
+		return
+	}
+	if chatMsg.RoomID != "" && chatMsg.RoomID != c.RoomID {
+		log.Printf("不正なroom_id指定: user=%s payload=%s current=%s", c.ID, chatMsg.RoomID, c.RoomID)
+		return
+	}
+
+	// 送信先は必ず現在のルーム
+	roomID := c.RoomID
+
 	// チャットメッセージをルーム内の他のクライアントにブロードキャスト
 	messageData := map[string]interface{}{
 		"content":    chatMsg.Content,
-		"room_id":    chatMsg.RoomID,
+		"room_id":    roomID,
 		"user_id":    c.ID,
 		"timestamp":  time.Now().Unix(),
 		"message_id": generateMessageID(), // 実際の実装では適切なID生成が必要
 	}
 
-	c.Hub.BroadcastToRoom(chatMsg.RoomID, "new_message", messageData, c)
+	c.Hub.BroadcastToRoom(roomID, "new_message", messageData, c)
 }
 
 // handleJoinRoom ルーム参加リクエストを処理する
@@ -179,10 +194,15 @@ func (c *Client) handleJoinRoom(data json.RawMessage) {
 		"message": "ルームに正常に参加しました",
 	}
 
-	responseBytes, _ := json.Marshal(map[string]interface{}{
+	responseBytes, err := json.Marshal(map[string]interface{}{
 		"type": "room_joined",
 		"data": response,
 	})
+
+	if err != nil {
+		log.Printf("ルーム参加確認メッセージのマーシャルエラー： %v", err)
+		return
+	}
 
 	select {
 	case c.Send <- responseBytes:
@@ -210,10 +230,14 @@ func (c *Client) handleLeaveRoom() {
 		"message": "ルームから正常に退出しました",
 	}
 
-	responseBytes, _ := json.Marshal(map[string]interface{}{
+	responseBytes, err := json.Marshal(map[string]interface{}{
 		"type": "room_left",
 		"data": response,
 	})
+
+	if err != nil {
+		log.Printf("ルーム退出確認メッセージのマーシャルエラー：%v", err)
+	}
 
 	select {
 	case c.Send <- responseBytes:
@@ -239,10 +263,10 @@ func (c *Client) handleTypingStart(data json.RawMessage) {
 		return
 	}
 
-	roomID := roomData["room_id"]
-	if roomID == "" {
-		roomID = c.RoomID
+	if c.RoomID == "" {
+		return
 	}
+	roomID := c.RoomID
 
 	typingData := map[string]interface{}{
 		"user_id": c.ID,
@@ -260,10 +284,10 @@ func (c *Client) handleTypingStop(data json.RawMessage) {
 		return
 	}
 
-	roomID := roomData["room_id"]
-	if roomID == "" {
-		roomID = c.RoomID
+	if c.RoomID == "" {
+		return
 	}
+	roomID := c.RoomID
 
 	typingData := map[string]interface{}{
 		"user_id": c.ID,
@@ -276,7 +300,7 @@ func (c *Client) handleTypingStop(data json.RawMessage) {
 // generateMessageID 一意のメッセージIDを生成する（プレースホルダー実装）
 func generateMessageID() string {
 	// 実際の実装では、UUIDやタイムスタンプベースのIDを生成
-	return time.Now().Format("20060102150405") + "_" + string(rune(time.Now().Nanosecond()%1000))
+	return uuid.New().String()
 }
 
 // ServeWS ピアからのWebSocketリクエストを処理する

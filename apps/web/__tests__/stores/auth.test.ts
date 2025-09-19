@@ -332,7 +332,7 @@ describe('Auth Store', () => {
       const { result } = renderHook(() => useAuthStore())
 
       await act(async () => {
-        result.current.logout()
+        await result.current.logout()
       })
 
       expect(result.current.user).toBeNull()

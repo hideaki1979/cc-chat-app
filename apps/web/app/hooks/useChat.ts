@@ -22,7 +22,7 @@ export const useChat = () => {
     setRooms,
     setCurrentRoom,
     setMessages,
-    addMessage,
+    upsertMessage,
     beginLoading,
     endLoading,
   } = useChatStore();
@@ -74,11 +74,11 @@ export const useChat = () => {
     // バックエンドへメッセージ送信
     const message = await sendChatMessage(roomId, content);
     if (message) {
-      // 送信成功時は即座にローカル状態に追加（楽観的更新）
-      addMessage(message);
+      // ID重複を避けるupsert更新（WebSocket配信との重複回避）
+      upsertMessage(message);
     }
     return message;
-  }, [addMessage]);
+  }, [upsertMessage]);
 
   // ルーム選択
   const selectRoom = useCallback(async (roomId: string): Promise<void> => {
