@@ -11,6 +11,7 @@ import (
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/message"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/roommember"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/websocket"
 	"github.com/labstack/echo/v4"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/constants"
 )
@@ -18,11 +19,15 @@ import (
 // MessageHandler メッセージ関連のハンドラー
 type MessageHandler struct {
 	client *ent.Client
+	hub    *websocket.Hub
 }
 
 // NewMessageHandler MessageHandlerのコンストラクタ
-func NewMessageHandler(client *ent.Client) *MessageHandler {
-	return &MessageHandler{client: client}
+func NewMessageHandler(client *ent.Client, hub *websocket.Hub) *MessageHandler {
+	return &MessageHandler{
+		client: client,
+		hub:    hub,
+	}
 }
 
 // SendMessage メッセージ送信
@@ -90,6 +95,19 @@ func (h *MessageHandler) SendMessage(c echo.Context) error {
 		Only(ctx)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get sent message")
+	}
+
+	// WebSocketでリアルタイムブロードキャスト
+	if h.hub != nil {
+		broadcastData := map[string]any{
+			"content":    messageWithSender.Content,
+			"room_id":    roomID,
+			"user_id":    messageWithSender.Edges.Sender.ID.String(),
+			"message_id": messageWithSender.ID.String(),
+			"timestamp":  messageWithSender.CreatedAt.Unix(),
+			"file_url":   messageWithSender.FileURL,
+		}
+		h.hub.BroadcastToRoom(roomID, "new_message", broadcastData, nil)
 	}
 
 	response := models.ConvertToMessageResponse(messageWithSender)
@@ -173,9 +191,9 @@ func (h *MessageHandler) GetMessages(c echo.Context) error {
 		responses[i] = models.ConvertToMessageResponse(msg)
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
+	return c.JSON(http.StatusOK, map[string]any{
 		"messages": responses,
-		"pagination": map[string]interface{}{
+		"pagination": map[string]any{
 			"page":      page,
 			"page_size": pageSize,
 			"total":     len(responses),

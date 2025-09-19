@@ -12,6 +12,14 @@ describe('Auth Store', () => {
       // Reset fetch mock
       ; (global.fetch as jest.Mock).mockClear()
 
+      try {
+        // CSRFトークンをテスト環境に設定（POST時のfetchWithCSRFで必要）
+        // JSDOMのdocument.cookieに直接セットして、CSRF取得の追加fetchを回避
+        document.cookie = 'csrf_token=test_csrf_token';
+      } catch {
+         // jsdom未提供環境などではcookie設定に失敗しても無視
+      }
+
     // Reset store state
     useAuthStore.setState({
       user: null,
@@ -324,7 +332,7 @@ describe('Auth Store', () => {
       const { result } = renderHook(() => useAuthStore())
 
       await act(async () => {
-        result.current.logout()
+        await result.current.logout()
       })
 
       expect(result.current.user).toBeNull()

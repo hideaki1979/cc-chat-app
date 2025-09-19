@@ -99,5 +99,10 @@ export const getChatRoom = async (roomId: string): Promise<ChatRoomResponse> => 
   return data;
 };
 
+export const fetchUsersBatch = async (userIds: string[]) => {
+  return http.postJSON<{ users: Array<{ id: string, name: string, profile_image_url?: string }> }>(`/api/backend/users/batch`, {
+    user_ids: userIds
+  });
+};
 
 export default api;

@@ -22,7 +22,7 @@ export const useChat = () => {
     setRooms,
     setCurrentRoom,
     setMessages,
-    addMessage,
+    upsertMessage,
     beginLoading,
     endLoading,
   } = useChatStore();
@@ -65,23 +65,26 @@ export const useChat = () => {
 
   // メッセージ送信
   const sendMessage = useCallback(async (roomId: string, content: string): Promise<Message | null> => {
-    // 送信前バリデーションをフック側に集約
+    // 送信前バリデーションをフック側に集約（サービス層の責務分離）
     const validation = validateMessageContent(content);
     if (!validation.isValid) {
       throw new Error(validation.error || 'バリデーションエラー');
     }
 
+    // バックエンドへメッセージ送信
     const message = await sendChatMessage(roomId, content);
     if (message) {
-      addMessage(message);
+      // ID重複を避けるupsert更新（WebSocket配信との重複回避）
+      upsertMessage(message);
     }
     return message;
-  }, [addMessage]);
+  }, [upsertMessage]);
 
   // ルーム選択
   const selectRoom = useCallback(async (roomId: string): Promise<void> => {
+    // 現在選択中のルームを変更
     setCurrentRoom(roomId);
-    // ルーム選択時にメッセージも取得
+    // ルーム選択時にメッセージも取得（UX向上のため）
     await fetchMessages(roomId);
   }, [setCurrentRoom, fetchMessages]);
 

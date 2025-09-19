@@ -37,7 +37,7 @@ interface MockChatStoreState {
   setRooms: jest.MockedFunction<(rooms: ChatRoom[]) => void>;
   setCurrentRoom: jest.MockedFunction<(roomId: string) => void>;
   setMessages: jest.MockedFunction<(roomId: string, messages: Message[]) => void>;
-  addMessage: jest.MockedFunction<(message: Message) => void>;
+  upsertMessage: jest.MockedFunction<(message: Message) => void>;
   beginLoading: jest.MockedFunction<() => void>;
   endLoading: jest.MockedFunction<() => void>;
 }
@@ -51,7 +51,7 @@ const mockStoreState: MockChatStoreState = {
   setRooms: jest.fn(),
   setCurrentRoom: jest.fn(),
   setMessages: jest.fn(),
-  addMessage: jest.fn(),
+  upsertMessage: jest.fn(),
   beginLoading: jest.fn(),
   endLoading: jest.fn(),
 };
@@ -204,7 +204,7 @@ describe('useChat', () => {
       });
 
       expect(mockedSendChatMessage).toHaveBeenCalledWith(roomId, content);
-      expect(mockStoreState.addMessage).toHaveBeenCalledWith(mockMessages[0]);
+      expect(mockStoreState.upsertMessage).toHaveBeenCalledWith(mockMessages[0]);
       expect(messageResult).toBe(mockMessages[0]);
     });
 
@@ -219,7 +219,7 @@ describe('useChat', () => {
       })).rejects.toThrow('Network error');
 
       expect(mockedSendChatMessage).toHaveBeenCalledTimes(1);
-      expect(mockStoreState.addMessage).not.toHaveBeenCalled();
+      expect(mockStoreState.upsertMessage).not.toHaveBeenCalled();
     });
 
     it('should handle validation error for invalid message', async () => {
@@ -235,7 +235,7 @@ describe('useChat', () => {
       })).rejects.toThrow('メッセージが空です');
 
       expect(mockedSendChatMessage).not.toHaveBeenCalled();
-      expect(mockStoreState.addMessage).not.toHaveBeenCalled();
+      expect(mockStoreState.upsertMessage).not.toHaveBeenCalled();
     });
   });
 

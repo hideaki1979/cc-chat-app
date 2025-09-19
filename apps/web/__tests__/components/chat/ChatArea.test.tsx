@@ -122,7 +122,7 @@ const mockChatStoreReturn = {
   isLoading: false,
   getCurrentRoomMessages: jest.fn().mockReturnValue(mockMessages),
   setMessages: jest.fn(),
-  addMessage: jest.fn(),
+  upsertMessage: jest.fn(),
   beginLoading: jest.fn(),
   endLoading: jest.fn(),
 };
@@ -135,7 +135,7 @@ describe('ChatArea', () => {
     mockedUseChatStore.mockReturnValue(mockChatStoreReturn);
     mockChatStoreReturn.getCurrentRoomMessages.mockClear();
     mockChatStoreReturn.setMessages.mockClear();
-    mockChatStoreReturn.addMessage.mockClear();
+    mockChatStoreReturn.upsertMessage.mockClear();
   });
 
   test('ルームが選択されていない場合のプレースホルダー表示', () => {

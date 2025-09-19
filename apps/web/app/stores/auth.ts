@@ -1,5 +1,3 @@
-'use client';
-
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 // import { api } from '../lib/api';
@@ -132,7 +130,8 @@ export const useAuthStore = create<AuthStore>()(
 
       refreshAccessToken: async (options: { currentPath?: string; onUnauthorized?: (currentPath: string) => void } = {}) => {
         try {
-          // 既に実行中ならそれを待つ
+          // 既に実行中ならそれを待つ（同一タブ内での多重実行を防止）
+          // これにより、複数の API コールが同時にリフレッシュを試行することを防ぐ
           if (refreshPromise) {
             await refreshPromise;
             return;
@@ -140,13 +139,18 @@ export const useAuthStore = create<AuthStore>()(
 
           refreshPromise = (async () => {
             // 共通HTTPユーティリティ経由でCSRF付与
+            // プロキシを経由することで、Cookie のドメイン問題を回避
             const res = await http.post('/api/backend/refresh');
             if (!res.ok) {
+              // 401/403 の場合は即座にログアウトし、必要に応じてリダイレクト
+              // これにより、セッション切れ時のUX向上を図る
               if (res.status === 401 || res.status === 403) {
                 try {
                   const { logout } = get();
                   await logout();
                 } finally {
+                  // ログアウト後のリダイレクト処理をコールバックに委譲
+                  // カスタムフックで適切なルーティング処理を実行
                   if (options.onUnauthorized) {
                     const pathToUse = options.currentPath || '/';
                     options.onUnauthorized(pathToUse);
@@ -155,11 +159,14 @@ export const useAuthStore = create<AuthStore>()(
               }
               throw new Error(`Failed to refresh token: ${res.status}`);
             }
+            // レスポンスの解析（エラー無視で安全に処理）
             await res.json().catch(() => ({}));
           })();
 
           await refreshPromise;
         } catch (error) {
+          // リフレッシュ失敗時はログアウト状態にする
+          // ただし、明示的なログアウトAPIは呼ばない（既に認証切れのため）
           set({
             user: null,
             accessToken: null,
@@ -168,15 +175,18 @@ export const useAuthStore = create<AuthStore>()(
           });
           throw error;
         } finally {
+          // 完了後は Promise をクリアし、次回実行を可能にする
           refreshPromise = null;
         }
       },
 
       _fetchUserProfileAfterRefresh: async (options: { currentPath?: string; onUnauthorized?: (currentPath: string) => void } = {}): Promise<User> => {
         const { refreshAccessToken } = get();
+        // まずトークンのリフレッシュを実行（認証状態を最新に更新）
         await refreshAccessToken(options);
 
         // accessTokenはCookieで管理されるためAuthorizationヘッダ付与不要
+        // credentials: 'include' でhttpOnlyクッキーを自動送信
         const res = await fetch('/api/backend/profile', {
           credentials: 'include'
         });
@@ -205,6 +215,7 @@ export const useAuthStore = create<AuthStore>()(
               isInitialized: true,
               error: null
             });
+            // ネットワークエラーと認証エラーを区別してメッセージを分岐
             const isConnectionError = error instanceof Error && error.message.includes('fetch failed');
             const errorMessage = isConnectionError
               ? 'サーバーに接続できません。しばらくしてから再度お試しください。'
@@ -213,6 +224,7 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           // accessTokenはCookieで管理されるためAuthorizationヘッダ付与不要
+          // credentials: 'include' でhttpOnlyクッキーを自動送信
           const res = await fetch('/api/backend/profile', {
             credentials: 'include',
           });
@@ -231,11 +243,16 @@ export const useAuthStore = create<AuthStore>()(
       // 初期化関数（カスタムフック側で明示的に呼び出す）
       initializeAuth: async (options: { currentPath?: string; onUnauthorized?: (currentPath: string) => void } = {}) => {
         const state = get();
+        // 初期化の重複実行を防ぐ（パフォーマンス最適化）
         if (state.isInitialized) return; // 既に初期化済みなら何もしない
 
         const path = options.currentPath || '';
-        const isPublicPage = PUBLIC_PAGES.some((p) => path.startsWith(p));
+        // パブリックページの判定（ルート'/'は完全一致、それ以外は前方一致を許可）
+        const nonRootPublicPaths = PUBLIC_PAGES.filter((p) => p != '/');
+        const isPublicPage = path === '/' ||
+          nonRootPublicPaths.some((p) => path === p || path.startsWith(p + '/'));
 
+        // パブリックページでは認証チェックをスキップ
         if (isPublicPage) {
           set({ isInitialized: true, isLoading: false, error: null });
           return;
@@ -244,10 +261,14 @@ export const useAuthStore = create<AuthStore>()(
         try {
           set({ isLoading: true });
 
+          // プライベートページでは認証が必要なため、プロファイル取得を試行
+          // この過程でトークンリフレッシュも自動実行される
           const user = await get()._fetchUserProfileAfterRefresh(options);
           set({ user, isInitialized: true, isLoading: false, error: null });
         } catch (error) {
           console.warn('Auth initialization failed:', error);
+          // 認証失敗時はログアウト状態にセット
+          // エラーは表示せず、ログアウト状態でページを表示
           set({
             user: null,
             accessToken: null,

@@ -192,55 +192,73 @@ DELETE /api/friends/:id       # フレンド削除
 #### 接続・認証
 
 ```
-WS /ws?token=<jwt_token>
+WS /api/ws
 ```
+
+- 認証はJWTをCookie（HttpOnly/Secure/SameSite）で送付しサーバ側で検証します。
+- AuthorizationヘッダーでのBearerトークンも許容します（実装互換）。
+- URLクエリ（/ws?token=...）でのトークン受け渡しは行いません。
 
 #### イベント種別
 
 ```javascript
-// クライアント → サーバー
+// クライアント → サーバー（すべて data でラップ）
 {
   "type": "join_room",
-  "room_id": "uuid"
+  "data": { "room_id": "uuid" }
 }
 
 {
   "type": "send_message",
-  "room_id": "uuid",
-  "content": "メッセージ内容"
+  "data": { "room_id": "uuid", "content": "メッセージ内容" }
 }
 
 {
   "type": "typing_start",
-  "room_id": "uuid"
+  "data": { "room_id": "uuid" }
 }
 
 {
   "type": "typing_stop",
-  "room_id": "uuid"
+  "data": { "room_id": "uuid" }
 }
 
-// サーバー → クライアント
+// サーバー → クライアント（data でラップ）
 {
   "type": "new_message",
-  "room_id": "uuid",
-  "message": { /* メッセージオブジェクト */ }
+  "data": {
+    "room_id": "uuid",
+    "message_id": "uuid",
+    "content": "メッセージ内容",
+    "user_id": "uuid",
+    "timestamp": 1712345678
+  }
 }
 
 {
-  "type": "user_typing",
-  "room_id": "uuid",
-  "user_id": "uuid",
-  "user_name": "ユーザー名"
+  "type": "typing_start",
+  "data": { "room_id": "uuid", "user_id": "uuid" }
+}
+
+{
+  "type": "typing_stop",
+  "data": { "room_id": "uuid", "user_id": "uuid" }
 }
 
 {
   "type": "message_read",
-  "room_id": "uuid",
-  "message_id": "uuid",
-  "user_id": "uuid"
+  "data": { "room_id": "uuid", "message_id": "uuid", "user_id": "uuid" }
 }
 ```
+
+#### ハートビート（接続維持）
+
+- ハートビートはWebSocketの制御フレーム（Ping/Pong）で行います。
+  - サーバは `pingPeriod = (pongWait * 9) / 10` の間隔で Ping を送信します（現在 `pongWait=60s` のため約54秒）。
+  - ブラウザは仕様により自動で Pong を返答します。クライアントアプリ層での `ping`/`pong` メッセージは使用しません。
+  - サーバ側では `readPump` の `SetPongHandler` により `pongWait` を延長し、`writePump` が定期的に `websocket.PingMessage` を送信します。
+
+注意: アプリ層の `{"type":"ping"}`/`{"type":"pong"}` はプロトコルから削除しました。
 
 ## 4. フロントエンド設計
 

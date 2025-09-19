@@ -103,7 +103,7 @@ test.describe('Error Boundary リダイレクト機能', () => {
     // 「ホームに戻る」ボタンをクリック
     await page.locator('[data-testid="home-button"]').click();
 
-    // ホームページにリダイレクトされることを確認
+    // ルートページ（ホーム）にリダイレクトされることを確認（未認証ユーザーの場合）
     await page.waitForURL('/', { timeout: 5000 });
     await expect(page).toHaveURL('/');
 

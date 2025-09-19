@@ -5,15 +5,19 @@
 
 // CSRF トークンをCookieから取得
 export function getCSRFTokenFromCookie(): string | null {
+  // SSR環境では document が存在しないため早期リターン
   if (typeof document === 'undefined') return null;
 
+  // 正規表現でcsrf_tokenクッキーを検索
   const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
   if (!match) return null;
   try {
     const value = match[1];
     if (!value) return null;
+    // URLエンコードされている可能性があるためデコードを試行
     return decodeURIComponent(value);
   } catch {
+    // デコードに失敗した場合は生の値を返す（フォールバック）
     return match[1] ?? null;
   }
 }
@@ -60,18 +64,18 @@ export async function fetchWithCSRF(
 ): Promise<Response> {
   const method = options.method?.toUpperCase() || 'GET';
 
-  // GET, HEAD, OPTIONS, TRACE はCSRF保護不要
+  // GET, HEAD, OPTIONS, TRACE は状態変更を伴わないためCSRF保護不要
   if (['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method)) {
     return fetch(url, {
       ...options,
-      credentials: 'include',
+      credentials: 'include',  // Cookieの自動送信は継続
     });
   }
 
-  // POST, PUT, PATCH, DELETE はCSRFトークンが必要
+  // POST, PUT, PATCH, DELETE は状態変更を伴うためCSRFトークンが必要
   let csrfToken = getCSRFTokenFromCookie();
 
-  // CSRFトークンが無い場合は取得を試行
+  // CSRFトークンが無い場合は新規取得を試行（初回アクセス等）
   if (!csrfToken) {
     csrfToken = await fetchCSRFToken();
     if (!csrfToken) {

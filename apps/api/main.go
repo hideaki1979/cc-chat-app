@@ -18,6 +18,7 @@ import (
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/middleware"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/repositories"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/services"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/websocket"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	echoMiddleware "github.com/labstack/echo/v4/middleware"
@@ -25,11 +26,10 @@ import (
 )
 
 const (
-	defaultPort        = "8080"
-	portEnvKey         = "PORT"
-	healthCheckPath    = "/health"
-	defaultDatabaseURL = ""
-	databaseURLKey     = "DATABASE_URL"
+	defaultPort     = "8080"
+	portEnvKey      = "PORT"
+	healthCheckPath = "/health"
+	databaseURLKey  = "DATABASE_URL"
 )
 
 // ヘルスチェック用のハンドラー
@@ -116,6 +116,10 @@ func main() {
 		}
 	})
 
+	// WebSocketハブ初期化
+	hub := websocket.NewHub()
+	go hub.Run()
+
 	// リポジトリ初期化
 	userRepo := repositories.NewUserRepository(client)
 
@@ -128,7 +132,8 @@ func main() {
 	profileHandler := handlers.NewProfileHandler()
 	userHandler := handlers.NewUserHandler()
 	chatRoomHandler := handlers.NewChatRoomHandler(client)
-	messageHandler := handlers.NewMessageHandler(client)
+	messageHandler := handlers.NewMessageHandler(client, hub)
+	wsHandler := handlers.NewWebSocketHandler(hub)
 
 	// ルーティング設定
 	// ヘルスチェック
@@ -187,6 +192,11 @@ func main() {
 	protectedGroup.GET("/messages/:id", messageHandler.GetMessage)
 	protectedGroup.PUT("/messages/:id", messageHandler.UpdateMessage)
 	protectedGroup.DELETE("/messages/:id", messageHandler.DeleteMessage)
+
+	// WebSocket関連（CSRFは適用しない）
+	wsGroup := e.Group("/api")
+	wsGroup.Use(middleware.JWTAuth())
+	wsGroup.GET("/ws", wsHandler.HandleWebSocket)
 
 	// グレースフルシャットダウンの設定
 	go func() {

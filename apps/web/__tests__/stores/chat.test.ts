@@ -121,27 +121,52 @@ describe('useChatStore', () => {
       expect(result.current.messages['room2']![0]).toEqual(mockMessages[2]);
     });
 
-    test('メッセージを追加できる', () => {
+    test('メッセージをupsertできる', () => {
       const { result } = renderHook(() => useChatStore());
 
       act(() => {
         result.current.setMessages('room1', [mockMessages[0]!]);
-        result.current.addMessage(mockMessages[1]!);
+        result.current.upsertMessage(mockMessages[1]!);
       });
 
       expect(result.current.messages['room1']).toHaveLength(2);
       expect(result.current.messages['room1']![1]).toEqual(mockMessages[1]);
     });
 
-    test('存在しないルームにメッセージを追加できる', () => {
+    test('存在しないルームにメッセージをupsertできる', () => {
       const { result } = renderHook(() => useChatStore());
 
       act(() => {
-        result.current.addMessage(mockMessages[0]!);
+        result.current.upsertMessage(mockMessages[0]!);
       });
 
       expect(result.current.messages['room1']).toHaveLength(1);
       expect(result.current.messages['room1']![0]).toEqual(mockMessages[0]);
+    });
+
+    // 重複チェック
+    test('同じIDのメッセージをupsertすると更新される', () => {
+      const {result} = renderHook(() => useChatStore());
+
+      const originalMessage = mockMessages[0]!;
+      const updateMessage = {
+        ...originalMessage,
+        content: '更新されたメッセージ',
+        updated_at: new Date().toISOString()
+      };
+
+      act(() => {
+        result.current.upsertMessage(originalMessage);
+      });
+
+      expect(result.current.messages['room1']).toHaveLength(1);
+
+      act(() => {
+        result.current.upsertMessage(updateMessage);
+      });
+
+      expect(result.current.messages['room1']).toHaveLength(1);
+      expect(result.current.messages['room1']![0]!.content).toBe('更新されたメッセージ');
     });
 
     test('メッセージを更新できる', () => {
