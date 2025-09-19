@@ -77,7 +77,6 @@ func (h *Hub) Run() {
 // registerClient 新しいクライアントを登録する
 func (h *Hub) registerClient(client *Client) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
 
 	h.clients[client] = true
 
@@ -90,9 +89,11 @@ func (h *Hub) registerClient(client *Client) {
 	}
 
 	log.Printf("Client %s connected to room %s", client.ID, client.RoomID)
+	sendCh := client.Send
+	h.mu.Unlock()
 
 	// 接続確認メッセージを送信
-	client.Send <- []byte(`{"type":"connected","data":{"message":"WebSocket connected"}}`)
+	sendCh <- []byte(`{"type":"connected","data":{"message":"WebSocket connected"}}`)
 }
 
 // unregisterClient クライアントの登録を解除する

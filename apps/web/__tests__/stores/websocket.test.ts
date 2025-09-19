@@ -301,7 +301,7 @@ describe('WebSocketStore', () => {
       });
 
       expect(result.current.messages).toHaveLength(1);
-      expect(result.current.messages[0]!.content).toBe('Update Hello');
+      expect(result.current.messages[0]!.content).toBe('Updated Hello');
     });
 
     test('メッセージをクリアできること', () => {
