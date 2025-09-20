@@ -9,6 +9,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/message"
+	"github.com/hideaki1979/cc-chat-app/apps/api/ent/messageread"
+	"github.com/hideaki1979/cc-chat-app/apps/api/ent/messagereaction"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/roommember"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/websocket"
@@ -369,6 +371,534 @@ func (h *MessageHandler) DeleteMessage(c echo.Context) error {
 	})
 }
 
+// MarkAsRead メッセージ既読マーク
+// POST /api/messages/:id/read
+func (h *MessageHandler) MarkAsRead(c echo.Context) error {
+	messageID := c.Param("id")
+	messageUUID, err := uuid.Parse(messageID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid message ID")
+	}
+
+	userUUID, err := getUserUUID(c)
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+
+	// メッセージ存在チェック
+	msg, err := h.client.Message.Query().
+		Where(
+			message.ID(messageUUID),
+			message.DeletedAtIsNil(),
+		).
+		WithRoom().
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return echo.NewHTTPError(http.StatusNotFound, "Message not found")
+		}
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get message")
+	}
+
+	// ユーザーがそのルームのメンバーかチェック
+	isMember, err := h.client.RoomMember.Query().
+		Where(
+			roommember.RoomID(msg.RoomID),
+			roommember.UserID(userUUID),
+		).
+		Exist(ctx)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to check membership")
+	}
+	if !isMember {
+		return echo.NewHTTPError(http.StatusForbidden, "You are not a member of this room")
+	}
+
+	// 既に既読済みかチェック
+	existingRead, err := h.client.MessageRead.Query().
+		Where(
+			messageread.MessageID(messageUUID),
+			messageread.UserID(userUUID),
+		).
+		Only(ctx)
+
+	var readResponse *models.MessageReadResponse
+
+	if ent.IsNotFound(err) {
+		// 新規既読作成
+		newRead, err := h.client.MessageRead.Create().
+			SetMessageID(messageUUID).
+			SetUserID(userUUID).
+			SetReadAt(time.Now()).
+			Save(ctx)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to mark message as read")
+		}
+
+		readResponse = &models.MessageReadResponse{
+			ID:        newRead.ID,
+			MessageID: newRead.MessageID,
+			UserID:    newRead.UserID,
+			ReadAt:    newRead.ReadAt,
+		}
+	} else if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to check read status")
+	} else {
+		// 既存の既読情報を返す
+		readResponse = &models.MessageReadResponse{
+			ID:        existingRead.ID,
+			MessageID: existingRead.MessageID,
+			UserID:    existingRead.UserID,
+			ReadAt:    existingRead.ReadAt,
+		}
+	}
+
+	// WebSocketでリアルタイムブロードキャスト
+	if h.hub != nil {
+		broadcastData := map[string]any{
+			"message_id": messageID,
+			"user_id":    userUUID.String(),
+			"read_at":    readResponse.ReadAt.Unix(),
+		}
+		h.hub.BroadcastToRoom(msg.RoomID.String(), "message_read", broadcastData, nil)
+	}
+
+	return c.JSON(http.StatusOK, readResponse)
+}
+
+// GetMessageReads メッセージ既読一覧取得
+// GET /api/messages/:id/reads
+func (h *MessageHandler) GetMessageReads(c echo.Context) error {
+	messageID := c.Param("id")
+	messageUUID, err := uuid.Parse(messageID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid message ID")
+	}
+
+	userUUID, err := getUserUUID(c)
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+
+	// メッセージ存在チェック
+	msg, err := h.client.Message.Query().
+		Where(
+			message.ID(messageUUID),
+			message.DeletedAtIsNil(),
+		).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return echo.NewHTTPError(http.StatusNotFound, "Message not found")
+		}
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get message")
+	}
+
+	// ユーザーがそのルームのメンバーかチェック
+	isMember, err := h.client.RoomMember.Query().
+		Where(
+			roommember.RoomID(msg.RoomID),
+			roommember.UserID(userUUID),
+		).
+		Exist(ctx)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to check membership")
+	}
+	if !isMember {
+		return echo.NewHTTPError(http.StatusForbidden, "You are not a member of this room")
+	}
+
+	// 既読一覧取得
+	reads, err := h.client.MessageRead.Query().
+		Where(messageread.MessageID(messageUUID)).
+		WithUser().
+		Order(ent.Asc(messageread.FieldReadAt)).
+		All(ctx)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get reads")
+	}
+
+	// レスポンス作成
+	readResponses := make([]models.MessageReadResponse, len(reads))
+	for i, read := range reads {
+		readResponses[i] = models.MessageReadResponse{
+			ID:        read.ID,
+			MessageID: read.MessageID,
+			UserID:    read.UserID,
+			ReadAt:    read.ReadAt,
+		}
+	}
+
+	response := models.MessageReadListResponse{
+		MessageID: messageUUID,
+		Reads:     readResponses,
+	}
+
+	return c.JSON(http.StatusOK, response)
+}
+
+// AddReaction メッセージリアクション追加
+// POST /api/messages/:id/reactions
+func (h *MessageHandler) AddReaction(c echo.Context) error {
+	messageID := c.Param("id")
+	messageUUID, err := uuid.Parse(messageID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid message ID")
+	}
+
+	var req models.MessageReactionRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
+	}
+
+	if err := c.Validate(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	userUUID, err := getUserUUID(c)
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+
+	// メッセージ存在チェック
+	msg, err := h.client.Message.Query().
+		Where(
+			message.ID(messageUUID),
+			message.DeletedAtIsNil(),
+		).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return echo.NewHTTPError(http.StatusNotFound, "Message not found")
+		}
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get message")
+	}
+
+	// ユーザーがそのルームのメンバーかチェック
+	isMember, err := h.client.RoomMember.Query().
+		Where(
+			roommember.RoomID(msg.RoomID),
+			roommember.UserID(userUUID),
+		).
+		Exist(ctx)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to check membership")
+	}
+	if !isMember {
+		return echo.NewHTTPError(http.StatusForbidden, "You are not a member of this room")
+	}
+
+	// 既存のリアクションをチェック（同じユーザー、メッセージ、絵文字の組み合わせ）
+	existingReaction, err := h.client.MessageReaction.Query().
+		Where(
+			messagereaction.MessageID(messageUUID),
+			messagereaction.UserID(userUUID),
+			messagereaction.Emoji(req.Emoji),
+		).
+		Only(ctx)
+
+	var reactionResponse *models.MessageReactionResponse
+
+	if ent.IsNotFound(err) {
+		// 新規リアクション作成
+		newReaction, err := h.client.MessageReaction.Create().
+			SetMessageID(messageUUID).
+			SetUserID(userUUID).
+			SetEmoji(req.Emoji).
+			Save(ctx)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to add reaction")
+		}
+
+		reactionResponse = &models.MessageReactionResponse{
+			ID:        newReaction.ID,
+			MessageID: newReaction.MessageID,
+			UserID:    newReaction.UserID,
+			Emoji:     newReaction.Emoji,
+			CreatedAt: newReaction.CreatedAt,
+		}
+	} else if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to check existing reaction")
+	} else {
+		// 既存のリアクションを返す
+		reactionResponse = &models.MessageReactionResponse{
+			ID:        existingReaction.ID,
+			MessageID: existingReaction.MessageID,
+			UserID:    existingReaction.UserID,
+			Emoji:     existingReaction.Emoji,
+			CreatedAt: existingReaction.CreatedAt,
+		}
+	}
+
+	// WebSocketでリアルタイムブロードキャスト
+	if h.hub != nil {
+		broadcastData := map[string]any{
+			"message_id": messageID,
+			"user_id":    userUUID.String(),
+			"emoji":      req.Emoji,
+			"created_at": reactionResponse.CreatedAt.Unix(),
+		}
+		h.hub.BroadcastToRoom(msg.RoomID.String(), "message_reaction_added", broadcastData, nil)
+	}
+
+	return c.JSON(http.StatusCreated, reactionResponse)
+}
+
+// RemoveReaction メッセージリアクション削除
+// DELETE /api/messages/:id/reactions/:emoji
+func (h *MessageHandler) RemoveReaction(c echo.Context) error {
+	messageID := c.Param("id")
+	messageUUID, err := uuid.Parse(messageID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid message ID")
+	}
+
+	emoji := c.Param("emoji")
+	if emoji == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Emoji is required")
+	}
+
+	userUUID, err := getUserUUID(c)
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+
+	// メッセージ存在チェック
+	msg, err := h.client.Message.Query().
+		Where(
+			message.ID(messageUUID),
+			message.DeletedAtIsNil(),
+		).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return echo.NewHTTPError(http.StatusNotFound, "Message not found")
+		}
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get message")
+	}
+
+	// ユーザーがそのルームのメンバーかチェック
+	isMember, err := h.client.RoomMember.Query().
+		Where(
+			roommember.RoomID(msg.RoomID),
+			roommember.UserID(userUUID),
+		).
+		Exist(ctx)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to check membership")
+	}
+	if !isMember {
+		return echo.NewHTTPError(http.StatusForbidden, "You are not a member of this room")
+	}
+
+	// リアクション削除
+	deletedCount, err := h.client.MessageReaction.Delete().
+		Where(
+			messagereaction.MessageID(messageUUID),
+			messagereaction.UserID(userUUID),
+			messagereaction.Emoji(emoji),
+		).
+		Exec(ctx)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to remove reaction")
+	}
+
+	if deletedCount == 0 {
+		return echo.NewHTTPError(http.StatusNotFound, "Reaction not found")
+	}
+
+	// WebSocketでリアルタイムブロードキャスト
+	if h.hub != nil {
+		broadcastData := map[string]any{
+			"message_id": messageID,
+			"user_id":    userUUID.String(),
+			"emoji":      emoji,
+		}
+		h.hub.BroadcastToRoom(msg.RoomID.String(), "message_reaction_removed", broadcastData, nil)
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "Reaction removed successfully",
+	})
+}
+
+// GetMessageReactions メッセージリアクション一覧取得
+// GET /api/messages/:id/reactions
+func (h *MessageHandler) GetMessageReactions(c echo.Context) error {
+	messageID := c.Param("id")
+	messageUUID, err := uuid.Parse(messageID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid message ID")
+	}
+
+	userUUID, err := getUserUUID(c)
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+
+	// メッセージ存在チェック
+	msg, err := h.client.Message.Query().
+		Where(
+			message.ID(messageUUID),
+			message.DeletedAtIsNil(),
+		).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return echo.NewHTTPError(http.StatusNotFound, "Message not found")
+		}
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get message")
+	}
+
+	// ユーザーがそのルームのメンバーかチェック
+	isMember, err := h.client.RoomMember.Query().
+		Where(
+			roommember.RoomID(msg.RoomID),
+			roommember.UserID(userUUID),
+		).
+		Exist(ctx)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to check membership")
+	}
+	if !isMember {
+		return echo.NewHTTPError(http.StatusForbidden, "You are not a member of this room")
+	}
+
+	// リアクション一覧取得
+	reactions, err := h.client.MessageReaction.Query().
+		Where(messagereaction.MessageID(messageUUID)).
+		WithUser().
+		Order(ent.Asc(messagereaction.FieldCreatedAt)).
+		All(ctx)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get reactions")
+	}
+
+	// レスポンス作成
+	reactionResponses := make([]models.MessageReactionResponse, len(reactions))
+	for i, reaction := range reactions {
+		reactionResponses[i] = models.MessageReactionResponse{
+			ID:        reaction.ID,
+			MessageID: reaction.MessageID,
+			UserID:    reaction.UserID,
+			Emoji:     reaction.Emoji,
+			CreatedAt: reaction.CreatedAt,
+		}
+	}
+
+	response := models.MessageReactionListResponse{
+		MessageID: messageUUID,
+		Reactions: reactionResponses,
+	}
+
+	return c.JSON(http.StatusOK, response)
+}
+
+// GetMessageReactionsSummary メッセージリアクション集計取得
+// GET /api/messages/:id/reactions/summary
+func (h *MessageHandler) GetMessageReactionsSummary(c echo.Context) error {
+	messageID := c.Param("id")
+	messageUUID, err := uuid.Parse(messageID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid message ID")
+	}
+
+	userUUID, err := getUserUUID(c)
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+
+	// メッセージ存在チェック
+	msg, err := h.client.Message.Query().
+		Where(
+			message.ID(messageUUID),
+			message.DeletedAtIsNil(),
+		).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return echo.NewHTTPError(http.StatusNotFound, "Message not found")
+		}
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get message")
+	}
+
+	// ユーザーがそのルームのメンバーかチェック
+	isMember, err := h.client.RoomMember.Query().
+		Where(
+			roommember.RoomID(msg.RoomID),
+			roommember.UserID(userUUID),
+		).
+		Exist(ctx)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to check membership")
+	}
+	if !isMember {
+		return echo.NewHTTPError(http.StatusForbidden, "You are not a member of this room")
+	}
+
+	// リアクション一覧取得（ユーザー情報込み）
+	reactions, err := h.client.MessageReaction.Query().
+		Where(messagereaction.MessageID(messageUUID)).
+		WithUser().
+		Order(ent.Asc(messagereaction.FieldCreatedAt)).
+		All(ctx)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get reactions")
+	}
+
+	// 絵文字ごとに集計
+	emojiMap := make(map[string]*models.MessageReactionSummary)
+	for _, reaction := range reactions {
+		if summary, exists := emojiMap[reaction.Emoji]; exists {
+			summary.Count++
+			summary.Users = append(summary.Users, struct {
+				UserID uuid.UUID `json:"user_id"`
+				Name   string    `json:"name"`
+			}{
+				UserID: reaction.UserID,
+				Name:   reaction.Edges.User.Name,
+			})
+		} else {
+			emojiMap[reaction.Emoji] = &models.MessageReactionSummary{
+				Emoji: reaction.Emoji,
+				Count: 1,
+				Users: []struct {
+					UserID uuid.UUID `json:"user_id"`
+					Name   string    `json:"name"`
+				}{{
+					UserID: reaction.UserID,
+					Name:   reaction.Edges.User.Name,
+				}},
+			}
+		}
+	}
+
+	// スライスに変換
+	summaries := make([]models.MessageReactionSummary, 0, len(emojiMap))
+	for _, summary := range emojiMap {
+		summaries = append(summaries, *summary)
+	}
+
+	response := models.MessageReactionSummaryResponse{
+		MessageID: messageUUID,
+		Summary:   summaries,
+	}
+
+	return c.JSON(http.StatusOK, response)
+}
+
 // 安全に user_id を取り出し UUID へ変換するヘルパー関数
 func getUserUUID(c echo.Context) (uuid.UUID, error) {
 	v := c.Get("user_id")
@@ -376,7 +906,7 @@ func getUserUUID(c echo.Context) (uuid.UUID, error) {
 	if !ok || s == "" {
 		return uuid.Nil, echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
 	}
-	
+
 	u, err := uuid.Parse(s)
 	if err != nil {
 		return uuid.Nil, echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")

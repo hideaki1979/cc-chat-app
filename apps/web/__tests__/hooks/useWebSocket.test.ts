@@ -118,7 +118,7 @@ describe('useWebSocket', () => {
         result.current.connect();
       });
 
-      expect(mockWebSocketStore.connect).toHaveBeenCalledWith('test-token');
+      expect(mockWebSocketStore.connect).toHaveBeenCalledWith();
     });
 
     test('未ログインの場合は手動接続できないこと', () => {

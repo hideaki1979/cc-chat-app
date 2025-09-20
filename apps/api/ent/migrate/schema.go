@@ -68,6 +68,85 @@ var (
 			},
 		},
 	}
+	// MessageReactionsColumns holds the columns for the "message_reactions" table.
+	MessageReactionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID, Unique: true},
+		{Name: "emoji", Type: field.TypeString},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "message_id", Type: field.TypeUUID},
+		{Name: "user_id", Type: field.TypeUUID},
+	}
+	// MessageReactionsTable holds the schema information for the "message_reactions" table.
+	MessageReactionsTable = &schema.Table{
+		Name:       "message_reactions",
+		Columns:    MessageReactionsColumns,
+		PrimaryKey: []*schema.Column{MessageReactionsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "message_reactions_messages_reactions",
+				Columns:    []*schema.Column{MessageReactionsColumns[3]},
+				RefColumns: []*schema.Column{MessagesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "message_reactions_users_message_reactions",
+				Columns:    []*schema.Column{MessageReactionsColumns[4]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "messagereaction_message_id_user_id_emoji",
+				Unique:  true,
+				Columns: []*schema.Column{MessageReactionsColumns[3], MessageReactionsColumns[4], MessageReactionsColumns[1]},
+			},
+			{
+				Name:    "messagereaction_message_id_emoji",
+				Unique:  false,
+				Columns: []*schema.Column{MessageReactionsColumns[3], MessageReactionsColumns[1]},
+			},
+		},
+	}
+	// MessageReadsColumns holds the columns for the "message_reads" table.
+	MessageReadsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID, Unique: true},
+		{Name: "read_at", Type: field.TypeTime},
+		{Name: "message_id", Type: field.TypeUUID},
+		{Name: "user_id", Type: field.TypeUUID},
+	}
+	// MessageReadsTable holds the schema information for the "message_reads" table.
+	MessageReadsTable = &schema.Table{
+		Name:       "message_reads",
+		Columns:    MessageReadsColumns,
+		PrimaryKey: []*schema.Column{MessageReadsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "message_reads_messages_reads",
+				Columns:    []*schema.Column{MessageReadsColumns[2]},
+				RefColumns: []*schema.Column{MessagesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "message_reads_users_message_reads",
+				Columns:    []*schema.Column{MessageReadsColumns[3]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "messageread_message_id_user_id",
+				Unique:  true,
+				Columns: []*schema.Column{MessageReadsColumns[2], MessageReadsColumns[3]},
+			},
+			{
+				Name:    "messageread_user_id_read_at",
+				Unique:  false,
+				Columns: []*schema.Column{MessageReadsColumns[3], MessageReadsColumns[1]},
+			},
+		},
+	}
 	// RoomMembersColumns holds the columns for the "room_members" table.
 	RoomMembersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -137,6 +216,8 @@ var (
 	Tables = []*schema.Table{
 		ChatRoomsTable,
 		MessagesTable,
+		MessageReactionsTable,
+		MessageReadsTable,
 		RoomMembersTable,
 		UsersTable,
 	}
@@ -145,6 +226,10 @@ var (
 func init() {
 	MessagesTable.ForeignKeys[0].RefTable = ChatRoomsTable
 	MessagesTable.ForeignKeys[1].RefTable = UsersTable
+	MessageReactionsTable.ForeignKeys[0].RefTable = MessagesTable
+	MessageReactionsTable.ForeignKeys[1].RefTable = UsersTable
+	MessageReadsTable.ForeignKeys[0].RefTable = MessagesTable
+	MessageReadsTable.ForeignKeys[1].RefTable = UsersTable
 	RoomMembersTable.ForeignKeys[0].RefTable = ChatRoomsTable
 	RoomMembersTable.ForeignKeys[1].RefTable = UsersTable
 }

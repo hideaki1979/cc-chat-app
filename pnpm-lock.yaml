@@ -43,6 +43,9 @@ importers:
       react-hook-form:
         specifier: ^7.60.0
         version: 7.60.0(react@19.1.0)
+      react-virtuoso:
+        specifier: ^4.14.0
+        version: 4.14.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       zod:
         specifier: ^4.0.5
         version: 4.0.5
@@ -2819,6 +2822,12 @@ packages:
 
   react-is@18.3.1:
     resolution: {integrity: sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==}
+
+  react-virtuoso@4.14.0:
+    resolution: {integrity: sha512-fR+eiCvirSNIRvvCD7ueJPRsacGQvUbjkwgWzBZXVq+yWypoH7mRUvWJzGHIdoRaCZCT+6mMMMwIG2S1BW3uwA==}
+    peerDependencies:
+      react: '>=16 || >=17 || >= 18 || >= 19'
+      react-dom: '>=16 || >=17 || >= 18 || >=19'
 
   react@19.1.0:
     resolution: {integrity: sha512-FS+XFBNvn3GTAWq26joslQgWNoFu08F4kl0J4CgdNKADkdSGXQyTCnKteIAJy96Br6YbpEU1LSzV5dYtjMkMDg==}
@@ -6314,6 +6323,11 @@ snapshots:
   react-is@17.0.2: {}
 
   react-is@18.3.1: {}
+
+  react-virtuoso@4.14.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
+    dependencies:
+      react: 19.1.0
+      react-dom: 19.1.0(react@19.1.0)
 
   react@19.1.0: {}
 

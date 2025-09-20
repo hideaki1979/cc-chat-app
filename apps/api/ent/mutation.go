@@ -14,6 +14,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/chatroom"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/message"
+	"github.com/hideaki1979/cc-chat-app/apps/api/ent/messagereaction"
+	"github.com/hideaki1979/cc-chat-app/apps/api/ent/messageread"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/predicate"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/roommember"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/user"
@@ -28,10 +30,12 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeChatRoom   = "ChatRoom"
-	TypeMessage    = "Message"
-	TypeRoomMember = "RoomMember"
-	TypeUser       = "User"
+	TypeChatRoom        = "ChatRoom"
+	TypeMessage         = "Message"
+	TypeMessageReaction = "MessageReaction"
+	TypeMessageRead     = "MessageRead"
+	TypeRoomMember      = "RoomMember"
+	TypeUser            = "User"
 )
 
 // ChatRoomMutation represents an operation that mutates the ChatRoom nodes in the graph.
@@ -783,22 +787,28 @@ func (m *ChatRoomMutation) ResetEdge(name string) error {
 // MessageMutation represents an operation that mutates the Message nodes in the graph.
 type MessageMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *uuid.UUID
-	content       *string
-	file_url      *string
-	created_at    *time.Time
-	updated_at    *time.Time
-	deleted_at    *time.Time
-	clearedFields map[string]struct{}
-	room          *uuid.UUID
-	clearedroom   bool
-	sender        *uuid.UUID
-	clearedsender bool
-	done          bool
-	oldValue      func(context.Context) (*Message, error)
-	predicates    []predicate.Message
+	op               Op
+	typ              string
+	id               *uuid.UUID
+	content          *string
+	file_url         *string
+	created_at       *time.Time
+	updated_at       *time.Time
+	deleted_at       *time.Time
+	clearedFields    map[string]struct{}
+	room             *uuid.UUID
+	clearedroom      bool
+	sender           *uuid.UUID
+	clearedsender    bool
+	reads            map[uuid.UUID]struct{}
+	removedreads     map[uuid.UUID]struct{}
+	clearedreads     bool
+	reactions        map[uuid.UUID]struct{}
+	removedreactions map[uuid.UUID]struct{}
+	clearedreactions bool
+	done             bool
+	oldValue         func(context.Context) (*Message, error)
+	predicates       []predicate.Message
 }
 
 var _ ent.Mutation = (*MessageMutation)(nil)
@@ -1250,6 +1260,114 @@ func (m *MessageMutation) ResetSender() {
 	m.clearedsender = false
 }
 
+// AddReadIDs adds the "reads" edge to the MessageRead entity by ids.
+func (m *MessageMutation) AddReadIDs(ids ...uuid.UUID) {
+	if m.reads == nil {
+		m.reads = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.reads[ids[i]] = struct{}{}
+	}
+}
+
+// ClearReads clears the "reads" edge to the MessageRead entity.
+func (m *MessageMutation) ClearReads() {
+	m.clearedreads = true
+}
+
+// ReadsCleared reports if the "reads" edge to the MessageRead entity was cleared.
+func (m *MessageMutation) ReadsCleared() bool {
+	return m.clearedreads
+}
+
+// RemoveReadIDs removes the "reads" edge to the MessageRead entity by IDs.
+func (m *MessageMutation) RemoveReadIDs(ids ...uuid.UUID) {
+	if m.removedreads == nil {
+		m.removedreads = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.reads, ids[i])
+		m.removedreads[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedReads returns the removed IDs of the "reads" edge to the MessageRead entity.
+func (m *MessageMutation) RemovedReadsIDs() (ids []uuid.UUID) {
+	for id := range m.removedreads {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ReadsIDs returns the "reads" edge IDs in the mutation.
+func (m *MessageMutation) ReadsIDs() (ids []uuid.UUID) {
+	for id := range m.reads {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetReads resets all changes to the "reads" edge.
+func (m *MessageMutation) ResetReads() {
+	m.reads = nil
+	m.clearedreads = false
+	m.removedreads = nil
+}
+
+// AddReactionIDs adds the "reactions" edge to the MessageReaction entity by ids.
+func (m *MessageMutation) AddReactionIDs(ids ...uuid.UUID) {
+	if m.reactions == nil {
+		m.reactions = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.reactions[ids[i]] = struct{}{}
+	}
+}
+
+// ClearReactions clears the "reactions" edge to the MessageReaction entity.
+func (m *MessageMutation) ClearReactions() {
+	m.clearedreactions = true
+}
+
+// ReactionsCleared reports if the "reactions" edge to the MessageReaction entity was cleared.
+func (m *MessageMutation) ReactionsCleared() bool {
+	return m.clearedreactions
+}
+
+// RemoveReactionIDs removes the "reactions" edge to the MessageReaction entity by IDs.
+func (m *MessageMutation) RemoveReactionIDs(ids ...uuid.UUID) {
+	if m.removedreactions == nil {
+		m.removedreactions = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.reactions, ids[i])
+		m.removedreactions[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedReactions returns the removed IDs of the "reactions" edge to the MessageReaction entity.
+func (m *MessageMutation) RemovedReactionsIDs() (ids []uuid.UUID) {
+	for id := range m.removedreactions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ReactionsIDs returns the "reactions" edge IDs in the mutation.
+func (m *MessageMutation) ReactionsIDs() (ids []uuid.UUID) {
+	for id := range m.reactions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetReactions resets all changes to the "reactions" edge.
+func (m *MessageMutation) ResetReactions() {
+	m.reactions = nil
+	m.clearedreactions = false
+	m.removedreactions = nil
+}
+
 // Where appends a list predicates to the MessageMutation builder.
 func (m *MessageMutation) Where(ps ...predicate.Message) {
 	m.predicates = append(m.predicates, ps...)
@@ -1500,12 +1618,18 @@ func (m *MessageMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *MessageMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 4)
 	if m.room != nil {
 		edges = append(edges, message.EdgeRoom)
 	}
 	if m.sender != nil {
 		edges = append(edges, message.EdgeSender)
+	}
+	if m.reads != nil {
+		edges = append(edges, message.EdgeReads)
+	}
+	if m.reactions != nil {
+		edges = append(edges, message.EdgeReactions)
 	}
 	return edges
 }
@@ -1522,30 +1646,68 @@ func (m *MessageMutation) AddedIDs(name string) []ent.Value {
 		if id := m.sender; id != nil {
 			return []ent.Value{*id}
 		}
+	case message.EdgeReads:
+		ids := make([]ent.Value, 0, len(m.reads))
+		for id := range m.reads {
+			ids = append(ids, id)
+		}
+		return ids
+	case message.EdgeReactions:
+		ids := make([]ent.Value, 0, len(m.reactions))
+		for id := range m.reactions {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *MessageMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 4)
+	if m.removedreads != nil {
+		edges = append(edges, message.EdgeReads)
+	}
+	if m.removedreactions != nil {
+		edges = append(edges, message.EdgeReactions)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *MessageMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case message.EdgeReads:
+		ids := make([]ent.Value, 0, len(m.removedreads))
+		for id := range m.removedreads {
+			ids = append(ids, id)
+		}
+		return ids
+	case message.EdgeReactions:
+		ids := make([]ent.Value, 0, len(m.removedreactions))
+		for id := range m.removedreactions {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *MessageMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 4)
 	if m.clearedroom {
 		edges = append(edges, message.EdgeRoom)
 	}
 	if m.clearedsender {
 		edges = append(edges, message.EdgeSender)
+	}
+	if m.clearedreads {
+		edges = append(edges, message.EdgeReads)
+	}
+	if m.clearedreactions {
+		edges = append(edges, message.EdgeReactions)
 	}
 	return edges
 }
@@ -1558,6 +1720,10 @@ func (m *MessageMutation) EdgeCleared(name string) bool {
 		return m.clearedroom
 	case message.EdgeSender:
 		return m.clearedsender
+	case message.EdgeReads:
+		return m.clearedreads
+	case message.EdgeReactions:
+		return m.clearedreactions
 	}
 	return false
 }
@@ -1586,8 +1752,1148 @@ func (m *MessageMutation) ResetEdge(name string) error {
 	case message.EdgeSender:
 		m.ResetSender()
 		return nil
+	case message.EdgeReads:
+		m.ResetReads()
+		return nil
+	case message.EdgeReactions:
+		m.ResetReactions()
+		return nil
 	}
 	return fmt.Errorf("unknown Message edge %s", name)
+}
+
+// MessageReactionMutation represents an operation that mutates the MessageReaction nodes in the graph.
+type MessageReactionMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *uuid.UUID
+	emoji          *string
+	created_at     *time.Time
+	clearedFields  map[string]struct{}
+	message        *uuid.UUID
+	clearedmessage bool
+	user           *uuid.UUID
+	cleareduser    bool
+	done           bool
+	oldValue       func(context.Context) (*MessageReaction, error)
+	predicates     []predicate.MessageReaction
+}
+
+var _ ent.Mutation = (*MessageReactionMutation)(nil)
+
+// messagereactionOption allows management of the mutation configuration using functional options.
+type messagereactionOption func(*MessageReactionMutation)
+
+// newMessageReactionMutation creates new mutation for the MessageReaction entity.
+func newMessageReactionMutation(c config, op Op, opts ...messagereactionOption) *MessageReactionMutation {
+	m := &MessageReactionMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeMessageReaction,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withMessageReactionID sets the ID field of the mutation.
+func withMessageReactionID(id uuid.UUID) messagereactionOption {
+	return func(m *MessageReactionMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *MessageReaction
+		)
+		m.oldValue = func(ctx context.Context) (*MessageReaction, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().MessageReaction.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withMessageReaction sets the old MessageReaction of the mutation.
+func withMessageReaction(node *MessageReaction) messagereactionOption {
+	return func(m *MessageReactionMutation) {
+		m.oldValue = func(context.Context) (*MessageReaction, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m MessageReactionMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m MessageReactionMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of MessageReaction entities.
+func (m *MessageReactionMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *MessageReactionMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *MessageReactionMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().MessageReaction.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetMessageID sets the "message_id" field.
+func (m *MessageReactionMutation) SetMessageID(u uuid.UUID) {
+	m.message = &u
+}
+
+// MessageID returns the value of the "message_id" field in the mutation.
+func (m *MessageReactionMutation) MessageID() (r uuid.UUID, exists bool) {
+	v := m.message
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMessageID returns the old "message_id" field's value of the MessageReaction entity.
+// If the MessageReaction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessageReactionMutation) OldMessageID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMessageID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMessageID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMessageID: %w", err)
+	}
+	return oldValue.MessageID, nil
+}
+
+// ResetMessageID resets all changes to the "message_id" field.
+func (m *MessageReactionMutation) ResetMessageID() {
+	m.message = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *MessageReactionMutation) SetUserID(u uuid.UUID) {
+	m.user = &u
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *MessageReactionMutation) UserID() (r uuid.UUID, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the MessageReaction entity.
+// If the MessageReaction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessageReactionMutation) OldUserID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *MessageReactionMutation) ResetUserID() {
+	m.user = nil
+}
+
+// SetEmoji sets the "emoji" field.
+func (m *MessageReactionMutation) SetEmoji(s string) {
+	m.emoji = &s
+}
+
+// Emoji returns the value of the "emoji" field in the mutation.
+func (m *MessageReactionMutation) Emoji() (r string, exists bool) {
+	v := m.emoji
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEmoji returns the old "emoji" field's value of the MessageReaction entity.
+// If the MessageReaction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessageReactionMutation) OldEmoji(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEmoji is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEmoji requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEmoji: %w", err)
+	}
+	return oldValue.Emoji, nil
+}
+
+// ResetEmoji resets all changes to the "emoji" field.
+func (m *MessageReactionMutation) ResetEmoji() {
+	m.emoji = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *MessageReactionMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *MessageReactionMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the MessageReaction entity.
+// If the MessageReaction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessageReactionMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *MessageReactionMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// ClearMessage clears the "message" edge to the Message entity.
+func (m *MessageReactionMutation) ClearMessage() {
+	m.clearedmessage = true
+	m.clearedFields[messagereaction.FieldMessageID] = struct{}{}
+}
+
+// MessageCleared reports if the "message" edge to the Message entity was cleared.
+func (m *MessageReactionMutation) MessageCleared() bool {
+	return m.clearedmessage
+}
+
+// MessageIDs returns the "message" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// MessageID instead. It exists only for internal usage by the builders.
+func (m *MessageReactionMutation) MessageIDs() (ids []uuid.UUID) {
+	if id := m.message; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetMessage resets all changes to the "message" edge.
+func (m *MessageReactionMutation) ResetMessage() {
+	m.message = nil
+	m.clearedmessage = false
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *MessageReactionMutation) ClearUser() {
+	m.cleareduser = true
+	m.clearedFields[messagereaction.FieldUserID] = struct{}{}
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *MessageReactionMutation) UserCleared() bool {
+	return m.cleareduser
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *MessageReactionMutation) UserIDs() (ids []uuid.UUID) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *MessageReactionMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// Where appends a list predicates to the MessageReactionMutation builder.
+func (m *MessageReactionMutation) Where(ps ...predicate.MessageReaction) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the MessageReactionMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *MessageReactionMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.MessageReaction, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *MessageReactionMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *MessageReactionMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (MessageReaction).
+func (m *MessageReactionMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *MessageReactionMutation) Fields() []string {
+	fields := make([]string, 0, 4)
+	if m.message != nil {
+		fields = append(fields, messagereaction.FieldMessageID)
+	}
+	if m.user != nil {
+		fields = append(fields, messagereaction.FieldUserID)
+	}
+	if m.emoji != nil {
+		fields = append(fields, messagereaction.FieldEmoji)
+	}
+	if m.created_at != nil {
+		fields = append(fields, messagereaction.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *MessageReactionMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case messagereaction.FieldMessageID:
+		return m.MessageID()
+	case messagereaction.FieldUserID:
+		return m.UserID()
+	case messagereaction.FieldEmoji:
+		return m.Emoji()
+	case messagereaction.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *MessageReactionMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case messagereaction.FieldMessageID:
+		return m.OldMessageID(ctx)
+	case messagereaction.FieldUserID:
+		return m.OldUserID(ctx)
+	case messagereaction.FieldEmoji:
+		return m.OldEmoji(ctx)
+	case messagereaction.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown MessageReaction field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MessageReactionMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case messagereaction.FieldMessageID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMessageID(v)
+		return nil
+	case messagereaction.FieldUserID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case messagereaction.FieldEmoji:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEmoji(v)
+		return nil
+	case messagereaction.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MessageReaction field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *MessageReactionMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *MessageReactionMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MessageReactionMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown MessageReaction numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *MessageReactionMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *MessageReactionMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *MessageReactionMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown MessageReaction nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *MessageReactionMutation) ResetField(name string) error {
+	switch name {
+	case messagereaction.FieldMessageID:
+		m.ResetMessageID()
+		return nil
+	case messagereaction.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case messagereaction.FieldEmoji:
+		m.ResetEmoji()
+		return nil
+	case messagereaction.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown MessageReaction field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *MessageReactionMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.message != nil {
+		edges = append(edges, messagereaction.EdgeMessage)
+	}
+	if m.user != nil {
+		edges = append(edges, messagereaction.EdgeUser)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *MessageReactionMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case messagereaction.EdgeMessage:
+		if id := m.message; id != nil {
+			return []ent.Value{*id}
+		}
+	case messagereaction.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *MessageReactionMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *MessageReactionMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *MessageReactionMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedmessage {
+		edges = append(edges, messagereaction.EdgeMessage)
+	}
+	if m.cleareduser {
+		edges = append(edges, messagereaction.EdgeUser)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *MessageReactionMutation) EdgeCleared(name string) bool {
+	switch name {
+	case messagereaction.EdgeMessage:
+		return m.clearedmessage
+	case messagereaction.EdgeUser:
+		return m.cleareduser
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *MessageReactionMutation) ClearEdge(name string) error {
+	switch name {
+	case messagereaction.EdgeMessage:
+		m.ClearMessage()
+		return nil
+	case messagereaction.EdgeUser:
+		m.ClearUser()
+		return nil
+	}
+	return fmt.Errorf("unknown MessageReaction unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *MessageReactionMutation) ResetEdge(name string) error {
+	switch name {
+	case messagereaction.EdgeMessage:
+		m.ResetMessage()
+		return nil
+	case messagereaction.EdgeUser:
+		m.ResetUser()
+		return nil
+	}
+	return fmt.Errorf("unknown MessageReaction edge %s", name)
+}
+
+// MessageReadMutation represents an operation that mutates the MessageRead nodes in the graph.
+type MessageReadMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *uuid.UUID
+	read_at        *time.Time
+	clearedFields  map[string]struct{}
+	message        *uuid.UUID
+	clearedmessage bool
+	user           *uuid.UUID
+	cleareduser    bool
+	done           bool
+	oldValue       func(context.Context) (*MessageRead, error)
+	predicates     []predicate.MessageRead
+}
+
+var _ ent.Mutation = (*MessageReadMutation)(nil)
+
+// messagereadOption allows management of the mutation configuration using functional options.
+type messagereadOption func(*MessageReadMutation)
+
+// newMessageReadMutation creates new mutation for the MessageRead entity.
+func newMessageReadMutation(c config, op Op, opts ...messagereadOption) *MessageReadMutation {
+	m := &MessageReadMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeMessageRead,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withMessageReadID sets the ID field of the mutation.
+func withMessageReadID(id uuid.UUID) messagereadOption {
+	return func(m *MessageReadMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *MessageRead
+		)
+		m.oldValue = func(ctx context.Context) (*MessageRead, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().MessageRead.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withMessageRead sets the old MessageRead of the mutation.
+func withMessageRead(node *MessageRead) messagereadOption {
+	return func(m *MessageReadMutation) {
+		m.oldValue = func(context.Context) (*MessageRead, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m MessageReadMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m MessageReadMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of MessageRead entities.
+func (m *MessageReadMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *MessageReadMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *MessageReadMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().MessageRead.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetMessageID sets the "message_id" field.
+func (m *MessageReadMutation) SetMessageID(u uuid.UUID) {
+	m.message = &u
+}
+
+// MessageID returns the value of the "message_id" field in the mutation.
+func (m *MessageReadMutation) MessageID() (r uuid.UUID, exists bool) {
+	v := m.message
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMessageID returns the old "message_id" field's value of the MessageRead entity.
+// If the MessageRead object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessageReadMutation) OldMessageID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMessageID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMessageID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMessageID: %w", err)
+	}
+	return oldValue.MessageID, nil
+}
+
+// ResetMessageID resets all changes to the "message_id" field.
+func (m *MessageReadMutation) ResetMessageID() {
+	m.message = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *MessageReadMutation) SetUserID(u uuid.UUID) {
+	m.user = &u
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *MessageReadMutation) UserID() (r uuid.UUID, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the MessageRead entity.
+// If the MessageRead object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessageReadMutation) OldUserID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *MessageReadMutation) ResetUserID() {
+	m.user = nil
+}
+
+// SetReadAt sets the "read_at" field.
+func (m *MessageReadMutation) SetReadAt(t time.Time) {
+	m.read_at = &t
+}
+
+// ReadAt returns the value of the "read_at" field in the mutation.
+func (m *MessageReadMutation) ReadAt() (r time.Time, exists bool) {
+	v := m.read_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReadAt returns the old "read_at" field's value of the MessageRead entity.
+// If the MessageRead object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessageReadMutation) OldReadAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReadAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReadAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReadAt: %w", err)
+	}
+	return oldValue.ReadAt, nil
+}
+
+// ResetReadAt resets all changes to the "read_at" field.
+func (m *MessageReadMutation) ResetReadAt() {
+	m.read_at = nil
+}
+
+// ClearMessage clears the "message" edge to the Message entity.
+func (m *MessageReadMutation) ClearMessage() {
+	m.clearedmessage = true
+	m.clearedFields[messageread.FieldMessageID] = struct{}{}
+}
+
+// MessageCleared reports if the "message" edge to the Message entity was cleared.
+func (m *MessageReadMutation) MessageCleared() bool {
+	return m.clearedmessage
+}
+
+// MessageIDs returns the "message" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// MessageID instead. It exists only for internal usage by the builders.
+func (m *MessageReadMutation) MessageIDs() (ids []uuid.UUID) {
+	if id := m.message; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetMessage resets all changes to the "message" edge.
+func (m *MessageReadMutation) ResetMessage() {
+	m.message = nil
+	m.clearedmessage = false
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *MessageReadMutation) ClearUser() {
+	m.cleareduser = true
+	m.clearedFields[messageread.FieldUserID] = struct{}{}
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *MessageReadMutation) UserCleared() bool {
+	return m.cleareduser
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *MessageReadMutation) UserIDs() (ids []uuid.UUID) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *MessageReadMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// Where appends a list predicates to the MessageReadMutation builder.
+func (m *MessageReadMutation) Where(ps ...predicate.MessageRead) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the MessageReadMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *MessageReadMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.MessageRead, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *MessageReadMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *MessageReadMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (MessageRead).
+func (m *MessageReadMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *MessageReadMutation) Fields() []string {
+	fields := make([]string, 0, 3)
+	if m.message != nil {
+		fields = append(fields, messageread.FieldMessageID)
+	}
+	if m.user != nil {
+		fields = append(fields, messageread.FieldUserID)
+	}
+	if m.read_at != nil {
+		fields = append(fields, messageread.FieldReadAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *MessageReadMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case messageread.FieldMessageID:
+		return m.MessageID()
+	case messageread.FieldUserID:
+		return m.UserID()
+	case messageread.FieldReadAt:
+		return m.ReadAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *MessageReadMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case messageread.FieldMessageID:
+		return m.OldMessageID(ctx)
+	case messageread.FieldUserID:
+		return m.OldUserID(ctx)
+	case messageread.FieldReadAt:
+		return m.OldReadAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown MessageRead field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MessageReadMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case messageread.FieldMessageID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMessageID(v)
+		return nil
+	case messageread.FieldUserID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case messageread.FieldReadAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReadAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MessageRead field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *MessageReadMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *MessageReadMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MessageReadMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown MessageRead numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *MessageReadMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *MessageReadMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *MessageReadMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown MessageRead nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *MessageReadMutation) ResetField(name string) error {
+	switch name {
+	case messageread.FieldMessageID:
+		m.ResetMessageID()
+		return nil
+	case messageread.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case messageread.FieldReadAt:
+		m.ResetReadAt()
+		return nil
+	}
+	return fmt.Errorf("unknown MessageRead field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *MessageReadMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.message != nil {
+		edges = append(edges, messageread.EdgeMessage)
+	}
+	if m.user != nil {
+		edges = append(edges, messageread.EdgeUser)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *MessageReadMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case messageread.EdgeMessage:
+		if id := m.message; id != nil {
+			return []ent.Value{*id}
+		}
+	case messageread.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *MessageReadMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *MessageReadMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *MessageReadMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedmessage {
+		edges = append(edges, messageread.EdgeMessage)
+	}
+	if m.cleareduser {
+		edges = append(edges, messageread.EdgeUser)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *MessageReadMutation) EdgeCleared(name string) bool {
+	switch name {
+	case messageread.EdgeMessage:
+		return m.clearedmessage
+	case messageread.EdgeUser:
+		return m.cleareduser
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *MessageReadMutation) ClearEdge(name string) error {
+	switch name {
+	case messageread.EdgeMessage:
+		m.ClearMessage()
+		return nil
+	case messageread.EdgeUser:
+		m.ClearUser()
+		return nil
+	}
+	return fmt.Errorf("unknown MessageRead unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *MessageReadMutation) ResetEdge(name string) error {
+	switch name {
+	case messageread.EdgeMessage:
+		m.ResetMessage()
+		return nil
+	case messageread.EdgeUser:
+		m.ResetUser()
+		return nil
+	}
+	return fmt.Errorf("unknown MessageRead edge %s", name)
 }
 
 // RoomMemberMutation represents an operation that mutates the RoomMember nodes in the graph.
@@ -2152,6 +3458,12 @@ type UserMutation struct {
 	messages                 map[uuid.UUID]struct{}
 	removedmessages          map[uuid.UUID]struct{}
 	clearedmessages          bool
+	message_reads            map[uuid.UUID]struct{}
+	removedmessage_reads     map[uuid.UUID]struct{}
+	clearedmessage_reads     bool
+	message_reactions        map[uuid.UUID]struct{}
+	removedmessage_reactions map[uuid.UUID]struct{}
+	clearedmessage_reactions bool
 	done                     bool
 	oldValue                 func(context.Context) (*User, error)
 	predicates               []predicate.User
@@ -2745,6 +4057,114 @@ func (m *UserMutation) ResetMessages() {
 	m.removedmessages = nil
 }
 
+// AddMessageReadIDs adds the "message_reads" edge to the MessageRead entity by ids.
+func (m *UserMutation) AddMessageReadIDs(ids ...uuid.UUID) {
+	if m.message_reads == nil {
+		m.message_reads = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.message_reads[ids[i]] = struct{}{}
+	}
+}
+
+// ClearMessageReads clears the "message_reads" edge to the MessageRead entity.
+func (m *UserMutation) ClearMessageReads() {
+	m.clearedmessage_reads = true
+}
+
+// MessageReadsCleared reports if the "message_reads" edge to the MessageRead entity was cleared.
+func (m *UserMutation) MessageReadsCleared() bool {
+	return m.clearedmessage_reads
+}
+
+// RemoveMessageReadIDs removes the "message_reads" edge to the MessageRead entity by IDs.
+func (m *UserMutation) RemoveMessageReadIDs(ids ...uuid.UUID) {
+	if m.removedmessage_reads == nil {
+		m.removedmessage_reads = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.message_reads, ids[i])
+		m.removedmessage_reads[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedMessageReads returns the removed IDs of the "message_reads" edge to the MessageRead entity.
+func (m *UserMutation) RemovedMessageReadsIDs() (ids []uuid.UUID) {
+	for id := range m.removedmessage_reads {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// MessageReadsIDs returns the "message_reads" edge IDs in the mutation.
+func (m *UserMutation) MessageReadsIDs() (ids []uuid.UUID) {
+	for id := range m.message_reads {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetMessageReads resets all changes to the "message_reads" edge.
+func (m *UserMutation) ResetMessageReads() {
+	m.message_reads = nil
+	m.clearedmessage_reads = false
+	m.removedmessage_reads = nil
+}
+
+// AddMessageReactionIDs adds the "message_reactions" edge to the MessageReaction entity by ids.
+func (m *UserMutation) AddMessageReactionIDs(ids ...uuid.UUID) {
+	if m.message_reactions == nil {
+		m.message_reactions = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.message_reactions[ids[i]] = struct{}{}
+	}
+}
+
+// ClearMessageReactions clears the "message_reactions" edge to the MessageReaction entity.
+func (m *UserMutation) ClearMessageReactions() {
+	m.clearedmessage_reactions = true
+}
+
+// MessageReactionsCleared reports if the "message_reactions" edge to the MessageReaction entity was cleared.
+func (m *UserMutation) MessageReactionsCleared() bool {
+	return m.clearedmessage_reactions
+}
+
+// RemoveMessageReactionIDs removes the "message_reactions" edge to the MessageReaction entity by IDs.
+func (m *UserMutation) RemoveMessageReactionIDs(ids ...uuid.UUID) {
+	if m.removedmessage_reactions == nil {
+		m.removedmessage_reactions = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.message_reactions, ids[i])
+		m.removedmessage_reactions[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedMessageReactions returns the removed IDs of the "message_reactions" edge to the MessageReaction entity.
+func (m *UserMutation) RemovedMessageReactionsIDs() (ids []uuid.UUID) {
+	for id := range m.removedmessage_reactions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// MessageReactionsIDs returns the "message_reactions" edge IDs in the mutation.
+func (m *UserMutation) MessageReactionsIDs() (ids []uuid.UUID) {
+	for id := range m.message_reactions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetMessageReactions resets all changes to the "message_reactions" edge.
+func (m *UserMutation) ResetMessageReactions() {
+	m.message_reactions = nil
+	m.clearedmessage_reactions = false
+	m.removedmessage_reactions = nil
+}
+
 // Where appends a list predicates to the UserMutation builder.
 func (m *UserMutation) Where(ps ...predicate.User) {
 	m.predicates = append(m.predicates, ps...)
@@ -3041,12 +4461,18 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 4)
 	if m.room_members != nil {
 		edges = append(edges, user.EdgeRoomMembers)
 	}
 	if m.messages != nil {
 		edges = append(edges, user.EdgeMessages)
+	}
+	if m.message_reads != nil {
+		edges = append(edges, user.EdgeMessageReads)
+	}
+	if m.message_reactions != nil {
+		edges = append(edges, user.EdgeMessageReactions)
 	}
 	return edges
 }
@@ -3067,18 +4493,36 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeMessageReads:
+		ids := make([]ent.Value, 0, len(m.message_reads))
+		for id := range m.message_reads {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeMessageReactions:
+		ids := make([]ent.Value, 0, len(m.message_reactions))
+		for id := range m.message_reactions {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 4)
 	if m.removedroom_members != nil {
 		edges = append(edges, user.EdgeRoomMembers)
 	}
 	if m.removedmessages != nil {
 		edges = append(edges, user.EdgeMessages)
+	}
+	if m.removedmessage_reads != nil {
+		edges = append(edges, user.EdgeMessageReads)
+	}
+	if m.removedmessage_reactions != nil {
+		edges = append(edges, user.EdgeMessageReactions)
 	}
 	return edges
 }
@@ -3099,18 +4543,36 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeMessageReads:
+		ids := make([]ent.Value, 0, len(m.removedmessage_reads))
+		for id := range m.removedmessage_reads {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeMessageReactions:
+		ids := make([]ent.Value, 0, len(m.removedmessage_reactions))
+		for id := range m.removedmessage_reactions {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 4)
 	if m.clearedroom_members {
 		edges = append(edges, user.EdgeRoomMembers)
 	}
 	if m.clearedmessages {
 		edges = append(edges, user.EdgeMessages)
+	}
+	if m.clearedmessage_reads {
+		edges = append(edges, user.EdgeMessageReads)
+	}
+	if m.clearedmessage_reactions {
+		edges = append(edges, user.EdgeMessageReactions)
 	}
 	return edges
 }
@@ -3123,6 +4585,10 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 		return m.clearedroom_members
 	case user.EdgeMessages:
 		return m.clearedmessages
+	case user.EdgeMessageReads:
+		return m.clearedmessage_reads
+	case user.EdgeMessageReactions:
+		return m.clearedmessage_reactions
 	}
 	return false
 }
@@ -3144,6 +4610,12 @@ func (m *UserMutation) ResetEdge(name string) error {
 		return nil
 	case user.EdgeMessages:
 		m.ResetMessages()
+		return nil
+	case user.EdgeMessageReads:
+		m.ResetMessageReads()
+		return nil
+	case user.EdgeMessageReactions:
+		m.ResetMessageReactions()
 		return nil
 	}
 	return fmt.Errorf("unknown User edge %s", name)

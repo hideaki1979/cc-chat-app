@@ -8,6 +8,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/chatroom"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/message"
+	"github.com/hideaki1979/cc-chat-app/apps/api/ent/messagereaction"
+	"github.com/hideaki1979/cc-chat-app/apps/api/ent/messageread"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/roommember"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/schema"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/user"
@@ -75,6 +77,26 @@ func init() {
 	messageDescID := messageFields[0].Descriptor()
 	// message.DefaultID holds the default value on creation for the id field.
 	message.DefaultID = messageDescID.Default.(func() uuid.UUID)
+	messagereactionFields := schema.MessageReaction{}.Fields()
+	_ = messagereactionFields
+	// messagereactionDescCreatedAt is the schema descriptor for created_at field.
+	messagereactionDescCreatedAt := messagereactionFields[4].Descriptor()
+	// messagereaction.DefaultCreatedAt holds the default value on creation for the created_at field.
+	messagereaction.DefaultCreatedAt = messagereactionDescCreatedAt.Default.(func() time.Time)
+	// messagereactionDescID is the schema descriptor for id field.
+	messagereactionDescID := messagereactionFields[0].Descriptor()
+	// messagereaction.DefaultID holds the default value on creation for the id field.
+	messagereaction.DefaultID = messagereactionDescID.Default.(func() uuid.UUID)
+	messagereadFields := schema.MessageRead{}.Fields()
+	_ = messagereadFields
+	// messagereadDescReadAt is the schema descriptor for read_at field.
+	messagereadDescReadAt := messagereadFields[3].Descriptor()
+	// messageread.DefaultReadAt holds the default value on creation for the read_at field.
+	messageread.DefaultReadAt = messagereadDescReadAt.Default.(func() time.Time)
+	// messagereadDescID is the schema descriptor for id field.
+	messagereadDescID := messagereadFields[0].Descriptor()
+	// messageread.DefaultID holds the default value on creation for the id field.
+	messageread.DefaultID = messagereadDescID.Default.(func() uuid.UUID)
 	roommemberFields := schema.RoomMember{}.Fields()
 	_ = roommemberFields
 	// roommemberDescJoinedAt is the schema descriptor for joined_at field.

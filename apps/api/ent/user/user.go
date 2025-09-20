@@ -38,6 +38,10 @@ const (
 	EdgeRoomMembers = "room_members"
 	// EdgeMessages holds the string denoting the messages edge name in mutations.
 	EdgeMessages = "messages"
+	// EdgeMessageReads holds the string denoting the message_reads edge name in mutations.
+	EdgeMessageReads = "message_reads"
+	// EdgeMessageReactions holds the string denoting the message_reactions edge name in mutations.
+	EdgeMessageReactions = "message_reactions"
 	// Table holds the table name of the user in the database.
 	Table = "users"
 	// RoomMembersTable is the table that holds the room_members relation/edge.
@@ -54,6 +58,20 @@ const (
 	MessagesInverseTable = "messages"
 	// MessagesColumn is the table column denoting the messages relation/edge.
 	MessagesColumn = "user_id"
+	// MessageReadsTable is the table that holds the message_reads relation/edge.
+	MessageReadsTable = "message_reads"
+	// MessageReadsInverseTable is the table name for the MessageRead entity.
+	// It exists in this package in order to avoid circular dependency with the "messageread" package.
+	MessageReadsInverseTable = "message_reads"
+	// MessageReadsColumn is the table column denoting the message_reads relation/edge.
+	MessageReadsColumn = "user_id"
+	// MessageReactionsTable is the table that holds the message_reactions relation/edge.
+	MessageReactionsTable = "message_reactions"
+	// MessageReactionsInverseTable is the table name for the MessageReaction entity.
+	// It exists in this package in order to avoid circular dependency with the "messagereaction" package.
+	MessageReactionsInverseTable = "message_reactions"
+	// MessageReactionsColumn is the table column denoting the message_reactions relation/edge.
+	MessageReactionsColumn = "user_id"
 )
 
 // Columns holds all SQL columns for user fields.
@@ -173,6 +191,34 @@ func ByMessages(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newMessagesStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByMessageReadsCount orders the results by message_reads count.
+func ByMessageReadsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newMessageReadsStep(), opts...)
+	}
+}
+
+// ByMessageReads orders the results by message_reads terms.
+func ByMessageReads(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newMessageReadsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByMessageReactionsCount orders the results by message_reactions count.
+func ByMessageReactionsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newMessageReactionsStep(), opts...)
+	}
+}
+
+// ByMessageReactions orders the results by message_reactions terms.
+func ByMessageReactions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newMessageReactionsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newRoomMembersStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -185,5 +231,19 @@ func newMessagesStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(MessagesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, MessagesTable, MessagesColumn),
+	)
+}
+func newMessageReadsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(MessageReadsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, MessageReadsTable, MessageReadsColumn),
+	)
+}
+func newMessageReactionsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(MessageReactionsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, MessageReactionsTable, MessageReactionsColumn),
 	)
 }

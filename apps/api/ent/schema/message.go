@@ -59,6 +59,10 @@ func (Message) Edges() []ent.Edge {
 			Field("user_id").
 			Required().
 			Unique(),
+		// Messageは複数の既読情報（MessageRead）を持つ
+		edge.To("reads", MessageRead.Type),
+		// Messageは複数のリアクション（MessageReaction）を持つ
+		edge.To("reactions", MessageReaction.Type),
 	}
 }
 

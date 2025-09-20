@@ -127,6 +127,14 @@ func main() {
 	tokenService := services.NewTokenService(userRepo)
 	authService := services.NewAuthService(client, userRepo, tokenService)
 
+	// S3設定とクライアント初期化
+	s3Config := services.NewS3Config()
+	s3Client, err := services.NewS3Client(context.Background(), s3Config)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize S3 client: %v", err)
+		// S3が利用できない場合でもアプリケーションは継続
+	}
+
 	// ハンドラー初期化
 	authHandler := handlers.NewAuthHandler(authService, tokenService)
 	profileHandler := handlers.NewProfileHandler()
@@ -134,6 +142,11 @@ func main() {
 	chatRoomHandler := handlers.NewChatRoomHandler(client)
 	messageHandler := handlers.NewMessageHandler(client, hub)
 	wsHandler := handlers.NewWebSocketHandler(hub)
+
+	var fileHandler *handlers.FileHandler
+	if s3Client != nil {
+		fileHandler = handlers.NewFileHandler(s3Client, s3Config.Bucket)
+	}
 
 	// ルーティング設定
 	// ヘルスチェック
@@ -192,6 +205,21 @@ func main() {
 	protectedGroup.GET("/messages/:id", messageHandler.GetMessage)
 	protectedGroup.PUT("/messages/:id", messageHandler.UpdateMessage)
 	protectedGroup.DELETE("/messages/:id", messageHandler.DeleteMessage)
+
+	// メッセージ拡張機能（既読・リアクション）
+	protectedGroup.POST("/messages/:id/read", messageHandler.MarkAsRead)
+	protectedGroup.GET("/messages/:id/reads", messageHandler.GetMessageReads)
+	protectedGroup.POST("/messages/:id/reactions", messageHandler.AddReaction)
+	protectedGroup.DELETE("/messages/:id/reactions/:emoji", messageHandler.RemoveReaction)
+	protectedGroup.GET("/messages/:id/reactions", messageHandler.GetMessageReactions)
+	protectedGroup.GET("/messages/:id/reactions/summary", messageHandler.GetMessageReactionsSummary)
+
+	// ファイル関連（S3が利用可能な場合のみ）
+	if fileHandler != nil {
+		protectedGroup.POST("/files/upload", fileHandler.UploadFile)
+		protectedGroup.GET("/files/presigned-url/:key", fileHandler.GetPresignedURL)
+		protectedGroup.DELETE("/files/:key", fileHandler.DeleteFile)
+	}
 
 	// WebSocket関連（CSRFは適用しない）
 	wsGroup := e.Group("/api")
