@@ -8,7 +8,7 @@ import (
 
 // MessageReadRequest メッセージ既読リクエスト
 type MessageReadRequest struct {
-	MessageID uuid.UUID `json:"message_id" validate:"required"`
+	MessageID *uuid.UUID `json:"message_id" validate:"required"`
 }
 
 // MessageReadResponse メッセージ既読レスポンス

@@ -10,14 +10,15 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/google/uuid"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/handlers"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // MockS3Client S3クライアントのモック
@@ -83,14 +84,38 @@ func setupFileTest(t *testing.T) (*MockS3Client, *handlers.FileHandler, func()) 
 	bucketName := "test-bucket"
 
 	// 実際のhandlerではなく、テスト専用のhandlerを作成する場合のパターン
-	// ここでは実際のhandlerをそのまま使用
-	handler := handlers.NewFileHandler(nil, bucketName) // S3クライアントはnilで初期化
+	// ここでは実際のhandlerをそのまま使用（S3, Presignerはnilで初期化）
+	handler := handlers.NewFileHandler(nil, nil, bucketName)
 
 	cleanup := func() {
 		mockS3.AssertExpectations(t)
 	}
 
 	return mockS3, handler, cleanup
+}
+
+// --- 追加: ワイルドカード/エンコードキー用の最小スタブとテスト ---
+
+// stubS3 は handlers.S3API を満たす最小スタブ
+type stubS3 struct{}
+
+func (s *stubS3) PutObject(ctx context.Context, in *s3.PutObjectInput, optFns ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+	return &s3.PutObjectOutput{}, nil
+}
+
+func (s *stubS3) DeleteObject(ctx context.Context, in *s3.DeleteObjectInput, optFns ...func(*s3.Options)) (*s3.DeleteObjectOutput, error) {
+	return &s3.DeleteObjectOutput{}, nil
+}
+
+// stubPresigner は handlers.S3Presigner を満たす最小スタブ
+type stubPresigner struct{}
+
+func (p *stubPresigner) PresignGetObject(ctx context.Context, in *s3.GetObjectInput, optFns ...func(*s3.PresignOptions)) (*v4.PresignedHTTPRequest, error) {
+	return &v4.PresignedHTTPRequest{URL: "https://example.com/presigned"}, nil
+}
+
+func newFileHandlerForRouteTests() *handlers.FileHandler {
+	return handlers.NewFileHandler(&stubS3{}, &stubPresigner{}, "test-bucket")
 }
 
 func TestUploadFile_Success(t *testing.T) {
@@ -451,4 +476,72 @@ func TestFileHandlerIntegration_ValidImageTypes(t *testing.T) {
 			assert.NotEmpty(t, tc.data)
 		})
 	}
+}
+
+// --- 統合: ワイルドカード/エンコードキー関連テスト ---
+
+func TestGetPresignedURL_WildcardRoute_AllowsSlashesAndEncodedChars(t *testing.T) {
+	e := echo.New()
+	fileHandler := newFileHandlerForRouteTests()
+
+	userID := uuid.New().String()
+
+	// ワイルドカードルート登録
+	e.GET("/api/files/presigned-url/*", func(c echo.Context) error {
+		c.Set("user_id", userID)
+		return fileHandler.GetPresignedURL(c)
+	})
+
+	keyPath := fmt.Sprintf("chat-files/%s/2025/09/21/test file.png", userID)
+	req := httptest.NewRequest(http.MethodGet, "/api/files/presigned-url/"+keyPath, nil)
+	rec := httptest.NewRecorder()
+
+	e.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Equal(t, "https://example.com/presigned", resp["presigned_url"])
+	assert.Equal(t, "900", resp["expires_in"])
+}
+
+func TestGetPresignedURL_InvalidEncodedKey_ReturnsBadRequest(t *testing.T) {
+	e := echo.New()
+	fileHandler := newFileHandlerForRouteTests()
+
+	userID := uuid.New().String()
+
+	e.GET("/api/files/presigned-url/*", func(c echo.Context) error {
+		c.Set("user_id", userID)
+		return fileHandler.GetPresignedURL(c)
+	})
+
+	badKey := fmt.Sprintf("chat-files/%s/2025/09/21/file%%ZZ.png", userID)
+	req := httptest.NewRequest(http.MethodGet, "/api/files/presigned-url/"+badKey, nil)
+	rec := httptest.NewRecorder()
+
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestDeleteFile_WildcardRoute_AllowsSlashes(t *testing.T) {
+	e := echo.New()
+	fileHandler := newFileHandlerForRouteTests()
+
+	userID := uuid.New().String()
+
+	e.DELETE("/api/files/*", func(c echo.Context) error {
+		c.Set("user_id", userID)
+		return fileHandler.DeleteFile(c)
+	})
+
+	keyPath := fmt.Sprintf("chat-files/%s/2025/09/21/test.png", userID)
+	req := httptest.NewRequest(http.MethodDelete, "/api/files/"+keyPath, nil)
+	rec := httptest.NewRecorder()
+
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
 }

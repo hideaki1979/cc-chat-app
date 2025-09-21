@@ -144,8 +144,10 @@ func main() {
 	wsHandler := handlers.NewWebSocketHandler(hub)
 
 	var fileHandler *handlers.FileHandler
-	if s3Client != nil {
-		fileHandler = handlers.NewFileHandler(s3Client, s3Config.Bucket)
+	if s3Client != nil && s3Config.Bucket != "" {
+		fileHandler = handlers.NewFileHandlerFromAWS(s3Client, s3Config.Bucket)
+	} else if s3Client != nil && s3Config.Bucket == "" {
+		log.Printf("Warning: AWS_S3_BUCKET is empty; file API routes are disabled")
 	}
 
 	// ルーティング設定
@@ -217,8 +219,9 @@ func main() {
 	// ファイル関連（S3が利用可能な場合のみ）
 	if fileHandler != nil {
 		protectedGroup.POST("/files/upload", fileHandler.UploadFile)
-		protectedGroup.GET("/files/presigned-url/:key", fileHandler.GetPresignedURL)
-		protectedGroup.DELETE("/files/:key", fileHandler.DeleteFile)
+		// スラッシュを含むキーに対応するためワイルドカードを使用
+		protectedGroup.GET("/files/presigned-url/*", fileHandler.GetPresignedURL)
+		protectedGroup.DELETE("/files/*", fileHandler.DeleteFile)
 	}
 
 	// WebSocket関連（CSRFは適用しない）

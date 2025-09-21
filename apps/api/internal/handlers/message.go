@@ -9,13 +9,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/message"
-	"github.com/hideaki1979/cc-chat-app/apps/api/ent/messageread"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/messagereaction"
+	"github.com/hideaki1979/cc-chat-app/apps/api/ent/messageread"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/roommember"
+	"github.com/hideaki1979/cc-chat-app/apps/api/internal/constants"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/websocket"
 	"github.com/labstack/echo/v4"
-	"github.com/hideaki1979/cc-chat-app/apps/api/internal/constants"
 )
 
 // MessageHandler メッセージ関連のハンドラー
@@ -49,7 +49,7 @@ func (h *MessageHandler) SendMessage(c echo.Context) error {
 	if err := c.Validate(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	
+
 	userUUID, err := getUserUUID(c)
 	if err != nil {
 		return err
@@ -63,8 +63,8 @@ func (h *MessageHandler) SendMessage(c echo.Context) error {
 			roommember.RoomID(roomUUID),
 			roommember.UserID(userUUID),
 		).
-		WithRoom().	// CharRoomを読み込む
-		First(ctx)	// Existの代わりにFirstを使用
+		WithRoom(). // CharRoomを読み込む
+		First(ctx)  // Existの代わりにFirstを使用
 
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -77,8 +77,8 @@ func (h *MessageHandler) SendMessage(c echo.Context) error {
 	messageBuilder := h.client.Message.Create().
 		SetRoomID(roomUUID).
 		SetUserID(userUUID).
-		SetRoom(member.Edges.Room).	// 取得したChatRoomを設定
-		SetSenderID(userUUID).	// Senderエッジを設定
+		SetRoom(member.Edges.Room). // 取得したChatRoomを設定
+		SetSenderID(userUUID).      // Senderエッジを設定
 		SetContent(req.Content)
 
 	if req.FileURL != "" {
@@ -336,7 +336,7 @@ func (h *MessageHandler) DeleteMessage(c echo.Context) error {
 		return err
 	}
 
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// メッセージ取得と送信者チェック
 	msg, err := h.client.Message.Query().
@@ -385,7 +385,7 @@ func (h *MessageHandler) MarkAsRead(c echo.Context) error {
 		return err
 	}
 
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// メッセージ存在チェック
 	msg, err := h.client.Message.Query().
@@ -434,7 +434,25 @@ func (h *MessageHandler) MarkAsRead(c echo.Context) error {
 			SetReadAt(time.Now()).
 			Save(ctx)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to mark message as read")
+			if ent.IsConstraintError(err) {
+				// 競合: 既に作成済み → 既存を返す
+				existingRead, err2 := h.client.MessageRead.Query().
+					Where(messageread.MessageID(messageUUID), messageread.UserID(userUUID)).
+					Only(ctx)
+				if err2 == nil {
+					readResponse = &models.MessageReadResponse{
+						ID: existingRead.ID, MessageID: existingRead.MessageID, UserID: existingRead.UserID, ReadAt: existingRead.ReadAt,
+					}
+				} else {
+					return echo.NewHTTPError(http.StatusInternalServerError, "Failed to mark message as read")
+				}
+			} else {
+				return echo.NewHTTPError(http.StatusInternalServerError, "Failed to mark message as read")
+			}
+		} else {
+			readResponse = &models.MessageReadResponse{
+				ID: newRead.ID, MessageID: newRead.MessageID, UserID: newRead.UserID, ReadAt: newRead.ReadAt,
+			}
 		}
 
 		readResponse = &models.MessageReadResponse{
@@ -559,12 +577,17 @@ func (h *MessageHandler) AddReaction(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
+	// パスのIDとボディのmessage_idの整合性チェック
+	if req.MessageID != messageUUID {
+		return echo.NewHTTPError(http.StatusBadRequest, "message_id mismatch")
+	}
+
 	userUUID, err := getUserUUID(c)
 	if err != nil {
 		return err
 	}
 
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// メッセージ存在チェック
 	msg, err := h.client.Message.Query().
@@ -604,6 +627,7 @@ func (h *MessageHandler) AddReaction(c echo.Context) error {
 		Only(ctx)
 
 	var reactionResponse *models.MessageReactionResponse
+	httpStatus := http.StatusCreated
 
 	if ent.IsNotFound(err) {
 		// 新規リアクション作成
@@ -613,15 +637,39 @@ func (h *MessageHandler) AddReaction(c echo.Context) error {
 			SetEmoji(req.Emoji).
 			Save(ctx)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to add reaction")
+			// 同時実行でユニーク制約に当たった場合は既存を返す
+			if ent.IsConstraintError(err) {
+				existingReaction, err2 := h.client.MessageReaction.Query().
+					Where(
+						messagereaction.MessageID(messageUUID),
+						messagereaction.UserID(userUUID),
+						messagereaction.Emoji(req.Emoji),
+					).
+					Only(ctx)
+				if err2 != nil {
+					return echo.NewHTTPError(http.StatusInternalServerError, "Failed to add reaction")
+				}
+				reactionResponse = &models.MessageReactionResponse{
+					ID:        existingReaction.ID,
+					MessageID: existingReaction.MessageID,
+					UserID:    existingReaction.UserID,
+					Emoji:     existingReaction.Emoji,
+					CreatedAt: existingReaction.Unwrap().CreatedAt,
+				}
+				httpStatus = http.StatusOK
+			} else {
+				return echo.NewHTTPError(http.StatusInternalServerError, "Failed to add reaction")
+			}
 		}
 
-		reactionResponse = &models.MessageReactionResponse{
-			ID:        newReaction.ID,
-			MessageID: newReaction.MessageID,
-			UserID:    newReaction.UserID,
-			Emoji:     newReaction.Emoji,
-			CreatedAt: newReaction.CreatedAt,
+		if reactionResponse == nil { // 正常に作成できた場合
+			reactionResponse = &models.MessageReactionResponse{
+				ID:        newReaction.ID,
+				MessageID: newReaction.MessageID,
+				UserID:    newReaction.UserID,
+				Emoji:     newReaction.Emoji,
+				CreatedAt: newReaction.CreatedAt,
+			}
 		}
 	} else if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to check existing reaction")
@@ -634,10 +682,11 @@ func (h *MessageHandler) AddReaction(c echo.Context) error {
 			Emoji:     existingReaction.Emoji,
 			CreatedAt: existingReaction.CreatedAt,
 		}
+		httpStatus = http.StatusOK
 	}
 
-	// WebSocketでリアルタイムブロードキャスト
-	if h.hub != nil {
+	// WebSocketでリアルタイムブロードキャスト（新規作成時のみ）
+	if h.hub != nil && httpStatus == http.StatusCreated {
 		broadcastData := map[string]any{
 			"message_id": messageID,
 			"user_id":    userUUID.String(),
@@ -647,7 +696,7 @@ func (h *MessageHandler) AddReaction(c echo.Context) error {
 		h.hub.BroadcastToRoom(msg.RoomID.String(), "message_reaction_added", broadcastData, nil)
 	}
 
-	return c.JSON(http.StatusCreated, reactionResponse)
+	return c.JSON(httpStatus, reactionResponse)
 }
 
 // RemoveReaction メッセージリアクション削除

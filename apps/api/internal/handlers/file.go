@@ -6,29 +6,54 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/gabriel-vasile/mimetype"
 	"github.com/google/uuid"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
 	"github.com/labstack/echo/v4"
 )
 
+// S3API S3操作用のインターフェース
+// テスト容易性のため、必要な操作のみに限定
+type S3API interface {
+	PutObject(context.Context, *s3.PutObjectInput, ...func(*s3.Options)) (*s3.PutObjectOutput, error)
+	DeleteObject(context.Context, *s3.DeleteObjectInput, ...func(*s3.Options)) (*s3.DeleteObjectOutput, error)
+}
+
+// S3Presigner プリサインドURL生成用のインターフェース
+type S3Presigner interface {
+	PresignGetObject(context.Context, *s3.GetObjectInput, ...func(*s3.PresignOptions)) (*v4.PresignedHTTPRequest, error)
+}
+
 // FileHandler ファイル関連のハンドラー
 type FileHandler struct {
-	s3Client   *s3.Client
+	s3         S3API
+	presigner  S3Presigner
 	bucketName string
 }
 
-// NewFileHandler FileHandlerのコンストラクタ
-func NewFileHandler(s3Client *s3.Client, bucketName string) *FileHandler {
+// NewFileHandler インターフェースベースのコンストラクタ
+func NewFileHandler(s3Client S3API, presigner S3Presigner, bucketName string) *FileHandler {
 	return &FileHandler{
-		s3Client:   s3Client,
+		s3:         s3Client,
+		presigner:  presigner,
 		bucketName: bucketName,
 	}
+}
+
+// NewFileHandlerFromAWS AWSの *s3.Client からFileHandlerを作成（実運用向け）
+func NewFileHandlerFromAWS(s3Client *s3.Client, bucketName string) *FileHandler {
+	if s3Client == nil {
+		return nil
+	}
+	return NewFileHandler(s3Client, s3.NewPresignClient(s3Client), bucketName)
 }
 
 const (
@@ -37,12 +62,12 @@ const (
 
 // allowedMimeTypes 許可されたファイルタイプ
 var allowedMimeTypes = map[string]bool{
-	"image/jpeg": true,
-	"image/png":  true,
-	"image/gif":  true,
-	"image/webp": true,
-	"text/plain": true,
-	"application/pdf": true,
+	"image/jpeg":         true,
+	"image/png":          true,
+	"image/gif":          true,
+	"image/webp":         true,
+	"text/plain":         true,
+	"application/pdf":    true,
 	"application/msword": true,
 	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
 	"application/vnd.ms-excel": true,
@@ -75,8 +100,24 @@ func (h *FileHandler) UploadFile(c echo.Context) error {
 	}
 	defer src.Close()
 
-	// MIMEタイプチェック
-	contentType := file.Header.Get("Content-Type")
+	// MIMEタイプ検出（実データ優先）
+	rs, ok := src.(io.ReadSeeker)
+	if !ok {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to prepare file reader")
+	}
+
+	// MIMEタイプを検出
+	mType, err := mimetype.DetectReader(rs)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to detect file type")
+	}
+
+	// ファイルストリームを先頭に戻す
+	if _, err := rs.Seek(0, io.SeekStart); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to rewind file reader")
+	}
+
+	contentType := mType.String()
 	if !allowedMimeTypes[contentType] {
 		return echo.NewHTTPError(http.StatusBadRequest, "File type not allowed")
 	}
@@ -104,22 +145,19 @@ func (h *FileHandler) UploadFile(c echo.Context) error {
 		ContentLength: aws.Int64(file.Size),
 		Metadata: map[string]string{
 			"original-filename": file.Filename,
-			"user-id":          userUUID.String(),
-			"upload-time":      time.Now().Format(time.RFC3339),
+			"user-id":           userUUID.String(),
+			"upload-time":       time.Now().Format(time.RFC3339),
 		},
 	}
 
-	ctx := context.Background()
-	_, err = h.s3Client.PutObject(ctx, uploadInput)
+	ctx := c.Request().Context()
+	_, err = h.s3.PutObject(ctx, uploadInput)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to upload file to S3")
 	}
 
-	// ファイルURL生成（S3の公開URL）
-	fileURL := fmt.Sprintf("https://%s.s3.amazonaws.com/%s", h.bucketName, s3Key)
-
 	response := models.FileUploadResponse{
-		URL:      fileURL,
+		URL:      s3Key,
 		Filename: file.Filename,
 		Size:     file.Size,
 		MimeType: contentType,
@@ -136,9 +174,17 @@ func (h *FileHandler) GetPresignedURL(c echo.Context) error {
 		return err
 	}
 
-	s3Key := c.Param("key")
-	if s3Key == "" {
+	rawKey := c.Param("key")
+	if rawKey == "" {
+		rawKey = c.Param("*")
+	}
+	if rawKey == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "File key is required")
+	}
+
+	s3Key, decErr := url.PathUnescape(rawKey)
+	if decErr != nil || s3Key == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid file key")
 	}
 
 	// セキュリティチェック：ユーザーが自分のファイルのみアクセス可能
@@ -148,9 +194,8 @@ func (h *FileHandler) GetPresignedURL(c echo.Context) error {
 
 	// プリサインドURL生成（15分有効）
 	ctx := context.Background()
-	presignClient := s3.NewPresignClient(h.s3Client)
 
-	request, err := presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
+	request, err := h.presigner.PresignGetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(h.bucketName),
 		Key:    aws.String(s3Key),
 	}, func(opts *s3.PresignOptions) {
@@ -175,10 +220,19 @@ func (h *FileHandler) DeleteFile(c echo.Context) error {
 		return err
 	}
 
-	s3Key := c.Param("key")
-	if s3Key == "" {
+	rawKey := c.Param("key")
+	if rawKey == "" {
+		rawKey = c.Param("*")
+	}
+	if rawKey == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "File key is required")
 	}
+
+	// URLデコードして検証
+    s3Key, decErr := url.PathUnescape(rawKey)
+    if decErr != nil || s3Key == "" {
+        return echo.NewHTTPError(http.StatusBadRequest, "Invalid file key")
+    }
 
 	// セキュリティチェック：ユーザーが自分のファイルのみ削除可能
 	if !strings.HasPrefix(s3Key, fmt.Sprintf("chat-files/%s/", userUUID.String())) {
@@ -192,7 +246,7 @@ func (h *FileHandler) DeleteFile(c echo.Context) error {
 	}
 
 	ctx := context.Background()
-	_, err = h.s3Client.DeleteObject(ctx, deleteInput)
+	_, err = h.s3.DeleteObject(ctx, deleteInput)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete file from S3")
 	}

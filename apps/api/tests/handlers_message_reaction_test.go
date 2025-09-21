@@ -17,9 +17,9 @@ import (
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/models"
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/websocket"
 	"github.com/labstack/echo/v4"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 func setupMessageReactionTest(t *testing.T) (*ent.Client, *handlers.MessageHandler, func()) {
@@ -115,7 +115,7 @@ func TestAddReaction_Success(t *testing.T) {
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, http.StatusCreated, rec.Code)
+	assert.Equal(t, http.StatusOK, rec.Code)
 
 	var response models.MessageReactionResponse
 	err = json.Unmarshal(rec.Body.Bytes(), &response)
@@ -192,6 +192,41 @@ func TestAddReaction_InvalidEmoji(t *testing.T) {
 	bodyBytes, _ := json.Marshal(requestBody)
 
 	// Setup Echo with validator
+	e := echo.New()
+	e.Validator = &CustomValidator{}
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/messages/%s/reactions", messageID), bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues(messageID.String())
+	c.Set("user_id", user2ID.String())
+
+	// Execute
+	err := handler.AddReaction(c)
+
+	// Assert
+	require.Error(t, err)
+	httpError, ok := err.(*echo.HTTPError)
+	require.True(t, ok)
+	assert.Equal(t, http.StatusBadRequest, httpError.Code)
+}
+
+func TestAddReaction_MessageIDMismatch(t *testing.T) {
+	client, handler, cleanup := setupMessageReactionTest(t)
+	defer cleanup()
+
+	_, user2ID, _, messageID := createTestDataForReaction(t, client)
+
+	// パスとは異なるmessage_idをボディに設定
+	wrongID := uuid.New()
+	requestBody := models.MessageReactionRequest{
+		MessageID: wrongID,
+		Emoji:     "👍",
+	}
+	bodyBytes, _ := json.Marshal(requestBody)
+
+	// Setup Echo
 	e := echo.New()
 	e.Validator = &CustomValidator{}
 	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/messages/%s/reactions", messageID), bytes.NewReader(bodyBytes))
