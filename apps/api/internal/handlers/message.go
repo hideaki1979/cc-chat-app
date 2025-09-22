@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"net/http"
 	"strconv"
 	"time"
@@ -64,7 +63,7 @@ func (h *MessageHandler) SendMessage(c echo.Context) error {
 		return err
 	}
 
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// ユーザーがそのルームのメンバーかチェック
 	member, err := h.client.RoomMember.Query().
@@ -157,7 +156,7 @@ func (h *MessageHandler) GetMessages(c echo.Context) error {
 		}
 	}
 
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// ユーザーがそのルームのメンバーかチェック
 	isMember, err := h.client.RoomMember.Query().
@@ -226,7 +225,7 @@ func (h *MessageHandler) GetMessage(c echo.Context) error {
 		return err
 	}
 
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// メッセージ取得
 	msg, err := h.client.Message.Query().
@@ -285,7 +284,7 @@ func (h *MessageHandler) UpdateMessage(c echo.Context) error {
 		return err
 	}
 
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// メッセージ取得と送信者チェック
 	msg, err := h.client.Message.Query().
@@ -502,7 +501,7 @@ func (h *MessageHandler) GetMessageReads(c echo.Context) error {
 		return err
 	}
 
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// メッセージ存在チェック
 	msg, err := h.client.Message.Query().
@@ -658,7 +657,7 @@ func (h *MessageHandler) AddReaction(c echo.Context) error {
 					Emoji:     existingReaction.Emoji,
 					CreatedAt: existingReaction.CreatedAt,
 				}
-				httpStatus = http.StatusCreated
+				httpStatus = http.StatusOK
 			} else {
 				return echo.NewHTTPError(http.StatusInternalServerError, "Failed to add reaction")
 			}
@@ -672,7 +671,7 @@ func (h *MessageHandler) AddReaction(c echo.Context) error {
 				Emoji:     newReaction.Emoji,
 				CreatedAt: newReaction.CreatedAt,
 			}
-			httpStatus = http.StatusOK
+			httpStatus = http.StatusCreated
 		}
 	} else if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to check existing reaction")
@@ -685,11 +684,11 @@ func (h *MessageHandler) AddReaction(c echo.Context) error {
 			Emoji:     existingReaction.Emoji,
 			CreatedAt: existingReaction.CreatedAt,
 		}
-		httpStatus = http.StatusCreated
+		httpStatus = http.StatusOK
 	}
 
 	// WebSocketでリアルタイムブロードキャスト（新規作成時のみ）
-	if h.hub != nil && httpStatus == http.StatusOK {
+	if h.hub != nil && httpStatus == http.StatusCreated {
 		broadcastData := map[string]any{
 			"message_id": messageID,
 			"user_id":    userUUID.String(),
@@ -721,7 +720,7 @@ func (h *MessageHandler) RemoveReaction(c echo.Context) error {
 		return err
 	}
 
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// メッセージ存在チェック
 	msg, err := h.client.Message.Query().
@@ -796,7 +795,7 @@ func (h *MessageHandler) GetMessageReactions(c echo.Context) error {
 		return err
 	}
 
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// メッセージ存在チェック
 	msg, err := h.client.Message.Query().
@@ -870,7 +869,7 @@ func (h *MessageHandler) GetMessageReactionsSummary(c echo.Context) error {
 		return err
 	}
 
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// メッセージ存在チェック
 	msg, err := h.client.Message.Query().

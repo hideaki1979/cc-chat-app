@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"net/http"
 	"strconv"
 	"time"
@@ -61,7 +60,7 @@ func (h *ChatRoomHandler) CreateChatRoom(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
 	}
 
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// トランザクション開始
 	tx, err := h.client.Tx(ctx)
@@ -169,7 +168,7 @@ func (h *ChatRoomHandler) GetChatRooms(c echo.Context) error {
 		pageSize = 20
 	}
 
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// ユーザーが参加しているルームを取得
 	rooms, err := h.client.ChatRoom.Query().
@@ -225,7 +224,7 @@ func (h *ChatRoomHandler) GetChatRoom(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
 	}
 
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// ユーザーがそのルームのメンバーかチェック
 	isMember, err := h.client.RoomMember.Query().
@@ -292,7 +291,7 @@ func (h *ChatRoomHandler) UpdateChatRoom(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
 	}
 
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// ユーザーがそのルームのメンバーかチェック
 	isMember, err := h.client.RoomMember.Query().
@@ -375,7 +374,7 @@ func (h *ChatRoomHandler) AddMember(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
 	}
 
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// ユーザーがそのルームのメンバーかチェック
 	isMember, err := h.client.RoomMember.Query().
@@ -509,7 +508,7 @@ func (h *ChatRoomHandler) RemoveMember(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
 	}
 
-	ctx := context.Background()
+	ctx := c.Request().Context()
 
 	// ユーザーがそのルームのメンバーかチェック
 	isMember, err := h.client.RoomMember.Query().
