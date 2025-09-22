@@ -76,7 +76,7 @@ func (h *ProfileHandler) UpdateProfile(c echo.Context) error {
 
 	var req models.UpdateProfileRequest
 	if err := middleware.ValidateRequest(c, &req); err != nil {
-		return err
+		return h.handleError(c, err)
 	}
 
 	client, err := h.getDBClient(c)

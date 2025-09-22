@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -14,6 +15,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/chatroom"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/message"
+	"github.com/hideaki1979/cc-chat-app/apps/api/ent/messagereaction"
+	"github.com/hideaki1979/cc-chat-app/apps/api/ent/messageread"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/predicate"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/user"
 )
@@ -21,12 +24,14 @@ import (
 // MessageQuery is the builder for querying Message entities.
 type MessageQuery struct {
 	config
-	ctx        *QueryContext
-	order      []message.OrderOption
-	inters     []Interceptor
-	predicates []predicate.Message
-	withRoom   *ChatRoomQuery
-	withSender *UserQuery
+	ctx           *QueryContext
+	order         []message.OrderOption
+	inters        []Interceptor
+	predicates    []predicate.Message
+	withRoom      *ChatRoomQuery
+	withSender    *UserQuery
+	withReads     *MessageReadQuery
+	withReactions *MessageReactionQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -100,6 +105,50 @@ func (mq *MessageQuery) QuerySender() *UserQuery {
 			sqlgraph.From(message.Table, message.FieldID, selector),
 			sqlgraph.To(user.Table, user.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, message.SenderTable, message.SenderColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(mq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryReads chains the current query on the "reads" edge.
+func (mq *MessageQuery) QueryReads() *MessageReadQuery {
+	query := (&MessageReadClient{config: mq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := mq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := mq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(message.Table, message.FieldID, selector),
+			sqlgraph.To(messageread.Table, messageread.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, message.ReadsTable, message.ReadsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(mq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryReactions chains the current query on the "reactions" edge.
+func (mq *MessageQuery) QueryReactions() *MessageReactionQuery {
+	query := (&MessageReactionClient{config: mq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := mq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := mq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(message.Table, message.FieldID, selector),
+			sqlgraph.To(messagereaction.Table, messagereaction.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, message.ReactionsTable, message.ReactionsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(mq.driver.Dialect(), step)
 		return fromU, nil
@@ -294,13 +343,15 @@ func (mq *MessageQuery) Clone() *MessageQuery {
 		return nil
 	}
 	return &MessageQuery{
-		config:     mq.config,
-		ctx:        mq.ctx.Clone(),
-		order:      append([]message.OrderOption{}, mq.order...),
-		inters:     append([]Interceptor{}, mq.inters...),
-		predicates: append([]predicate.Message{}, mq.predicates...),
-		withRoom:   mq.withRoom.Clone(),
-		withSender: mq.withSender.Clone(),
+		config:        mq.config,
+		ctx:           mq.ctx.Clone(),
+		order:         append([]message.OrderOption{}, mq.order...),
+		inters:        append([]Interceptor{}, mq.inters...),
+		predicates:    append([]predicate.Message{}, mq.predicates...),
+		withRoom:      mq.withRoom.Clone(),
+		withSender:    mq.withSender.Clone(),
+		withReads:     mq.withReads.Clone(),
+		withReactions: mq.withReactions.Clone(),
 		// clone intermediate query.
 		sql:  mq.sql.Clone(),
 		path: mq.path,
@@ -326,6 +377,28 @@ func (mq *MessageQuery) WithSender(opts ...func(*UserQuery)) *MessageQuery {
 		opt(query)
 	}
 	mq.withSender = query
+	return mq
+}
+
+// WithReads tells the query-builder to eager-load the nodes that are connected to
+// the "reads" edge. The optional arguments are used to configure the query builder of the edge.
+func (mq *MessageQuery) WithReads(opts ...func(*MessageReadQuery)) *MessageQuery {
+	query := (&MessageReadClient{config: mq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	mq.withReads = query
+	return mq
+}
+
+// WithReactions tells the query-builder to eager-load the nodes that are connected to
+// the "reactions" edge. The optional arguments are used to configure the query builder of the edge.
+func (mq *MessageQuery) WithReactions(opts ...func(*MessageReactionQuery)) *MessageQuery {
+	query := (&MessageReactionClient{config: mq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	mq.withReactions = query
 	return mq
 }
 
@@ -407,9 +480,11 @@ func (mq *MessageQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Mess
 	var (
 		nodes       = []*Message{}
 		_spec       = mq.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [4]bool{
 			mq.withRoom != nil,
 			mq.withSender != nil,
+			mq.withReads != nil,
+			mq.withReactions != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -439,6 +514,20 @@ func (mq *MessageQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Mess
 	if query := mq.withSender; query != nil {
 		if err := mq.loadSender(ctx, query, nodes, nil,
 			func(n *Message, e *User) { n.Edges.Sender = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := mq.withReads; query != nil {
+		if err := mq.loadReads(ctx, query, nodes,
+			func(n *Message) { n.Edges.Reads = []*MessageRead{} },
+			func(n *Message, e *MessageRead) { n.Edges.Reads = append(n.Edges.Reads, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := mq.withReactions; query != nil {
+		if err := mq.loadReactions(ctx, query, nodes,
+			func(n *Message) { n.Edges.Reactions = []*MessageReaction{} },
+			func(n *Message, e *MessageReaction) { n.Edges.Reactions = append(n.Edges.Reactions, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -500,6 +589,66 @@ func (mq *MessageQuery) loadSender(ctx context.Context, query *UserQuery, nodes 
 		for i := range nodes {
 			assign(nodes[i], n)
 		}
+	}
+	return nil
+}
+func (mq *MessageQuery) loadReads(ctx context.Context, query *MessageReadQuery, nodes []*Message, init func(*Message), assign func(*Message, *MessageRead)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Message)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(messageread.FieldMessageID)
+	}
+	query.Where(predicate.MessageRead(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(message.ReadsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.MessageID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "message_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (mq *MessageQuery) loadReactions(ctx context.Context, query *MessageReactionQuery, nodes []*Message, init func(*Message), assign func(*Message, *MessageReaction)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Message)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(messagereaction.FieldMessageID)
+	}
+	query.Where(predicate.MessageReaction(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(message.ReactionsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.MessageID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "message_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
 	}
 	return nil
 }

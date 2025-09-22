@@ -13,6 +13,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/chatroom"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/message"
+	"github.com/hideaki1979/cc-chat-app/apps/api/ent/messagereaction"
+	"github.com/hideaki1979/cc-chat-app/apps/api/ent/messageread"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/user"
 )
 
@@ -125,6 +127,36 @@ func (mc *MessageCreate) SetSenderID(id uuid.UUID) *MessageCreate {
 // SetSender sets the "sender" edge to the User entity.
 func (mc *MessageCreate) SetSender(u *User) *MessageCreate {
 	return mc.SetSenderID(u.ID)
+}
+
+// AddReadIDs adds the "reads" edge to the MessageRead entity by IDs.
+func (mc *MessageCreate) AddReadIDs(ids ...uuid.UUID) *MessageCreate {
+	mc.mutation.AddReadIDs(ids...)
+	return mc
+}
+
+// AddReads adds the "reads" edges to the MessageRead entity.
+func (mc *MessageCreate) AddReads(m ...*MessageRead) *MessageCreate {
+	ids := make([]uuid.UUID, len(m))
+	for i := range m {
+		ids[i] = m[i].ID
+	}
+	return mc.AddReadIDs(ids...)
+}
+
+// AddReactionIDs adds the "reactions" edge to the MessageReaction entity by IDs.
+func (mc *MessageCreate) AddReactionIDs(ids ...uuid.UUID) *MessageCreate {
+	mc.mutation.AddReactionIDs(ids...)
+	return mc
+}
+
+// AddReactions adds the "reactions" edges to the MessageReaction entity.
+func (mc *MessageCreate) AddReactions(m ...*MessageReaction) *MessageCreate {
+	ids := make([]uuid.UUID, len(m))
+	for i := range m {
+		ids[i] = m[i].ID
+	}
+	return mc.AddReactionIDs(ids...)
 }
 
 // Mutation returns the MessageMutation object of the builder.
@@ -286,6 +318,38 @@ func (mc *MessageCreate) createSpec() (*Message, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.UserID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := mc.mutation.ReadsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   message.ReadsTable,
+			Columns: []string{message.ReadsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(messageread.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := mc.mutation.ReactionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   message.ReactionsTable,
+			Columns: []string{message.ReactionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(messagereaction.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

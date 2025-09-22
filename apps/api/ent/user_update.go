@@ -13,6 +13,8 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/message"
+	"github.com/hideaki1979/cc-chat-app/apps/api/ent/messagereaction"
+	"github.com/hideaki1979/cc-chat-app/apps/api/ent/messageread"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/predicate"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/roommember"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/user"
@@ -173,6 +175,36 @@ func (uu *UserUpdate) AddMessages(m ...*Message) *UserUpdate {
 	return uu.AddMessageIDs(ids...)
 }
 
+// AddMessageReadIDs adds the "message_reads" edge to the MessageRead entity by IDs.
+func (uu *UserUpdate) AddMessageReadIDs(ids ...uuid.UUID) *UserUpdate {
+	uu.mutation.AddMessageReadIDs(ids...)
+	return uu
+}
+
+// AddMessageReads adds the "message_reads" edges to the MessageRead entity.
+func (uu *UserUpdate) AddMessageReads(m ...*MessageRead) *UserUpdate {
+	ids := make([]uuid.UUID, len(m))
+	for i := range m {
+		ids[i] = m[i].ID
+	}
+	return uu.AddMessageReadIDs(ids...)
+}
+
+// AddMessageReactionIDs adds the "message_reactions" edge to the MessageReaction entity by IDs.
+func (uu *UserUpdate) AddMessageReactionIDs(ids ...uuid.UUID) *UserUpdate {
+	uu.mutation.AddMessageReactionIDs(ids...)
+	return uu
+}
+
+// AddMessageReactions adds the "message_reactions" edges to the MessageReaction entity.
+func (uu *UserUpdate) AddMessageReactions(m ...*MessageReaction) *UserUpdate {
+	ids := make([]uuid.UUID, len(m))
+	for i := range m {
+		ids[i] = m[i].ID
+	}
+	return uu.AddMessageReactionIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (uu *UserUpdate) Mutation() *UserMutation {
 	return uu.mutation
@@ -218,6 +250,48 @@ func (uu *UserUpdate) RemoveMessages(m ...*Message) *UserUpdate {
 		ids[i] = m[i].ID
 	}
 	return uu.RemoveMessageIDs(ids...)
+}
+
+// ClearMessageReads clears all "message_reads" edges to the MessageRead entity.
+func (uu *UserUpdate) ClearMessageReads() *UserUpdate {
+	uu.mutation.ClearMessageReads()
+	return uu
+}
+
+// RemoveMessageReadIDs removes the "message_reads" edge to MessageRead entities by IDs.
+func (uu *UserUpdate) RemoveMessageReadIDs(ids ...uuid.UUID) *UserUpdate {
+	uu.mutation.RemoveMessageReadIDs(ids...)
+	return uu
+}
+
+// RemoveMessageReads removes "message_reads" edges to MessageRead entities.
+func (uu *UserUpdate) RemoveMessageReads(m ...*MessageRead) *UserUpdate {
+	ids := make([]uuid.UUID, len(m))
+	for i := range m {
+		ids[i] = m[i].ID
+	}
+	return uu.RemoveMessageReadIDs(ids...)
+}
+
+// ClearMessageReactions clears all "message_reactions" edges to the MessageReaction entity.
+func (uu *UserUpdate) ClearMessageReactions() *UserUpdate {
+	uu.mutation.ClearMessageReactions()
+	return uu
+}
+
+// RemoveMessageReactionIDs removes the "message_reactions" edge to MessageReaction entities by IDs.
+func (uu *UserUpdate) RemoveMessageReactionIDs(ids ...uuid.UUID) *UserUpdate {
+	uu.mutation.RemoveMessageReactionIDs(ids...)
+	return uu
+}
+
+// RemoveMessageReactions removes "message_reactions" edges to MessageReaction entities.
+func (uu *UserUpdate) RemoveMessageReactions(m ...*MessageReaction) *UserUpdate {
+	ids := make([]uuid.UUID, len(m))
+	for i := range m {
+		ids[i] = m[i].ID
+	}
+	return uu.RemoveMessageReactionIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -420,6 +494,96 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if uu.mutation.MessageReadsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.MessageReadsTable,
+			Columns: []string{user.MessageReadsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(messageread.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.RemovedMessageReadsIDs(); len(nodes) > 0 && !uu.mutation.MessageReadsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.MessageReadsTable,
+			Columns: []string{user.MessageReadsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(messageread.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.MessageReadsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.MessageReadsTable,
+			Columns: []string{user.MessageReadsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(messageread.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uu.mutation.MessageReactionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.MessageReactionsTable,
+			Columns: []string{user.MessageReactionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(messagereaction.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.RemovedMessageReactionsIDs(); len(nodes) > 0 && !uu.mutation.MessageReactionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.MessageReactionsTable,
+			Columns: []string{user.MessageReactionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(messagereaction.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.MessageReactionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.MessageReactionsTable,
+			Columns: []string{user.MessageReactionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(messagereaction.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, uu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{user.Label}
@@ -582,6 +746,36 @@ func (uuo *UserUpdateOne) AddMessages(m ...*Message) *UserUpdateOne {
 	return uuo.AddMessageIDs(ids...)
 }
 
+// AddMessageReadIDs adds the "message_reads" edge to the MessageRead entity by IDs.
+func (uuo *UserUpdateOne) AddMessageReadIDs(ids ...uuid.UUID) *UserUpdateOne {
+	uuo.mutation.AddMessageReadIDs(ids...)
+	return uuo
+}
+
+// AddMessageReads adds the "message_reads" edges to the MessageRead entity.
+func (uuo *UserUpdateOne) AddMessageReads(m ...*MessageRead) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(m))
+	for i := range m {
+		ids[i] = m[i].ID
+	}
+	return uuo.AddMessageReadIDs(ids...)
+}
+
+// AddMessageReactionIDs adds the "message_reactions" edge to the MessageReaction entity by IDs.
+func (uuo *UserUpdateOne) AddMessageReactionIDs(ids ...uuid.UUID) *UserUpdateOne {
+	uuo.mutation.AddMessageReactionIDs(ids...)
+	return uuo
+}
+
+// AddMessageReactions adds the "message_reactions" edges to the MessageReaction entity.
+func (uuo *UserUpdateOne) AddMessageReactions(m ...*MessageReaction) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(m))
+	for i := range m {
+		ids[i] = m[i].ID
+	}
+	return uuo.AddMessageReactionIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (uuo *UserUpdateOne) Mutation() *UserMutation {
 	return uuo.mutation
@@ -627,6 +821,48 @@ func (uuo *UserUpdateOne) RemoveMessages(m ...*Message) *UserUpdateOne {
 		ids[i] = m[i].ID
 	}
 	return uuo.RemoveMessageIDs(ids...)
+}
+
+// ClearMessageReads clears all "message_reads" edges to the MessageRead entity.
+func (uuo *UserUpdateOne) ClearMessageReads() *UserUpdateOne {
+	uuo.mutation.ClearMessageReads()
+	return uuo
+}
+
+// RemoveMessageReadIDs removes the "message_reads" edge to MessageRead entities by IDs.
+func (uuo *UserUpdateOne) RemoveMessageReadIDs(ids ...uuid.UUID) *UserUpdateOne {
+	uuo.mutation.RemoveMessageReadIDs(ids...)
+	return uuo
+}
+
+// RemoveMessageReads removes "message_reads" edges to MessageRead entities.
+func (uuo *UserUpdateOne) RemoveMessageReads(m ...*MessageRead) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(m))
+	for i := range m {
+		ids[i] = m[i].ID
+	}
+	return uuo.RemoveMessageReadIDs(ids...)
+}
+
+// ClearMessageReactions clears all "message_reactions" edges to the MessageReaction entity.
+func (uuo *UserUpdateOne) ClearMessageReactions() *UserUpdateOne {
+	uuo.mutation.ClearMessageReactions()
+	return uuo
+}
+
+// RemoveMessageReactionIDs removes the "message_reactions" edge to MessageReaction entities by IDs.
+func (uuo *UserUpdateOne) RemoveMessageReactionIDs(ids ...uuid.UUID) *UserUpdateOne {
+	uuo.mutation.RemoveMessageReactionIDs(ids...)
+	return uuo
+}
+
+// RemoveMessageReactions removes "message_reactions" edges to MessageReaction entities.
+func (uuo *UserUpdateOne) RemoveMessageReactions(m ...*MessageReaction) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(m))
+	for i := range m {
+		ids[i] = m[i].ID
+	}
+	return uuo.RemoveMessageReactionIDs(ids...)
 }
 
 // Where appends a list predicates to the UserUpdate builder.
@@ -852,6 +1088,96 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(message.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uuo.mutation.MessageReadsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.MessageReadsTable,
+			Columns: []string{user.MessageReadsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(messageread.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.RemovedMessageReadsIDs(); len(nodes) > 0 && !uuo.mutation.MessageReadsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.MessageReadsTable,
+			Columns: []string{user.MessageReadsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(messageread.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.MessageReadsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.MessageReadsTable,
+			Columns: []string{user.MessageReadsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(messageread.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uuo.mutation.MessageReactionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.MessageReactionsTable,
+			Columns: []string{user.MessageReactionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(messagereaction.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.RemovedMessageReactionsIDs(); len(nodes) > 0 && !uuo.mutation.MessageReactionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.MessageReactionsTable,
+			Columns: []string{user.MessageReactionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(messagereaction.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.MessageReactionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.MessageReactionsTable,
+			Columns: []string{user.MessageReactionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(messagereaction.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

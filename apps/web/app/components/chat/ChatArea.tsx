@@ -131,6 +131,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         <MessageList
           messages={actualMessages}
           currentUserId={currentUserId}
+          roomId={roomId}
           isLoading={actualIsLoading}
           onLoadMore={onLoadMore}
           hasMore={hasMore}

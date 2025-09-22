@@ -18,6 +18,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/chatroom"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/message"
+	"github.com/hideaki1979/cc-chat-app/apps/api/ent/messagereaction"
+	"github.com/hideaki1979/cc-chat-app/apps/api/ent/messageread"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/roommember"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/user"
 )
@@ -31,6 +33,10 @@ type Client struct {
 	ChatRoom *ChatRoomClient
 	// Message is the client for interacting with the Message builders.
 	Message *MessageClient
+	// MessageReaction is the client for interacting with the MessageReaction builders.
+	MessageReaction *MessageReactionClient
+	// MessageRead is the client for interacting with the MessageRead builders.
+	MessageRead *MessageReadClient
 	// RoomMember is the client for interacting with the RoomMember builders.
 	RoomMember *RoomMemberClient
 	// User is the client for interacting with the User builders.
@@ -48,6 +54,8 @@ func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.ChatRoom = NewChatRoomClient(c.config)
 	c.Message = NewMessageClient(c.config)
+	c.MessageReaction = NewMessageReactionClient(c.config)
+	c.MessageRead = NewMessageReadClient(c.config)
 	c.RoomMember = NewRoomMemberClient(c.config)
 	c.User = NewUserClient(c.config)
 }
@@ -140,12 +148,14 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:        ctx,
-		config:     cfg,
-		ChatRoom:   NewChatRoomClient(cfg),
-		Message:    NewMessageClient(cfg),
-		RoomMember: NewRoomMemberClient(cfg),
-		User:       NewUserClient(cfg),
+		ctx:             ctx,
+		config:          cfg,
+		ChatRoom:        NewChatRoomClient(cfg),
+		Message:         NewMessageClient(cfg),
+		MessageReaction: NewMessageReactionClient(cfg),
+		MessageRead:     NewMessageReadClient(cfg),
+		RoomMember:      NewRoomMemberClient(cfg),
+		User:            NewUserClient(cfg),
 	}, nil
 }
 
@@ -163,12 +173,14 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:        ctx,
-		config:     cfg,
-		ChatRoom:   NewChatRoomClient(cfg),
-		Message:    NewMessageClient(cfg),
-		RoomMember: NewRoomMemberClient(cfg),
-		User:       NewUserClient(cfg),
+		ctx:             ctx,
+		config:          cfg,
+		ChatRoom:        NewChatRoomClient(cfg),
+		Message:         NewMessageClient(cfg),
+		MessageReaction: NewMessageReactionClient(cfg),
+		MessageRead:     NewMessageReadClient(cfg),
+		RoomMember:      NewRoomMemberClient(cfg),
+		User:            NewUserClient(cfg),
 	}, nil
 }
 
@@ -197,19 +209,21 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
-	c.ChatRoom.Use(hooks...)
-	c.Message.Use(hooks...)
-	c.RoomMember.Use(hooks...)
-	c.User.Use(hooks...)
+	for _, n := range []interface{ Use(...Hook) }{
+		c.ChatRoom, c.Message, c.MessageReaction, c.MessageRead, c.RoomMember, c.User,
+	} {
+		n.Use(hooks...)
+	}
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.ChatRoom.Intercept(interceptors...)
-	c.Message.Intercept(interceptors...)
-	c.RoomMember.Intercept(interceptors...)
-	c.User.Intercept(interceptors...)
+	for _, n := range []interface{ Intercept(...Interceptor) }{
+		c.ChatRoom, c.Message, c.MessageReaction, c.MessageRead, c.RoomMember, c.User,
+	} {
+		n.Intercept(interceptors...)
+	}
 }
 
 // Mutate implements the ent.Mutator interface.
@@ -219,6 +233,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ChatRoom.mutate(ctx, m)
 	case *MessageMutation:
 		return c.Message.mutate(ctx, m)
+	case *MessageReactionMutation:
+		return c.MessageReaction.mutate(ctx, m)
+	case *MessageReadMutation:
+		return c.MessageRead.mutate(ctx, m)
 	case *RoomMemberMutation:
 		return c.RoomMember.mutate(ctx, m)
 	case *UserMutation:
@@ -533,6 +551,38 @@ func (c *MessageClient) QuerySender(m *Message) *UserQuery {
 	return query
 }
 
+// QueryReads queries the reads edge of a Message.
+func (c *MessageClient) QueryReads(m *Message) *MessageReadQuery {
+	query := (&MessageReadClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(message.Table, message.FieldID, id),
+			sqlgraph.To(messageread.Table, messageread.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, message.ReadsTable, message.ReadsColumn),
+		)
+		fromV = sqlgraph.Neighbors(m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryReactions queries the reactions edge of a Message.
+func (c *MessageClient) QueryReactions(m *Message) *MessageReactionQuery {
+	query := (&MessageReactionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(message.Table, message.FieldID, id),
+			sqlgraph.To(messagereaction.Table, messagereaction.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, message.ReactionsTable, message.ReactionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *MessageClient) Hooks() []Hook {
 	return c.hooks.Message
@@ -555,6 +605,336 @@ func (c *MessageClient) mutate(ctx context.Context, m *MessageMutation) (Value, 
 		return (&MessageDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Message mutation op: %q", m.Op())
+	}
+}
+
+// MessageReactionClient is a client for the MessageReaction schema.
+type MessageReactionClient struct {
+	config
+}
+
+// NewMessageReactionClient returns a client for the MessageReaction from the given config.
+func NewMessageReactionClient(c config) *MessageReactionClient {
+	return &MessageReactionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `messagereaction.Hooks(f(g(h())))`.
+func (c *MessageReactionClient) Use(hooks ...Hook) {
+	c.hooks.MessageReaction = append(c.hooks.MessageReaction, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `messagereaction.Intercept(f(g(h())))`.
+func (c *MessageReactionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MessageReaction = append(c.inters.MessageReaction, interceptors...)
+}
+
+// Create returns a builder for creating a MessageReaction entity.
+func (c *MessageReactionClient) Create() *MessageReactionCreate {
+	mutation := newMessageReactionMutation(c.config, OpCreate)
+	return &MessageReactionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MessageReaction entities.
+func (c *MessageReactionClient) CreateBulk(builders ...*MessageReactionCreate) *MessageReactionCreateBulk {
+	return &MessageReactionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MessageReactionClient) MapCreateBulk(slice any, setFunc func(*MessageReactionCreate, int)) *MessageReactionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MessageReactionCreateBulk{err: fmt.Errorf("calling to MessageReactionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MessageReactionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MessageReactionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MessageReaction.
+func (c *MessageReactionClient) Update() *MessageReactionUpdate {
+	mutation := newMessageReactionMutation(c.config, OpUpdate)
+	return &MessageReactionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MessageReactionClient) UpdateOne(mr *MessageReaction) *MessageReactionUpdateOne {
+	mutation := newMessageReactionMutation(c.config, OpUpdateOne, withMessageReaction(mr))
+	return &MessageReactionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MessageReactionClient) UpdateOneID(id uuid.UUID) *MessageReactionUpdateOne {
+	mutation := newMessageReactionMutation(c.config, OpUpdateOne, withMessageReactionID(id))
+	return &MessageReactionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MessageReaction.
+func (c *MessageReactionClient) Delete() *MessageReactionDelete {
+	mutation := newMessageReactionMutation(c.config, OpDelete)
+	return &MessageReactionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MessageReactionClient) DeleteOne(mr *MessageReaction) *MessageReactionDeleteOne {
+	return c.DeleteOneID(mr.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MessageReactionClient) DeleteOneID(id uuid.UUID) *MessageReactionDeleteOne {
+	builder := c.Delete().Where(messagereaction.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MessageReactionDeleteOne{builder}
+}
+
+// Query returns a query builder for MessageReaction.
+func (c *MessageReactionClient) Query() *MessageReactionQuery {
+	return &MessageReactionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMessageReaction},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MessageReaction entity by its id.
+func (c *MessageReactionClient) Get(ctx context.Context, id uuid.UUID) (*MessageReaction, error) {
+	return c.Query().Where(messagereaction.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MessageReactionClient) GetX(ctx context.Context, id uuid.UUID) *MessageReaction {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryMessage queries the message edge of a MessageReaction.
+func (c *MessageReactionClient) QueryMessage(mr *MessageReaction) *MessageQuery {
+	query := (&MessageClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := mr.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(messagereaction.Table, messagereaction.FieldID, id),
+			sqlgraph.To(message.Table, message.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, messagereaction.MessageTable, messagereaction.MessageColumn),
+		)
+		fromV = sqlgraph.Neighbors(mr.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryUser queries the user edge of a MessageReaction.
+func (c *MessageReactionClient) QueryUser(mr *MessageReaction) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := mr.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(messagereaction.Table, messagereaction.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, messagereaction.UserTable, messagereaction.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(mr.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *MessageReactionClient) Hooks() []Hook {
+	return c.hooks.MessageReaction
+}
+
+// Interceptors returns the client interceptors.
+func (c *MessageReactionClient) Interceptors() []Interceptor {
+	return c.inters.MessageReaction
+}
+
+func (c *MessageReactionClient) mutate(ctx context.Context, m *MessageReactionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MessageReactionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MessageReactionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MessageReactionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MessageReactionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MessageReaction mutation op: %q", m.Op())
+	}
+}
+
+// MessageReadClient is a client for the MessageRead schema.
+type MessageReadClient struct {
+	config
+}
+
+// NewMessageReadClient returns a client for the MessageRead from the given config.
+func NewMessageReadClient(c config) *MessageReadClient {
+	return &MessageReadClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `messageread.Hooks(f(g(h())))`.
+func (c *MessageReadClient) Use(hooks ...Hook) {
+	c.hooks.MessageRead = append(c.hooks.MessageRead, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `messageread.Intercept(f(g(h())))`.
+func (c *MessageReadClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MessageRead = append(c.inters.MessageRead, interceptors...)
+}
+
+// Create returns a builder for creating a MessageRead entity.
+func (c *MessageReadClient) Create() *MessageReadCreate {
+	mutation := newMessageReadMutation(c.config, OpCreate)
+	return &MessageReadCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MessageRead entities.
+func (c *MessageReadClient) CreateBulk(builders ...*MessageReadCreate) *MessageReadCreateBulk {
+	return &MessageReadCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MessageReadClient) MapCreateBulk(slice any, setFunc func(*MessageReadCreate, int)) *MessageReadCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MessageReadCreateBulk{err: fmt.Errorf("calling to MessageReadClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MessageReadCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MessageReadCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MessageRead.
+func (c *MessageReadClient) Update() *MessageReadUpdate {
+	mutation := newMessageReadMutation(c.config, OpUpdate)
+	return &MessageReadUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MessageReadClient) UpdateOne(mr *MessageRead) *MessageReadUpdateOne {
+	mutation := newMessageReadMutation(c.config, OpUpdateOne, withMessageRead(mr))
+	return &MessageReadUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MessageReadClient) UpdateOneID(id uuid.UUID) *MessageReadUpdateOne {
+	mutation := newMessageReadMutation(c.config, OpUpdateOne, withMessageReadID(id))
+	return &MessageReadUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MessageRead.
+func (c *MessageReadClient) Delete() *MessageReadDelete {
+	mutation := newMessageReadMutation(c.config, OpDelete)
+	return &MessageReadDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MessageReadClient) DeleteOne(mr *MessageRead) *MessageReadDeleteOne {
+	return c.DeleteOneID(mr.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MessageReadClient) DeleteOneID(id uuid.UUID) *MessageReadDeleteOne {
+	builder := c.Delete().Where(messageread.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MessageReadDeleteOne{builder}
+}
+
+// Query returns a query builder for MessageRead.
+func (c *MessageReadClient) Query() *MessageReadQuery {
+	return &MessageReadQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMessageRead},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MessageRead entity by its id.
+func (c *MessageReadClient) Get(ctx context.Context, id uuid.UUID) (*MessageRead, error) {
+	return c.Query().Where(messageread.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MessageReadClient) GetX(ctx context.Context, id uuid.UUID) *MessageRead {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryMessage queries the message edge of a MessageRead.
+func (c *MessageReadClient) QueryMessage(mr *MessageRead) *MessageQuery {
+	query := (&MessageClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := mr.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(messageread.Table, messageread.FieldID, id),
+			sqlgraph.To(message.Table, message.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, messageread.MessageTable, messageread.MessageColumn),
+		)
+		fromV = sqlgraph.Neighbors(mr.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryUser queries the user edge of a MessageRead.
+func (c *MessageReadClient) QueryUser(mr *MessageRead) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := mr.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(messageread.Table, messageread.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, messageread.UserTable, messageread.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(mr.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *MessageReadClient) Hooks() []Hook {
+	return c.hooks.MessageRead
+}
+
+// Interceptors returns the client interceptors.
+func (c *MessageReadClient) Interceptors() []Interceptor {
+	return c.inters.MessageRead
+}
+
+func (c *MessageReadClient) mutate(ctx context.Context, m *MessageReadMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MessageReadCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MessageReadUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MessageReadUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MessageReadDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MessageRead mutation op: %q", m.Op())
 	}
 }
 
@@ -863,6 +1243,38 @@ func (c *UserClient) QueryMessages(u *User) *MessageQuery {
 	return query
 }
 
+// QueryMessageReads queries the message_reads edge of a User.
+func (c *UserClient) QueryMessageReads(u *User) *MessageReadQuery {
+	query := (&MessageReadClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := u.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(messageread.Table, messageread.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.MessageReadsTable, user.MessageReadsColumn),
+		)
+		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryMessageReactions queries the message_reactions edge of a User.
+func (c *UserClient) QueryMessageReactions(u *User) *MessageReactionQuery {
+	query := (&MessageReactionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := u.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(messagereaction.Table, messagereaction.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.MessageReactionsTable, user.MessageReactionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *UserClient) Hooks() []Hook {
 	hooks := c.hooks.User
@@ -892,9 +1304,10 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		ChatRoom, Message, RoomMember, User []ent.Hook
+		ChatRoom, Message, MessageReaction, MessageRead, RoomMember, User []ent.Hook
 	}
 	inters struct {
-		ChatRoom, Message, RoomMember, User []ent.Interceptor
+		ChatRoom, Message, MessageReaction, MessageRead, RoomMember,
+		User []ent.Interceptor
 	}
 )

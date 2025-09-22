@@ -12,6 +12,12 @@ type ChatRoom func(*sql.Selector)
 // Message is the predicate function for message builders.
 type Message func(*sql.Selector)
 
+// MessageReaction is the predicate function for messagereaction builders.
+type MessageReaction func(*sql.Selector)
+
+// MessageRead is the predicate function for messageread builders.
+type MessageRead func(*sql.Selector)
+
 // RoomMember is the predicate function for roommember builders.
 type RoomMember func(*sql.Selector)
 

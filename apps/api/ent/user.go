@@ -48,9 +48,13 @@ type UserEdges struct {
 	RoomMembers []*RoomMember `json:"room_members,omitempty"`
 	// Messages holds the value of the messages edge.
 	Messages []*Message `json:"messages,omitempty"`
+	// MessageReads holds the value of the message_reads edge.
+	MessageReads []*MessageRead `json:"message_reads,omitempty"`
+	// MessageReactions holds the value of the message_reactions edge.
+	MessageReactions []*MessageReaction `json:"message_reactions,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [4]bool
 }
 
 // RoomMembersOrErr returns the RoomMembers value or an error if the edge
@@ -69,6 +73,24 @@ func (e UserEdges) MessagesOrErr() ([]*Message, error) {
 		return e.Messages, nil
 	}
 	return nil, &NotLoadedError{edge: "messages"}
+}
+
+// MessageReadsOrErr returns the MessageReads value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) MessageReadsOrErr() ([]*MessageRead, error) {
+	if e.loadedTypes[2] {
+		return e.MessageReads, nil
+	}
+	return nil, &NotLoadedError{edge: "message_reads"}
+}
+
+// MessageReactionsOrErr returns the MessageReactions value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) MessageReactionsOrErr() ([]*MessageReaction, error) {
+	if e.loadedTypes[3] {
+		return e.MessageReactions, nil
+	}
+	return nil, &NotLoadedError{edge: "message_reactions"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -183,6 +205,16 @@ func (u *User) QueryRoomMembers() *RoomMemberQuery {
 // QueryMessages queries the "messages" edge of the User entity.
 func (u *User) QueryMessages() *MessageQuery {
 	return NewUserClient(u.config).QueryMessages(u)
+}
+
+// QueryMessageReads queries the "message_reads" edge of the User entity.
+func (u *User) QueryMessageReads() *MessageReadQuery {
+	return NewUserClient(u.config).QueryMessageReads(u)
+}
+
+// QueryMessageReactions queries the "message_reactions" edge of the User entity.
+func (u *User) QueryMessageReactions() *MessageReactionQuery {
+	return NewUserClient(u.config).QueryMessageReactions(u)
 }
 
 // Update returns a builder for updating this User.

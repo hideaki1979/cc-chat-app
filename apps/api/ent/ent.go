@@ -14,6 +14,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/chatroom"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/message"
+	"github.com/hideaki1979/cc-chat-app/apps/api/ent/messagereaction"
+	"github.com/hideaki1979/cc-chat-app/apps/api/ent/messageread"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/roommember"
 	"github.com/hideaki1979/cc-chat-app/apps/api/ent/user"
 )
@@ -76,10 +78,12 @@ var (
 func checkColumn(table, column string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			chatroom.Table:   chatroom.ValidColumn,
-			message.Table:    message.ValidColumn,
-			roommember.Table: roommember.ValidColumn,
-			user.Table:       user.ValidColumn,
+			chatroom.Table:        chatroom.ValidColumn,
+			message.Table:         message.ValidColumn,
+			messagereaction.Table: messagereaction.ValidColumn,
+			messageread.Table:     messageread.ValidColumn,
+			roommember.Table:      roommember.ValidColumn,
+			user.Table:            user.ValidColumn,
 		})
 	})
 	return columnCheck(table, column)

@@ -72,6 +72,10 @@ func (User) Edges() []ent.Edge {
 		edge.To("room_members", RoomMember.Type),
 		// Userは複数のメッセージ（Message）を持つ
 		edge.To("messages", Message.Type),
+		// Userは複数のメッセージ既読情報（MessageRead）を持つ
+		edge.To("message_reads", MessageRead.Type),
+		// Userは複数のメッセージリアクション（MessageReaction）を持つ
+		edge.To("message_reactions", MessageReaction.Type),
 	}
 }
 

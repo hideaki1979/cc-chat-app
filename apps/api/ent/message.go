@@ -46,9 +46,13 @@ type MessageEdges struct {
 	Room *ChatRoom `json:"room,omitempty"`
 	// Sender holds the value of the sender edge.
 	Sender *User `json:"sender,omitempty"`
+	// Reads holds the value of the reads edge.
+	Reads []*MessageRead `json:"reads,omitempty"`
+	// Reactions holds the value of the reactions edge.
+	Reactions []*MessageReaction `json:"reactions,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [4]bool
 }
 
 // RoomOrErr returns the Room value or an error if the edge
@@ -71,6 +75,24 @@ func (e MessageEdges) SenderOrErr() (*User, error) {
 		return nil, &NotFoundError{label: user.Label}
 	}
 	return nil, &NotLoadedError{edge: "sender"}
+}
+
+// ReadsOrErr returns the Reads value or an error if the edge
+// was not loaded in eager-loading.
+func (e MessageEdges) ReadsOrErr() ([]*MessageRead, error) {
+	if e.loadedTypes[2] {
+		return e.Reads, nil
+	}
+	return nil, &NotLoadedError{edge: "reads"}
+}
+
+// ReactionsOrErr returns the Reactions value or an error if the edge
+// was not loaded in eager-loading.
+func (e MessageEdges) ReactionsOrErr() ([]*MessageReaction, error) {
+	if e.loadedTypes[3] {
+		return e.Reactions, nil
+	}
+	return nil, &NotLoadedError{edge: "reactions"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -170,6 +192,16 @@ func (m *Message) QueryRoom() *ChatRoomQuery {
 // QuerySender queries the "sender" edge of the Message entity.
 func (m *Message) QuerySender() *UserQuery {
 	return NewMessageClient(m.config).QuerySender(m)
+}
+
+// QueryReads queries the "reads" edge of the Message entity.
+func (m *Message) QueryReads() *MessageReadQuery {
+	return NewMessageClient(m.config).QueryReads(m)
+}
+
+// QueryReactions queries the "reactions" edge of the Message entity.
+func (m *Message) QueryReactions() *MessageReactionQuery {
+	return NewMessageClient(m.config).QueryReactions(m)
 }
 
 // Update returns a builder for updating this Message.

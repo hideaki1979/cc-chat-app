@@ -16,6 +16,10 @@ type Tx struct {
 	ChatRoom *ChatRoomClient
 	// Message is the client for interacting with the Message builders.
 	Message *MessageClient
+	// MessageReaction is the client for interacting with the MessageReaction builders.
+	MessageReaction *MessageReactionClient
+	// MessageRead is the client for interacting with the MessageRead builders.
+	MessageRead *MessageReadClient
 	// RoomMember is the client for interacting with the RoomMember builders.
 	RoomMember *RoomMemberClient
 	// User is the client for interacting with the User builders.
@@ -153,6 +157,8 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.ChatRoom = NewChatRoomClient(tx.config)
 	tx.Message = NewMessageClient(tx.config)
+	tx.MessageReaction = NewMessageReactionClient(tx.config)
+	tx.MessageRead = NewMessageReadClient(tx.config)
 	tx.RoomMember = NewRoomMemberClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 }

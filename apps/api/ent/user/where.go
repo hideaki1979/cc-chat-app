@@ -647,6 +647,52 @@ func HasMessagesWith(preds ...predicate.Message) predicate.User {
 	})
 }
 
+// HasMessageReads applies the HasEdge predicate on the "message_reads" edge.
+func HasMessageReads() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, MessageReadsTable, MessageReadsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasMessageReadsWith applies the HasEdge predicate on the "message_reads" edge with a given conditions (other predicates).
+func HasMessageReadsWith(preds ...predicate.MessageRead) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newMessageReadsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasMessageReactions applies the HasEdge predicate on the "message_reactions" edge.
+func HasMessageReactions() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, MessageReactionsTable, MessageReactionsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasMessageReactionsWith applies the HasEdge predicate on the "message_reactions" edge with a given conditions (other predicates).
+func HasMessageReactionsWith(preds ...predicate.MessageReaction) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newMessageReactionsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.User) predicate.User {
 	return predicate.User(sql.AndPredicates(predicates...))

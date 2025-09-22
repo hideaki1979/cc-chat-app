@@ -33,6 +33,30 @@ func (f MessageFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MessageMutation", m)
 }
 
+// The MessageReactionFunc type is an adapter to allow the use of ordinary
+// function as MessageReaction mutator.
+type MessageReactionFunc func(context.Context, *ent.MessageReactionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MessageReactionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MessageReactionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MessageReactionMutation", m)
+}
+
+// The MessageReadFunc type is an adapter to allow the use of ordinary
+// function as MessageRead mutator.
+type MessageReadFunc func(context.Context, *ent.MessageReadMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MessageReadFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MessageReadMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MessageReadMutation", m)
+}
+
 // The RoomMemberFunc type is an adapter to allow the use of ordinary
 // function as RoomMember mutator.
 type RoomMemberFunc func(context.Context, *ent.RoomMemberMutation) (ent.Value, error)

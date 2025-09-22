@@ -109,7 +109,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		h.logWarn(c, "Validation failed for registration request", logrus.Fields{
 			"operation": "register",
 		})
-		return err
+		return h.handleError(c, err)
 	}
 
 	ctx := c.Request().Context()
@@ -164,7 +164,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		h.logWarn(c, "Validation failed for login request", logrus.Fields{
 			"operation": "login",
 		})
-		return err
+		return h.handleError(c, err)
 	}
 
 	ctx := c.Request().Context()
