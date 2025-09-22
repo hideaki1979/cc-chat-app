@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
@@ -24,6 +25,18 @@ import (
 // MockS3Client S3クライアントのモック
 type MockS3Client struct {
 	mock.Mock
+}
+
+type MockPresigner struct {
+	mock.Mock
+}
+
+func (m *MockPresigner) PresignGetObject(ctx context.Context, params *s3.GetObjectInput, optFns ...func(*s3.PresignOptions)) (*v4.PresignedHTTPRequest, error) {
+	args := m.Called(ctx, params)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*v4.PresignedHTTPRequest), args.Error(1)
 }
 
 func (m *MockS3Client) PutObject(ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
@@ -76,7 +89,7 @@ func NewTestFileHandler(s3Client S3ClientInterface, bucketName string) *TestFile
 	}
 }
 
-func setupFileTest(t *testing.T) (*MockS3Client, *handlers.FileHandler, func()) {
+func setupFileTest(t *testing.T) (*MockS3Client, *MockPresigner, *handlers.FileHandler, func()) {
 	// 実際のFileHandlerを使うため、S3クライアントだけモックする
 	mockS3 := &MockS3Client{}
 
@@ -85,13 +98,16 @@ func setupFileTest(t *testing.T) (*MockS3Client, *handlers.FileHandler, func()) 
 
 	// 実際のhandlerではなく、テスト専用のhandlerを作成する場合のパターン
 	// ここでは実際のhandlerをそのまま使用（S3, Presignerはnilで初期化）
-	handler := handlers.NewFileHandler(nil, nil, bucketName)
+	// MockPresignerも定義の必要がある
+	mockPresigner := &MockPresigner{}
+	handler := handlers.NewFileHandler(mockS3, mockPresigner, bucketName)
 
 	cleanup := func() {
 		mockS3.AssertExpectations(t)
+		mockPresigner.AssertExpectations(t)
 	}
 
-	return mockS3, handler, cleanup
+	return mockS3, mockPresigner, handler, cleanup
 }
 
 // --- 追加: ワイルドカード/エンコードキー用の最小スタブとテスト ---
@@ -119,9 +135,7 @@ func newFileHandlerForRouteTests() *handlers.FileHandler {
 }
 
 func TestUploadFile_Success(t *testing.T) {
-	t.Skip("S3の実装がモック対応していないためスキップ")
-
-	mockS3, handler, cleanup := setupFileTest(t)
+	mockS3, _, handler, cleanup := setupFileTest(t)
 	defer cleanup()
 
 	userID := uuid.New()
@@ -169,7 +183,7 @@ func TestUploadFile_Success(t *testing.T) {
 }
 
 func TestUploadFile_NoFile(t *testing.T) {
-	_, handler, cleanup := setupFileTest(t)
+	_, _, handler, cleanup := setupFileTest(t)
 	defer cleanup()
 
 	userID := uuid.New()
@@ -193,7 +207,7 @@ func TestUploadFile_NoFile(t *testing.T) {
 }
 
 func TestUploadFile_FileTooLarge(t *testing.T) {
-	_, handler, cleanup := setupFileTest(t)
+	_, _, handler, cleanup := setupFileTest(t)
 	defer cleanup()
 
 	userID := uuid.New()
@@ -233,7 +247,7 @@ func TestUploadFile_FileTooLarge(t *testing.T) {
 }
 
 func TestUploadFile_InvalidFileType(t *testing.T) {
-	_, handler, cleanup := setupFileTest(t)
+	_, _, handler, cleanup := setupFileTest(t)
 	defer cleanup()
 
 	userID := uuid.New()
@@ -273,9 +287,7 @@ func TestUploadFile_InvalidFileType(t *testing.T) {
 }
 
 func TestDeleteFile_Success(t *testing.T) {
-	t.Skip("S3の実装がモック対応していないためスキップ")
-
-	mockS3, handler, cleanup := setupFileTest(t)
+	mockS3, _, handler, cleanup := setupFileTest(t)
 	defer cleanup()
 
 	userID := uuid.New()
@@ -302,7 +314,7 @@ func TestDeleteFile_Success(t *testing.T) {
 }
 
 func TestDeleteFile_AccessDenied(t *testing.T) {
-	_, handler, cleanup := setupFileTest(t)
+	_, _, handler, cleanup := setupFileTest(t)
 	defer cleanup()
 
 	userID := uuid.New()
@@ -332,13 +344,15 @@ func TestDeleteFile_AccessDenied(t *testing.T) {
 }
 
 func TestGetPresignedURL_Success(t *testing.T) {
-	t.Skip("プリサインドURL機能がモック対応していないためスキップ")
-
-	_, handler, cleanup := setupFileTest(t)
+	_, mockPresigner, handler, cleanup := setupFileTest(t)
 	defer cleanup()
 
 	userID := uuid.New()
 	s3Key := fmt.Sprintf("chat-files/%s/2023/01/01/test-file.jpg", userID.String())
+
+	// Presign のモック設定
+	presigned := &v4.PresignedHTTPRequest{URL: "https://example.com/presigned"}
+	mockPresigner.On("PresignGetObject", mock.Anything, mock.Anything).Return(presigned, nil)
 
 	// Setup Echo
 	e := echo.New()
@@ -365,7 +379,7 @@ func TestGetPresignedURL_Success(t *testing.T) {
 }
 
 func TestGetPresignedURL_AccessDenied(t *testing.T) {
-	_, handler, cleanup := setupFileTest(t)
+	_, _, handler, cleanup := setupFileTest(t)
 	defer cleanup()
 
 	userID := uuid.New()
@@ -395,7 +409,7 @@ func TestGetPresignedURL_AccessDenied(t *testing.T) {
 }
 
 func TestGetPresignedURL_EmptyKey(t *testing.T) {
-	_, handler, cleanup := setupFileTest(t)
+	_, _, handler, cleanup := setupFileTest(t)
 	defer cleanup()
 
 	userID := uuid.New()
@@ -493,7 +507,8 @@ func TestGetPresignedURL_WildcardRoute_AllowsSlashesAndEncodedChars(t *testing.T
 	})
 
 	keyPath := fmt.Sprintf("chat-files/%s/2025/09/21/test file.png", userID)
-	req := httptest.NewRequest(http.MethodGet, "/api/files/presigned-url/"+keyPath, nil)
+	encodedKeyPath := strings.ReplaceAll(keyPath, " ", "%20")
+	req := httptest.NewRequest(http.MethodGet, "/api/files/presigned-url/"+encodedKeyPath, nil)
 	rec := httptest.NewRecorder()
 
 	e.ServeHTTP(rec, req)
@@ -512,18 +527,20 @@ func TestGetPresignedURL_InvalidEncodedKey_ReturnsBadRequest(t *testing.T) {
 
 	userID := uuid.New().String()
 
-	e.GET("/api/files/presigned-url/*", func(c echo.Context) error {
-		c.Set("user_id", userID)
-		return fileHandler.GetPresignedURL(c)
-	})
-
+	// ルーター経由にせず、パラメータを直接設定してハンドラーを叩く
 	badKey := fmt.Sprintf("chat-files/%s/2025/09/21/file%%ZZ.png", userID)
-	req := httptest.NewRequest(http.MethodGet, "/api/files/presigned-url/"+badKey, nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/files/presigned-url/X", nil)
 	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user_id", userID)
+	c.SetParamNames("key")
+	c.SetParamValues(badKey)
 
-	e.ServeHTTP(rec, req)
-
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	err := fileHandler.GetPresignedURL(c)
+	require.Error(t, err)
+	httpErr, ok := err.(*echo.HTTPError)
+	require.True(t, ok)
+	assert.Equal(t, http.StatusBadRequest, httpErr.Code)
 }
 
 func TestDeleteFile_WildcardRoute_AllowsSlashes(t *testing.T) {
