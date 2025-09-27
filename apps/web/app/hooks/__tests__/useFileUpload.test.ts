@@ -63,7 +63,7 @@ describe('useFileUpload', () => {
 
       const file = createMockFile('test.jpg', 1024, 'image/jpeg');
 
-      let uploadResult: any;
+      let uploadResult: import('../useFileUpload').UploadedFile | null;
       await act(async () => {
         uploadResult = await result.current.uploadFile(file);
       });
@@ -124,7 +124,7 @@ describe('useFileUpload', () => {
 
       const file = createMockFile('test.jpg', 1024, 'image/jpeg');
 
-      let uploadResult: any;
+      let uploadResult: import('../useFileUpload').UploadedFile | null;
       await act(async () => {
         uploadResult = await result.current.uploadFile(file);
       });
@@ -138,7 +138,7 @@ describe('useFileUpload', () => {
       const { result } = renderHook(() => useFileUpload({ maxSize: 1024 }));
       const largeFile = createMockFile('large.jpg', 2048, 'image/jpeg');
 
-      let uploadResult: any;
+      let uploadResult: import('../useFileUpload').UploadedFile | null;
       await act(async () => {
         uploadResult = await result.current.uploadFile(largeFile);
       });
@@ -169,7 +169,7 @@ describe('useFileUpload', () => {
         createMockFile('test2.jpg', 1024, 'image/jpeg')
       ];
 
-      let uploadResults: any;
+      let uploadResults: import('../useFileUpload').UploadedFile[];
       await act(async () => {
         uploadResults = await result.current.uploadMultipleFiles(files);
       });
@@ -200,7 +200,7 @@ describe('useFileUpload', () => {
         createMockFile('test2.jpg', 1024, 'image/jpeg')
       ];
 
-      let uploadResults: any;
+      let uploadResults: import('../useFileUpload').UploadedFile[];
       await act(async () => {
         uploadResults = await result.current.uploadMultipleFiles(files);
       });
@@ -235,7 +235,7 @@ describe('useFileUpload', () => {
 
   describe('ヘルパー関数', () => {
     test('formatFileSize が正しいフォーマットを返す', () => {
-      const { formatFileSize } = require('../useFileUpload');
+      const { formatFileSize } = jest.requireActual('../useFileUpload') as typeof import('../useFileUpload');
 
       expect(formatFileSize(0)).toBe('0 Bytes');
       expect(formatFileSize(1024)).toBe('1 KB');
@@ -244,7 +244,7 @@ describe('useFileUpload', () => {
     });
 
     test('isImageFile が正しく画像ファイルを判定する', () => {
-      const { isImageFile } = require('../useFileUpload');
+      const { isImageFile } = jest.requireActual('../useFileUpload') as typeof import('../useFileUpload');
 
       expect(isImageFile('image/jpeg')).toBe(true);
       expect(isImageFile('image/png')).toBe(true);

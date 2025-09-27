@@ -8,7 +8,7 @@ import { getUserFriendlyMessage, normalizeError } from '../../lib/services/error
 import type { Message } from '../../types/chat';
 import { useWebSocketStore } from '../../stores/websocket';
 import { useAuthStore } from '../../stores/auth';
-import { useChatStore } from '../../stores/chat';
+// import { useChatStore } from '../../stores/chat';
 
 // MessageListを動的インポート化（メッセージ表示は重いため、必要時のみロード）
 const MessageList = dynamic(() =>

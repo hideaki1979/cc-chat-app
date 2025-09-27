@@ -17,16 +17,24 @@ jest.mock('../../../hooks/useFileUpload', () => ({
 }));
 
 // EmojiPicker のモック
-jest.mock('../EmojiPicker', () => ({
-  EmojiPicker: ({ isOpen, onEmojiSelect, onClose }: any) => (
+jest.mock('../EmojiPicker', () => {
+  type EmojiPickerProps = {
+    isOpen: boolean;
+    onEmojiSelect: (emoji: string) => void;
+    onClose: () => void;
+  };
+
+  const EmojiPicker = ({ isOpen, onEmojiSelect, onClose }: EmojiPickerProps) => (
     isOpen ? (
       <div data-testid="emoji-picker">
         <button onClick={() => onEmojiSelect('😀')} data-testid="emoji-smile">😀</button>
         <button onClick={onClose} data-testid="emoji-close">Close</button>
       </div>
     ) : null
-  )
-}));
+  );
+
+  return { EmojiPicker };
+});
 
 describe('MessageInput', () => {
   const defaultProps = {
@@ -220,8 +228,10 @@ describe('MessageInput', () => {
 
     test('添付ファイルが表示される', () => {
       // useFileUpload モックを更新して添付ファイルありの状態にする
-      const mockUseFileUpload = require('../../../hooks/useFileUpload').useFileUpload;
-      mockUseFileUpload.mockReturnValue({
+      const { useFileUpload } = jest.requireMock('../../../hooks/useFileUpload') as {
+        useFileUpload: jest.Mock;
+      };
+      useFileUpload.mockReturnValue({
         uploadFile: jest.fn(),
         isUploading: false,
         error: null,
