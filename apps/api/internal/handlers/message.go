@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"time"
@@ -963,4 +964,66 @@ func getUserUUID(c echo.Context) (uuid.UUID, error) {
 		return uuid.Nil, echo.NewHTTPError(http.StatusBadRequest, "Invalid user ID")
 	}
 	return u, nil
+}
+
+// SaveWebSocketMessage WebSocketメッセージをデータベースに保存する（websocket.MessageSaverインターフェースの実装）
+func (h *MessageHandler) SaveWebSocketMessage(roomID, userID, content string) (*websocket.MessageSaverResponse, error) {
+	ctx := context.Background()
+
+	// UUID変換
+	roomUUID, err := uuid.Parse(roomID)
+	if err != nil {
+		return nil, err
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// ユーザーがそのルームのメンバーかチェック
+	member, err := h.client.RoomMember.Query().
+		Where(
+			roommember.RoomID(roomUUID),
+			roommember.UserID(userUUID),
+		).
+		WithRoom().
+		First(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// メッセージ作成
+	msg, err := h.client.Message.Create().
+		SetRoomID(roomUUID).
+		SetUserID(userUUID).
+		SetRoom(member.Edges.Room).
+		SetSenderID(userUUID).
+		SetContent(content).
+		Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// 送信者情報を含めてメッセージを再取得
+	messageWithSender, err := h.client.Message.Query().
+		Where(message.ID(msg.ID)).
+		WithSender().
+		Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// websocket.MessageSaverResponse形式で返却
+	response := &websocket.MessageSaverResponse{
+		ID:        messageWithSender.ID.String(),
+		Content:   messageWithSender.Content,
+		UserID:    messageWithSender.Edges.Sender.ID.String(),
+		RoomID:    roomID,
+		CreatedAt: messageWithSender.CreatedAt,
+		FileURL:   messageWithSender.FileURL,
+	}
+
+	return response, nil
 }

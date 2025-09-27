@@ -38,12 +38,12 @@ test.describe('404 Not Found ページ', () => {
     // ホームに戻るリンクをクリック
     await page.locator('[data-testid="home-link"]').click();
 
-    // ホームページにリダイレクトされることを確認
-    await page.waitForURL('/', { timeout: 5000 });
-    await expect(page).toHaveURL('/');
+    // ホームページにリダイレクトされることを確認（middlewareによりルート / は /dashboard または /login にリダイレクトされる）
+    await page.waitForURL(/\/(dashboard|login|$)/, { timeout: 15000 });
+    await expect(page).toHaveURL(/\/(dashboard|login|$)/);
 
-    // ホームページのコンテンツが表示されることを確認
-    await expect(page.locator('h1')).toBeVisible();
+    // ページのコンテンツが表示されることを確認
+    await expect(page.locator('h1, [data-testid="welcome-message"]')).toBeVisible({ timeout: 10000 });
   });
 
   test('「前のページに戻る」ボタンの動作確認', async ({ page }) => {

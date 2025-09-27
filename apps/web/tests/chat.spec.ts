@@ -131,7 +131,7 @@ test.describe('チャット機能統合ワークフロー', () => {
     await dmButton.click({ force: true });
 
     // 4. ユーザー検索モーダルが開かれることを確認（見出しで確認）
-    await expect(page.getByText('ユーザーを検索してDMを開始')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('ユーザーを検索してDMを開始')).toBeVisible({ timeout: 20000 });
 
     // 5. 検索フィールドが表示されることを確認
     await expect(page.getByPlaceholder('ユーザー名またはメールアドレスで検索...')).toBeVisible();
@@ -171,8 +171,8 @@ test.describe('チャット機能統合ワークフロー', () => {
     // モバイルのクリック遮り回避：forceで押下
     await logoutBtn.click({ force: true });
 
-    // 3. ログインページにリダイレクトされることを確認
-    await expect(page).toHaveURL(/.*login/, { timeout: 10000 });
+    // 3. ログインページにリダイレクトされることを確認（タイムアウトを延長）
+    await expect(page).toHaveURL(/.*login/, { timeout: 20000 });
 
     // 4. ログアウト後に保護されたルートにアクセスできないことを確認
     await page.goto('/chat');

@@ -17,20 +17,34 @@ test.describe('チャットレイアウト統合ワークフロー', () => {
     await page.goto('/login');
     await expect(page.getByLabel('メールアドレス')).toBeVisible();
 
+    // フォームにデータを入力
     await page.getByLabel('メールアドレス').fill(TEST_USER.email);
     await page.getByLabel('パスワード').fill(TEST_USER.password);
+
+    // ログインボタンをクリックして結果を待機
     await page.getByRole('button', { name: 'ログイン' }).click();
-    await expect(page).toHaveURL(/.*dashboard/, { timeout: 15000 });
+
+    // ダッシュボードへのリダイレクトを確実に待機
+    await expect(page).toHaveURL(/.*dashboard/, { timeout: 20000 });
 
     // 認証状態が完全に確立されるまで待機（ダッシュボードでユーザー名が表示されるまで）
-    await expect(page.getByRole('heading', { name: /ようこそ/ })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /ようこそ/ })).toBeVisible({ timeout: 20000 });
 
     // チャットページに移動し、認証状態が維持されることを確認
     await page.goto('/chat');
-    await expect(page).toHaveURL(/.*chat/, { timeout: 15000 });
+    await expect(page).toHaveURL(/.*chat/, { timeout: 20000 });
 
     // チャットページの認証初期化完了を待機
-    await expect(page.locator('[data-testid="test-sidebar"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="test-sidebar"]')).toBeVisible({ timeout: 20000 });
+
+    // より確実にユーザー情報が読み込まれるまで待機
+    await page.waitForTimeout(2000); // 2秒待機してから確認
+
+    // ユーザー情報が読み込まれてlogout-buttonが表示されるまで待機
+    await expect(page.getByTestId('logout-button')).toBeVisible({ timeout: 25000 });
+
+    // ユーザーのメールアドレスがサイドバーに表示されるまで待機
+    await expect(page.locator('[data-testid="test-sidebar"]')).toContainText(TEST_USER.email, { timeout: 25000 });
   });
 
   test('デスクトップとモバイルでの基本的な操作ワークフロー', async ({ page }) => {

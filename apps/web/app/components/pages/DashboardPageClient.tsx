@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../../stores/auth';
+import { useAuth } from '../../hooks/useAuth';
 import { Button } from '@repo/ui/button';
 
 /**
@@ -11,10 +12,11 @@ import { Button } from '@repo/ui/button';
  */
 export function DashboardPageClient() {
   const router = useRouter();
-  const { user, logout } = useAuthStore();
+  const { logout } = useAuthStore();
+  const { user, isLoading, isInitialized } = useAuth();
 
-  // 認証チェックはmiddleware.tsに委譲（Next.js App Routerベストプラクティス）
-  // useEffectでの複雑な認証ロジックは無限ループリスクがあるため簡素化
+  // 認証チェックはuseAuthフックで実施
+  // 初期化完了まで待機
 
   const handleLogout = async () => {
     try {
@@ -24,8 +26,8 @@ export function DashboardPageClient() {
     }
   };
 
-  // 認証チェックはmiddleware.tsで実施済み、userがnullの場合は既にリダイレクト済み
-  if (!user) {
+  // 初期化中またはローディング中の場合はローディング表示
+  if (!isInitialized || isLoading) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
@@ -36,6 +38,21 @@ export function DashboardPageClient() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-300">ユーザー情報を読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 初期化完了後、ユーザー情報がない場合（useAuthフックでリダイレクト処理済み）
+  if (!user) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        role='status'
+        aria-live='polite'
+      >
+        <div className="text-center">
+          <p className="text-gray-600 dark:text-gray-300">認証情報を確認中...</p>
         </div>
       </div>
     );

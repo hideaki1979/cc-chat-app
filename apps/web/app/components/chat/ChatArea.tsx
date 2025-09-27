@@ -7,6 +7,8 @@ import { useChat } from '../../hooks/useChat';
 import { getUserFriendlyMessage, normalizeError } from '../../lib/services/errorService';
 import type { Message } from '../../types/chat';
 import { useWebSocketStore } from '../../stores/websocket';
+import { useAuthStore } from '../../stores/auth';
+import { useChatStore } from '../../stores/chat';
 
 // MessageListを動的インポート化（メッセージ表示は重いため、必要時のみロード）
 const MessageList = dynamic(() =>
@@ -51,21 +53,24 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   disabled = false,
 }) => {
   const [isSending, setIsSending] = useState(false);
-  const { fetchMessages, sendMessage: sendMessageViaHook, isLoading, currentRoomMessages } = useChat();
-  const { startTyping, stopTyping, joinRoom } = useWebSocketStore()
+  const { fetchMessages, isLoading, messages } = useChat();
+  const { startTyping, stopTyping, joinRoom, isConnected, sendMessage: sendMessageViaWebSocket } = useWebSocketStore();
+  const { user } = useAuthStore();
 
-  // roomIdが変更された時にメッセージを取得
+  // roomIdが変更された時の統合処理
   useEffect(() => {
-    if (roomId) {
-      fetchMessages(roomId).catch((error) => {
-        console.error("Failed to fetch messages in component:", error);
-      });
+    if (!roomId) return;
+
+    // メッセージ取得
+    fetchMessages(roomId).catch((error) => {
+      console.error("Failed to fetch messages in component:", error);
+    });
+
+    // WebSocketルーム参加
+    if (isConnected) {
+      joinRoom(roomId);
     }
-  }, [roomId, fetchMessages]);
-
-  useEffect(() => {
-    if (roomId) joinRoom(roomId);
-  }, [roomId, joinRoom]);
+  }, [roomId, fetchMessages, joinRoom, isConnected]);
 
   const handleTypingStartWS = useCallback(() => {
     if (roomId) startTyping(roomId);
@@ -75,8 +80,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     if (roomId) stopTyping(roomId);
   }, [roomId, stopTyping]);
 
-  // 実際に使用するメッセージとローディング状態
-  const actualMessages = onSendMessage ? (propMessages ?? currentRoomMessages) : currentRoomMessages;
+  // 実際に使用するメッセージとローディング状態（roomIdベースで直接取得）
+  const roomMessages = roomId ? (messages[roomId] || []) : [];
+  const actualMessages = onSendMessage ? (propMessages ?? roomMessages) : roomMessages;
   const actualIsLoading = propIsLoading || isLoading;
 
   // メッセージ送信関数
@@ -85,11 +91,12 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
     setIsSending(true);
     try {
-      // カスタムのonSendMessageがある場合はそれを使用、なければ自前のsendMessageを使用
+      // カスタムのonSendMessageがある場合はそれを使用、なければWebSocketのsendMessageを使用
       if (onSendMessage) {
         await onSendMessage(content);
       } else {
-        await sendMessageViaHook(roomId, content);
+        console.log('📤 ChatArea sending message via WebSocket:', { roomId, content, userId: user?.id });
+        sendMessageViaWebSocket(content, roomId, user?.id);
       }
     } catch (error) {
       const appError = normalizeError(error, 'メッセージ送信');
@@ -99,7 +106,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     } finally {
       setIsSending(false);
     }
-  }, [roomId, onSendMessage, sendMessageViaHook, isSending, disabled]);
+  }, [roomId, onSendMessage, sendMessageViaWebSocket, user?.id, isSending, disabled]);
 
   // ルームが選択されていない場合の表示
   if (!roomId) {

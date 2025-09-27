@@ -11,14 +11,38 @@ import type { ChatRoom } from '../../types/chat';
  * - 認証チェックはmiddleware.tsに委譲（Next.js App Routerベストプラクティス）
  * - useEffectによる無限ループリスクを排除
  * - シンプルな状態管理でパフォーマンス向上
+ * - ルーム未選択時はプレースホルダー表示
  */
 export function ChatPageClient() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
 
   // ルーム関連のローカル状態（将来のAPI接続を想定しつつプレースホルダー）
-  const [rooms] = useState<ChatRoom[]>([]);
+  // 実際の実装では、APIからルーム一覧を取得して初期ルームを設定
+  const [rooms] = useState<ChatRoom[]>([
+    // プレースホルダーデータ（開発・デモ用）
+    {
+      id: 'general',
+      name: '一般チャット',
+      is_group_chat: true,
+      member_count: 5,
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 'random',
+      name: 'ランダムチャット',
+      is_group_chat: true,
+      member_count: 3,
+      updated_at: new Date().toISOString(),
+    },
+  ]);
+
   const [currentRoomId] = useState<string | undefined>(undefined);
+
+  // ルーム選択時のナビゲーション
+  const handleRoomSelect = (roomId: string) => {
+    router.push(`/chat/${roomId}`);
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -32,9 +56,15 @@ export function ChatPageClient() {
           rooms={rooms}
           currentRoomId={currentRoomId}
           onCreateRoom={() => { }}
-          onRoomSelect={() => { }}
+          onRoomSelect={handleRoomSelect}
           user={user ? { id: user.id, name: user.name, email: user.email } : undefined}
           onLogout={handleLogout}
+          onCloseSidebar={() => {
+            // ChatLayoutのtoggleSidebarを呼び出すため、refやコンテキストを使用
+            // 簡単な解決策として、カスタムイベントを使用
+            const event = new CustomEvent('toggleSidebar');
+            document.dispatchEvent(event);
+          }}
         />
       }
       header={({ onToggleSidebar, isSidebarOpen }) => (
@@ -54,13 +84,24 @@ export function ChatPageClient() {
             <h3 data-testid="welcome-message">左のサイドバーからチャットルームを選択するか、</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">新しいルームを作成してチャットを開始しましょう</p>
           </div>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="mt-4 px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-            data-testid="back-to-dashboard-button"
-          >
-            ダッシュボードに戻る
-          </button>
+          <div className="space-y-2">
+            {rooms.length > 0 && rooms[0] && (
+              <button
+                onClick={() => handleRoomSelect(rooms[0]!.id)}
+                className="px-4 py-2 rounded-md bg-blue-500 hover:bg-blue-600 text-white transition-colors"
+                data-testid="join-first-room-button"
+              >
+                {rooms[0]!.name}に参加する
+              </button>
+            )}
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="block mx-auto mt-4 px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors"
+              data-testid="back-to-dashboard-button"
+            >
+              ダッシュボードに戻る
+            </button>
+          </div>
         </div>
       </div>
     </ChatLayout>

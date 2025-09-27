@@ -26,13 +26,19 @@ func JWTAuth() echo.MiddlewareFunc {
 					if strings.HasPrefix(authHeader, bearerPrefix) {
 						tokenString = strings.TrimSpace(authHeader[len(bearerPrefix):])
 					}
+				} else {
+					// 3. WebSocket用: クエリパラメータからtokenを取得
+					tokenParam := c.QueryParam("token")
+					if tokenParam != "" {
+						tokenString = strings.TrimSpace(tokenParam)
+					}
 				}
 			}
 
 			// トークンが無い場合は認証失敗
 			if tokenString == "" {
 				return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-					Message: "Missing access token in cookie or authorization header",
+					Message: "Missing access token in cookie, authorization header, or token parameter",
 					Code:    "MISSING_ACCESS_TOKEN",
 				})
 			}

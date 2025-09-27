@@ -63,9 +63,15 @@ export class WebSocketClient {
       console.warn('WebSocket未対応環境のため接続をスキップします');
       return;
     }
-    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
-      console.log('WebSocket already connected');
-      return;
+
+    // 既存接続の強制クリーンアップ
+    if (this.ws) {
+      const currentState = this.ws.readyState;
+      if (currentState === WebSocket.OPEN || currentState === WebSocket.CONNECTING) {
+        console.log('既存のWebSocket接続をクリーンアップ中...', { readyState: currentState });
+        this.ws.close(1000, 'Reconnecting');
+        this.ws = null;
+      }
     }
 
     try {
@@ -171,7 +177,15 @@ export class WebSocketClient {
     };
 
     this.ws.onerror = (event) => {
-      console.error('WebSocketエラー:', event);
+      const ws = event?.target as WebSocket;
+      const errorInfo = {
+        type: event?.type || 'Unknown',
+        readyState: ws?.readyState,
+        url: ws?.url,
+        timestamp: new Date().toISOString(),
+        reconnectAttempts: this.reconnectAttempts
+      };
+      console.error('WebSocketエラー詳細:', errorInfo);
       this.callbacks.onError?.(event);
     };
 
@@ -188,26 +202,38 @@ export class WebSocketClient {
   // メッセージ処理
   private handleMessage(message: WebSocketMessage): void {
     console.log('WebSocketメッセージ受信:', message);
-
     // コールバック実行
     this.callbacks.onMessage?.(message);
   }
 
   // 再接続スケジュール
   private scheduleReconnect(): void {
+    if (this.isManualClose) {
+      console.log('手動切断のため再接続をスキップします');
+      return;
+    }
+
     if (this.reconnectAttempts >= this.config.maxReconnectAttempts) {
       console.error('最大再接続試行回数に達しました');
       this.callbacks.onReconnectFailed?.();
       return;
     }
 
+    // 既存の再接続タイマーをクリア
+    this.clearTimers();
+
     this.reconnectAttempts++;
-    console.log(`${this.config.reconnectInterval}ms後に再接続を試行 (${this.reconnectAttempts}/${this.config.maxReconnectAttempts})`);
+    const backoffDelay = Math.min(
+      this.config.reconnectInterval * Math.pow(1.5, this.reconnectAttempts - 1),
+      30000 // 最大30秒
+    );
+
+    console.log(`${backoffDelay}ms後に再接続を試行 (${this.reconnectAttempts}/${this.config.maxReconnectAttempts})`);
 
     this.reconnectTimer = setTimeout(() => {
       this.callbacks.onReconnect?.(this.reconnectAttempts);
       this.connect();
-    }, this.config.reconnectInterval);
+    }, backoffDelay);
   }
 
   // タイマー削除
@@ -219,12 +245,43 @@ export class WebSocketClient {
   }
 }
 
+// Cookieからアクセストークンを取得する関数
+function getAccessTokenFromCookie(): string | null {
+  if (typeof document === 'undefined') return null;
+
+  const cookies = document.cookie.split(';');
+  for (const cookie of cookies) {
+    const [name, value] = cookie.trim().split('=');
+    if (name === 'access_token' && value) {
+      return decodeURIComponent(value);
+    }
+  }
+  return null;
+}
+
 // WebSocketインスタンス作成ファクトリ
-export function createWebSocketClient(): WebSocketClient {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003/api/backend';
-  const wsUrl = `${baseUrl}/ws`;
+export function createWebSocketClient(token?: string): WebSocketClient {
+  // WebSocketは直接Goバックエンドに接続する必要がある
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
+
+  // HTTP/HTTPS URLをWS/WSS URLに変換
+  const wsUrl = backendUrl.replace(/^http/, 'ws');
+  let fullWsUrl = `${wsUrl}/api/ws`;
+
+  // 認証トークンの取得（優先順位: 引数 > Cookie）
+  const authToken = token || getAccessTokenFromCookie();
+
+  if (authToken) {
+    fullWsUrl += `?token=${encodeURIComponent(authToken)}`;
+  }
+
+  console.log('🔗 Creating WebSocket client with URL:', fullWsUrl, {
+    hasProvidedToken: !!token,
+    hasCookieToken: !!getAccessTokenFromCookie(),
+    finalToken: !!authToken
+  });
 
   return new WebSocketClient({
-    url: wsUrl,
+    url: fullWsUrl,
   });
 }

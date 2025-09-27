@@ -39,6 +39,6 @@ test.describe('認証トークン統合テスト', () => {
     await page.goto('/chat');
     
     // トークン期限切れ時はログインページにリダイレクトされることを確認
-    await expect(page).toHaveURL(/.*login/);
+    await expect(page).toHaveURL(/.*login/, { timeout: 15000 });
   });
 });

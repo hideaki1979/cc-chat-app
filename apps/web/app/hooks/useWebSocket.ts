@@ -24,19 +24,31 @@ export function useWebSocket() {
     clearMessages,
   } = useWebSocketStore();
 
-  const { user } = useAuthStore();
+  const { user, accessToken } = useAuthStore();
   const isLoggedIn = !!user;
+  const userId = user?.id; // 安定した参照を作成
 
   // 認証状態に基づいてWebSocket接続を管理
   useEffect(() => {
-    if (isLoggedIn && !client) {
-      // ログイン済みでまだ接続していない場合は接続
-      connect();
+    console.log('🔍 WebSocket接続状態チェック:', {
+      isLoggedIn,
+      hasClient: !!client,
+      isConnecting,
+      isConnected,
+      hasAccessToken: !!accessToken,
+      userId
+    });
+
+    if (isLoggedIn && !client && !isConnecting) {
+      // ログイン済みでまだ接続していないかつ接続中でもない場合は接続
+      console.log('🔌 WebSocket自動接続を開始');
+      connect(); // トークンは引数を渡さずCookieから自動取得
     } else if (!isLoggedIn && client) {
       // ログアウトした場合は切断
+      console.log('🔌 ログアウトによりWebSocket切断');
       disconnect();
     }
-  }, [isLoggedIn, client, connect, disconnect]);
+  }, [isLoggedIn, client, isConnecting, isConnected, connect, disconnect, accessToken, userId]);
 
   // コンポーネントのアンマウント時に切断
   useEffect(() => {
@@ -49,8 +61,9 @@ export function useWebSocket() {
 
   // WebSocket接続を手動で開始
   const handleConnect = useCallback(() => {
+    console.log('🔌 手動WebSocket接続開始:', { isLoggedIn });
     if (isLoggedIn) {
-      connect();
+      connect(); // Cookieから自動取得
     }
   }, [isLoggedIn, connect]);
 
@@ -76,9 +89,9 @@ export function useWebSocket() {
   // メッセージを送信
   const handleSendMessage = useCallback((content: string, roomId: string) => {
     if (isConnected && content.trim()) {
-      sendMessage(content, roomId);
+      sendMessage(content, roomId, userId);
     }
-  }, [isConnected, sendMessage]);
+  }, [isConnected, sendMessage, userId]);
 
   // タイピング状態を開始
   const handleStartTyping = useCallback((roomId: string) => {

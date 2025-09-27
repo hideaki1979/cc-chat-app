@@ -252,7 +252,7 @@ currentRoomMessages vs currentRoomId
 - [ ] TASK-012: ファイル責務整理
 - [ ] TASK-013: 命名規則統一
 
----
+--そ-
 
 ## 📋 タスク管理
 

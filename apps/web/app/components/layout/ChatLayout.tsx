@@ -27,6 +27,18 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
     setIsSidebarOpen(lg);
   }, [lg]);
 
+  // カスタムイベントリスナーでサイドバーの切り替えをサポート
+  useEffect(() => {
+    const handleToggleSidebar = () => {
+      setIsSidebarOpen(prev => !prev);
+    };
+
+    document.addEventListener('toggleSidebar', handleToggleSidebar);
+    return () => {
+      document.removeEventListener('toggleSidebar', handleToggleSidebar);
+    };
+  }, []);
+
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);

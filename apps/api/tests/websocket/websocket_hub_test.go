@@ -5,6 +5,7 @@ import (
 
 	"github.com/hideaki1979/cc-chat-app/apps/api/internal/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestNewHub(t *testing.T) {
@@ -47,4 +48,47 @@ func TestHub_BroadcastToAll(t *testing.T) {
 	assert.NotPanics(t, func() {
 		hub.BroadcastToAll("global_message", "Hello Everyone!")
 	})
+}
+
+// MockMessageSaver テスト用のMessageSaverモック
+type MockMessageSaver struct {
+	mock.Mock
+}
+
+func (m *MockMessageSaver) SaveWebSocketMessage(roomID, userID, content string) (*websocket.MessageSaverResponse, error) {
+	args := m.Called(roomID, userID, content)
+	return args.Get(0).(*websocket.MessageSaverResponse), args.Error(1)
+}
+
+func TestHub_SetMessageSaver(t *testing.T) {
+	hub := websocket.NewHub()
+	mockSaver := &MockMessageSaver{}
+
+	// SetMessageSaverでMessageSaverを設定
+	hub.SetMessageSaver(mockSaver)
+
+	// MessageSaverが設定されていることを間接的に確認
+	// (Hubの内部状態は公開されていないため、実際の動作でテスト)
+	assert.NotPanics(t, func() {
+		hub.SetMessageSaver(mockSaver)
+	})
+}
+
+func TestHub_SetMessageSaver_WithNil(t *testing.T) {
+	hub := websocket.NewHub()
+
+	// nilのMessageSaverを設定
+	assert.NotPanics(t, func() {
+		hub.SetMessageSaver(nil)
+	})
+}
+
+func TestNewHubWithMessageSaver(t *testing.T) {
+	mockSaver := &MockMessageSaver{}
+
+	// MessageSaver付きでHubを作成
+	hub := websocket.NewHubWithMessageSaver(mockSaver)
+
+	assert.NotNil(t, hub)
+	assert.Equal(t, 0, hub.GetClientCount())
 }

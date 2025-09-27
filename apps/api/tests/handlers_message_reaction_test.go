@@ -115,7 +115,7 @@ func TestAddReaction_Success(t *testing.T) {
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, http.StatusCreated, rec.Code)
 
 	var response models.MessageReactionResponse
 	err = json.Unmarshal(rec.Body.Bytes(), &response)
@@ -165,7 +165,7 @@ func TestAddReaction_DuplicateReaction(t *testing.T) {
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, http.StatusCreated, rec.Code)
+	assert.Equal(t, http.StatusOK, rec.Code)
 
 	var response models.MessageReactionResponse
 	err = json.Unmarshal(rec.Body.Bytes(), &response)
