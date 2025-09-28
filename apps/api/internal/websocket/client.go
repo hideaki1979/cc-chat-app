@@ -31,6 +31,12 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
+		// 開発環境では全てのOriginを許可
+		if os.Getenv("GO_ENV") == "development" {
+			return true
+		}
+
+		// 本番環境ではFRONTEND_URLのみ許可
 		allowed := strings.Split(os.Getenv("FRONTEND_URL"), ",")
 		origin := r.Header.Get("Origin")
 		for _, a := range allowed {
@@ -167,16 +173,60 @@ func (c *Client) handleChatMessage(data json.RawMessage) {
 	// 送信先は必ず現在のルーム
 	roomID := c.RoomID
 
-	// チャットメッセージをルーム内の他のクライアントにブロードキャスト
-	messageData := map[string]interface{}{
-		"content":    chatMsg.Content,
-		"room_id":    roomID,
-		"user_id":    c.ID,
-		"timestamp":  time.Now().Unix(),
-		"message_id": generateMessageID(), // 実際の実装では適切なID生成が必要
-	}
+	// データベースにメッセージを保存してからブロードキャスト
+	if c.Hub.MessageSaver != nil {
+		messageResponse, err := c.Hub.MessageSaver.SaveWebSocketMessage(c.ctx, roomID, c.ID, chatMsg.Content)
+		if err != nil {
+			log.Printf("WebSocketメッセージのDB保存エラー: %v", err)
+			// エラーメッセージを送信者に返す
+			errorData := map[string]interface{}{
+				"content":    "メッセージの送信に失敗しました。再試行してください。",
+				"room_id":    roomID,
+				"user_id":    "system",
+				"timestamp":  time.Now().Unix(),
+				"message_id": generateMessageID(),
+				"error":      true,
+			}
+			errorBytes, err := json.Marshal(map[string]interface{}{
+				"type": "new_message",
+				"data": errorData,
+			})
+			if err != nil {
+				log.Printf("エラーメッセージのマーシャルに失敗: %v", err)
+				return
+			}
+			select {
+			case c.Send <- errorBytes:
+			default:
+				log.Printf("エラーメッセージ送信失敗: user=%s", c.ID)
+			}
+			return
+		}
 
-	c.Hub.BroadcastToRoom(roomID, "new_message", messageData, c)
+		// 保存されたメッセージ情報でブロードキャスト
+		messageData := map[string]interface{}{
+			"content":    messageResponse.Content,
+			"room_id":    roomID,
+			"user_id":    messageResponse.UserID,
+			"timestamp":  messageResponse.CreatedAt.Unix(),
+			"message_id": messageResponse.ID,
+			"file_url":   messageResponse.FileURL,
+		}
+
+		c.Hub.BroadcastToRoom(roomID, "new_message", messageData, c) // 送信者を除外してブロードキャスト
+	} else {
+		// MessageSaverが未設定の場合は従来通りブロードキャストのみ（後方互換性）
+		log.Printf("MessageSaver未設定: DB保存をスキップしてブロードキャストのみ実行")
+		messageData := map[string]interface{}{
+			"content":    chatMsg.Content,
+			"room_id":    roomID,
+			"user_id":    c.ID,
+			"timestamp":  time.Now().Unix(),
+			"message_id": generateMessageID(),
+		}
+
+		c.Hub.BroadcastToRoom(roomID, "new_message", messageData, c)
+	}
 }
 
 // handleJoinRoom ルーム参加リクエストを処理する

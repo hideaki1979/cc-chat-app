@@ -1,12 +1,29 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
+
+// MessageSaverResponse WebSocketメッセージをデータベースに保存した結果を表す
+type MessageSaverResponse struct {
+	ID        string    `json:"id"`
+	Content   string    `json:"content"`
+	UserID    string    `json:"user_id"`
+	RoomID    string    `json:"room_id"`
+	CreatedAt time.Time `json:"created_at"`
+	FileURL   *string   `json:"file_url,omitempty"`
+}
+
+// MessageSaver WebSocketメッセージをデータベースに保存するためのインターフェース
+type MessageSaver interface {
+	SaveWebSocketMessage(ctx context.Context, roomID, userID, content string) (*MessageSaverResponse, error)
+}
 
 // Client 接続されたクライアントを表す
 type Client struct {
@@ -15,6 +32,7 @@ type Client struct {
 	Send   chan []byte     // メッセージ送信チャネル
 	RoomID string          // 現在のチャットルームID
 	Hub    *Hub            // Hubへの参照
+	ctx	   context.Context // リクエストのコンテキスト
 }
 
 // Hub アクティブなクライアントのセットを維持し、メッセージをブロードキャストする
@@ -33,6 +51,9 @@ type Hub struct {
 
 	// クライアントの登録解除リクエスト
 	unregister chan *Client
+
+	// WebSocketメッセージをデータベースに保存するためのサービス（オプショナル）
+	MessageSaver MessageSaver
 
 	// 並行安全性のためのmutex
 	mu sync.RWMutex
@@ -56,6 +77,13 @@ func NewHub() *Hub {
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 	}
+}
+
+// NewHubWithMessageSaver MessageSaver付きで新しいHubを作成する
+func NewHubWithMessageSaver(messageSaver MessageSaver) *Hub {
+	hub := NewHub()
+	hub.MessageSaver = messageSaver
+	return hub
 }
 
 // Run ハブを開始する
@@ -241,4 +269,11 @@ func (h *Hub) LeaveRoom(client *Client) {
 		log.Printf("Client %s left room %s", client.ID, client.RoomID)
 		client.RoomID = ""
 	}
+}
+
+// SetMessageSaver MessageSaverを後から設定する
+func (h *Hub) SetMessageSaver(messageSaver MessageSaver) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.MessageSaver = messageSaver
 }

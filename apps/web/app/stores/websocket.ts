@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { WebSocketClient, WebSocketMessage, createWebSocketClient } from '../lib/websocket';
+import type { Message } from '../types/chat';
 
 export interface WebSocketStore {
   // 状態
@@ -15,12 +16,15 @@ export interface WebSocketStore {
   messages: ChatMessage[];
   typingUsers: Set<string>;
 
+  // ChatStoreとの統合用
+  _chatStoreUpsertMessage: ((message: Message) => void) | null;
+
   // アクション
-  connect: () => void;
+  connect: (token?: string) => void;
   disconnect: () => void;
   joinRoom: (roomId: string) => void;
   leaveRoom: () => void;
-  sendMessage: (content: string, roomId: string) => void;
+  sendMessage: (content: string, roomId: string, userId?: string) => void;
   startTyping: (roomId: string) => void;
   stopTyping: (roomId: string) => void;
   addMessage: (message: ChatMessage) => void;
@@ -28,6 +32,7 @@ export interface WebSocketStore {
   setTypingUser: (userId: string, isTyping: boolean) => void;
   clearMessages: () => void;
   handleWebSocketMessage: (message: WebSocketMessage) => void;
+  setChatStoreIntegration: (upsertMessage: (message: Message) => void) => void;
 }
 
 export interface ChatMessage {
@@ -36,7 +41,7 @@ export interface ChatMessage {
   userId: string;
   roomId: string;
   timestamp: number;
-  type: 'text' | 'system';
+  type: 'text' | 'system' | 'error';
 }
 
 export const useWebSocketStore = create<WebSocketStore>()(
@@ -52,23 +57,44 @@ export const useWebSocketStore = create<WebSocketStore>()(
       messages: [],
       typingUsers: new Set(),
 
-      // WebSocket接続
-      connect: () => {
-        const { client: existingClient } = get();
+      // ChatStoreとの統合用（オプショナル）
+      _chatStoreUpsertMessage: null as ((message: Message) => void) | null,
 
-        // 既存の接続があれば切断
+      // WebSocket接続
+      connect: (token?: string) => {
+        const { client: existingClient, isConnecting } = get();
+
+
+        // 既に接続中の場合はスキップ
+        if (isConnecting) {
+          return;
+        }
+
+        // 既存の接続があれば先に切断
         if (existingClient) {
           existingClient.disconnect();
+          set({
+            client: null,
+            isConnecting: false,
+            isConnected: false,
+          });
+          // 少し待ってから新しい接続を開始
+          setTimeout(() => {
+            const {client: currentClient} = get();
+            if (!currentClient) {
+              get().connect(token);
+            }
+          }, 100);
+          return;
         }
 
         set({ isConnecting: true, connectionError: null });
 
-        const client = createWebSocketClient();
+        const client = createWebSocketClient(token);
 
         // コールバック設定
         client.setCallbacks({
           onOpen: () => {
-            console.log('WebSocket接続成功');
             set({
               isConnected: true,
               isConnecting: false,
@@ -77,8 +103,7 @@ export const useWebSocketStore = create<WebSocketStore>()(
             });
           },
 
-          onClose: (event) => {
-            console.log('WebSocket接続終了:', event.code);
+          onClose: () => {
             set({
               isConnected: false,
               isConnecting: false,
@@ -87,11 +112,21 @@ export const useWebSocketStore = create<WebSocketStore>()(
           },
 
           onError: (event) => {
-            console.error('WebSocketエラー:', event);
+            const ws = event?.target as WebSocket;
+            const errorDetails = {
+              type: event?.type || 'Unknown type',
+              target: event?.target?.constructor?.name || 'Unknown target',
+              readyState: ws?.readyState || 'Unknown',
+              readyStateText: ws?.readyState ? ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][ws.readyState] : 'Unknown',
+              url: ws?.url || 'URL不明',
+              timestamp: new Date().toISOString()
+            };
+            console.error('WebSocketエラー詳細:', errorDetails);
+
             set({
               isConnected: false,
               isConnecting: false,
-              connectionError: 'WebSocket接続エラーが発生しました'
+              connectionError: `接続エラー (${errorDetails.readyStateText}): ${errorDetails.url}`
             });
           },
 
@@ -100,7 +135,6 @@ export const useWebSocketStore = create<WebSocketStore>()(
           },
 
           onReconnect: (attempt: number) => {
-            console.log(`再接続試行中: ${attempt}`);
             set({
               isConnecting: true,
               reconnectAttempts: attempt
@@ -178,14 +212,67 @@ export const useWebSocketStore = create<WebSocketStore>()(
       },
 
       // メッセージ送信
-      sendMessage: (content: string, roomId: string) => {
-        const { client } = get();
-        if (!client || !client.isConnected()) {
-          console.warn('WebSocket未接続のためメッセージを送信できません');
+      sendMessage: (content: string, roomId: string, userId?: string) => {
+        const { client, currentRoomId, addMessage, isConnected } = get();
+
+        if (!client || !isConnected) {
+          const errorMsg = 'メッセージ送信失敗: WebSocket未接続';
+          console.warn(errorMsg, {
+            hasClient: !!client,
+            isConnected,
+            connectionState: client?.getConnectionState(),
+            currentRoomId
+          });
+          // ユーザーにエラーを通知（システムメッセージとして）
+          if (userId) {
+            const errorMessage: ChatMessage = {
+              id: `error_${Date.now()}`,
+              content: errorMsg,
+              userId: 'system',
+              roomId: roomId || currentRoomId || '',
+              timestamp: Date.now(),
+              type: 'error'
+            };
+            addMessage(errorMessage);
+          }
           return;
         }
 
-        client.sendChatMessage(content, roomId);
+        // WebSocketでメッセージを送信
+        const sendSuccess = client.sendChatMessage(content, roomId);
+
+        if (!sendSuccess) {
+          if (userId) {
+            const errorMessage: ChatMessage = {
+              id: `error_${Date.now()}`,
+              content: 'メッセージの送信に失敗しました。接続を確認してください。',
+              userId: 'system',
+              roomId: roomId || currentRoomId || '',
+              timestamp: Date.now(),
+              type: 'error'
+            };
+            addMessage(errorMessage);
+          }
+          return;
+        }
+
+        // 送信者自身のメッセージを即座にローカルに追加（楽観的更新）
+        if (userId) {
+          const optimisticMessage: ChatMessage = {
+            id: `temp_${Date.now()}`, // 一時的なID
+            content,
+            userId,
+            roomId: roomId || currentRoomId || '',
+            timestamp: Date.now(),
+            type: 'text'
+          };
+
+          addMessage(optimisticMessage);
+
+          // メッセージ追加後のstateを確認
+          const state = get();
+          console.log('📊 Messages after add:', state.messages.length);
+        }
       },
 
       // タイピング開始
@@ -241,6 +328,11 @@ export const useWebSocketStore = create<WebSocketStore>()(
         set({ messages: [] });
       },
 
+      // ChatStoreとの統合設定
+      setChatStoreIntegration: (upsertMessage: (message: Message) => void) => {
+        set({ _chatStoreUpsertMessage: upsertMessage });
+      },
+
       // WebSocketメッセージ処理（内部メソッド）
       handleWebSocketMessage: (message: WebSocketMessage) => {
         const state = get();
@@ -254,7 +346,10 @@ export const useWebSocketStore = create<WebSocketStore>()(
               room_id: string;
               message_id: string;
               timestamp: number;
+              file_url?: string;
             };
+
+            console.log('📩 Received WebSocket message:', data);
 
             const chatMessage: ChatMessage = {
               id: data.message_id,
@@ -266,6 +361,26 @@ export const useWebSocketStore = create<WebSocketStore>()(
             };
 
             state.upsertMessage(chatMessage);
+
+            // ChatStoreにも統合（設定されている場合）
+            if (state._chatStoreUpsertMessage) {
+              const chatStoreMessage: Message = {
+                id: data.message_id,
+                content: data.content,
+                user_id: data.user_id,
+                room_id: data.room_id,
+                created_at: new Date(data.timestamp * 1000).toISOString(),
+                updated_at: new Date(data.timestamp * 1000).toISOString(),
+                file_url: data.file_url || undefined,
+                sender: {
+                  id: data.user_id,
+                  name: 'User', // 実際のユーザー名は別途解決される
+                }
+              };
+
+              state._chatStoreUpsertMessage(chatStoreMessage);
+            }
+
             break;
           }
 
@@ -317,7 +432,6 @@ export const useWebSocketStore = create<WebSocketStore>()(
 
           case 'connected': {
             // 接続確認
-            console.log('WebSocket接続確認:', message.data);
             break;
           }
 

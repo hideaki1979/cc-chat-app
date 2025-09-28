@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useEffect, useCallback } from 'react';
-import { Virtuoso } from 'react-virtuoso';
+// import { Virtuoso } from 'react-virtuoso'; // 仮想スクロール実装は問題があるため無効化
 import type { Message } from '../../types/chat';
 // useAutoScrollは仮想スクロールでは不要（Virtuosoが自動管理）
 import { useChatStore } from '../../stores/chat';
@@ -39,29 +39,31 @@ export const MessageList: React.FC<MessageListProps> = ({
   const convertedWsMessages = useMemo(() => {
     if (!roomId) return EMPTY_MESSAGES;
 
-    return wsMessages
-      .filter(msg => msg.roomId === roomId)
-      .map(msg => ({
-        id: msg.id,
-        content: msg.content,
-        room_id: roomId,
-        created_at: new Date(msg.timestamp).toISOString(),
-        updated_at: new Date(msg.timestamp).toISOString(),
-        sender_id: msg.userId,
-        user_id: msg.userId,
-        sender_name: msg.userId,  // 暫定的にuseｒIDを設定
-        message_type: msg.type === 'system' ? 'system' : 'text',
-        is_edited: false,
-      } as Message));
+    const filtered = wsMessages.filter(msg => msg.roomId === roomId);
+
+    return filtered.map(msg => ({
+      id: msg.id,
+      content: msg.content,
+      room_id: roomId,
+      created_at: new Date(msg.timestamp).toISOString(),
+      updated_at: new Date(msg.timestamp).toISOString(),
+      sender_id: msg.userId,
+      user_id: msg.userId,
+      sender_name: msg.userId,  // 暫定的にuseｒIDを設定
+      message_type: msg.type === 'system' ? 'system' : 'text',
+      is_edited: false,
+    } as Message));
   }, [wsMessages, roomId]);
 
   // 実際に使用するメッセージ（WebSocket > props > store の優先順位）
   const messages = useMemo(() => {
     const allMessages = [...(propMessages ?? storeMessages), ...convertedWsMessages];
-    const uniqueMessages = Array.from(new Map(allMessages.map(msg => 
+    const uniqueMessages = Array.from(new Map(allMessages.map(msg =>
       [msg.id, msg])).values());
 
-    return uniqueMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    const sortedMessages = uniqueMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+    return sortedMessages;
   }, [propMessages, storeMessages, convertedWsMessages]);
 
   // メッセージからユーザーIDを抽出
@@ -195,13 +197,7 @@ export const MessageList: React.FC<MessageListProps> = ({
     );
   }, [messages, getUserName, formatTime, isMyMessage]);
 
-  // 仮想スクロール用のアイテムレンダラー
-  const itemContent = useCallback((index: number) => {
-    const message = messages[index];
-    if (!message) return null;
-
-    return <MessageItem message={message} index={index} />;
-  }, [messages, MessageItem]);
+  // デバッグログは削除（必要時に再追加）
 
   return (
     <div className="flex-1 bg-gray-50 dark:bg-gray-900">
@@ -222,33 +218,42 @@ export const MessageList: React.FC<MessageListProps> = ({
           </div>
         </div>
       ) : (
-        // 仮想スクロールでメッセージリストを表示
-        <Virtuoso
-          data={messages}
-          totalCount={messages.length}
-          itemContent={itemContent}
-          followOutput="smooth" // 新しいメッセージ時に自動スクロール
-          alignToBottom // チャット形式で下から積み上げ
-          increaseViewportBy={200} // スクロール範囲を先読み（パフォーマンス向上）
-          style={{
-            height: '100%',
-            padding: '1.5rem 1rem', // py-6 px-4 相当
-          }}
-          components={hasMore ? {
-            // 過去のメッセージ読み込みボタンをヘッダーに配置
-            Header: () => (
-              <div className="text-center py-4">
-                <button
-                  onClick={onLoadMore}
-                  disabled={isLoading}
-                  className="px-4 py-2 text-sm text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {isLoading ? '読み込み中...' : '過去のメッセージを読み込む'}
-                </button>
-              </div>
-            ),
-          } : undefined}
-        />
+        // 【最終版】通常スクロール実装 - 安定性重視
+        <div className="h-full overflow-y-auto">
+          {/* 過去メッセージ読み込みボタン */}
+          {hasMore && onLoadMore && (
+            <div className="text-center py-4">
+              <button
+                onClick={onLoadMore}
+                disabled={isLoading}
+                className="px-4 py-2 text-sm text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {isLoading ? '読み込み中...' : '過去のメッセージを読み込む'}
+              </button>
+            </div>
+          )}
+
+          {/* メッセージリスト */}
+          {messages.map((message, index) => (
+            <div key={message.id} className="px-6 py-2">
+              <MessageItem message={message} index={index} />
+            </div>
+          ))}
+        </div>
+
+        /*
+        【仮想スクロール実装の問題】
+        Virtuosoライブラリはメッセージリストでの使用において、
+        以下の問題が発生することが判明：
+
+        1. followOutput設定の競合問題
+        2. data vs totalCount + itemContentの混在問題
+        3. 初期表示での描画されない問題
+        4. alignToBottomとinitialTopMostItemIndexの競合
+
+        大量のメッセージがある場合は将来的にVirtuosoを再検討するが、
+        現状では安定性を重視して通常スクロールを採用。
+        */
       )}
     </div>
   );

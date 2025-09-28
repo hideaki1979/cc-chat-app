@@ -34,6 +34,7 @@ interface SidebarProps {
     email: string;
   };
   onLogout?: () => void;
+  onCloseSidebar?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -43,6 +44,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCreateRoom,
   user,
   onLogout,
+  onCloseSidebar,
 }) => {
   const [isUserSearchOpen, setIsUserSearchOpen] = useState(false);
   const formatTime = (dateString: string) => {
@@ -76,6 +78,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
             CC Chat
           </h1>
           <div className="flex space-x-2">
+            {/* モバイル用サイドバー閉じるボタン */}
+            <button
+              className="lg:hidden p-1 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700 transition-colors"
+              aria-label="サイドバーを閉じる"
+              title="サイドバーを閉じる"
+              onClick={onCloseSidebar}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
             <Button
               onClick={() => setIsUserSearchOpen(true)}
               size="sm"

@@ -116,10 +116,6 @@ func main() {
 		}
 	})
 
-	// WebSocketハブ初期化
-	hub := websocket.NewHub()
-	go hub.Run()
-
 	// リポジトリ初期化
 	userRepo := repositories.NewUserRepository(client)
 
@@ -140,7 +136,17 @@ func main() {
 	profileHandler := handlers.NewProfileHandler()
 	userHandler := handlers.NewUserHandler()
 	chatRoomHandler := handlers.NewChatRoomHandler(client)
+
+	// WebSocketハブ初期化（MessageSaverなしで最初に作成）
+	hub := websocket.NewHub()
+	go hub.Run()
+
+	// MessageHandlerを正しいhubで初期化
 	messageHandler := handlers.NewMessageHandler(client, hub)
+
+	// HubにMessageSaverを設定（循環参照を回避）
+	hub.SetMessageSaver(messageHandler)
+
 	wsHandler := handlers.NewWebSocketHandler(hub)
 
 	var fileHandler *handlers.FileHandler
@@ -191,6 +197,7 @@ func main() {
 
 	// ユーザー関連
 	protectedGroup.GET("/users/search", userHandler.SearchUsers)
+	protectedGroup.POST("/users/batch", userHandler.GetUserBatch)
 
 	// チャットルーム関連
 	protectedGroup.POST("/chatrooms", chatRoomHandler.CreateChatRoom)

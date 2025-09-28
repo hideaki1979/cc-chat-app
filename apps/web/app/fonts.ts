@@ -23,5 +23,5 @@ export const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
   variable: "--font-geist-sans",
   display: 'swap',
-  preload: true,
+  preload: false, // ローカルフォントはpreloadを無効化して警告を防止
 });

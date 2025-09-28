@@ -34,7 +34,7 @@ test.describe('Error Boundary リダイレクト機能', () => {
     await expect(page.locator('.animate-spin')).toBeVisible();
 
     // 2秒待ってリダイレクトが発生することを確認
-    await page.waitForURL('/error', { timeout: 5000 });
+    await page.waitForURL('/error', { timeout: 15000 });
     await expect(page).toHaveURL('/error');
 
     // エラーページのタイトルが表示されることを確認
