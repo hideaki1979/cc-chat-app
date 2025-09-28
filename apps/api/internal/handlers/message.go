@@ -967,9 +967,7 @@ func getUserUUID(c echo.Context) (uuid.UUID, error) {
 }
 
 // SaveWebSocketMessage WebSocketメッセージをデータベースに保存する（websocket.MessageSaverインターフェースの実装）
-func (h *MessageHandler) SaveWebSocketMessage(roomID, userID, content string) (*websocket.MessageSaverResponse, error) {
-	ctx := context.Background()
-
+func (h *MessageHandler) SaveWebSocketMessage(ctx context.Context, roomID, userID, content string) (*websocket.MessageSaverResponse, error) {
 	// UUID変換
 	roomUUID, err := uuid.Parse(roomID)
 	if err != nil {

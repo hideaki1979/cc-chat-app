@@ -79,13 +79,12 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
   // クリック外側検出
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        isOpen &&
-        pickerRef.current &&
-        !pickerRef.current.contains(event.target as Node) &&
-        anchorRef?.current &&
-        !anchorRef.current.contains(event.target as Node)
-      ) {
+      if (!isOpen) return;
+      
+      const target = event.target as Node;
+      const isInsidePicker = pickerRef.current?.contains(target);
+      const isInsideAnchor = anchorRef?.current ? anchorRef.current.contains(target) : false;
+      if (!isInsidePicker && !isInsideAnchor) {
         onClose();
       }
     };

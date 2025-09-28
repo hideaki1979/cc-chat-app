@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useResponsive } from './hooks/useResponsive';
+import { useSidebarStore } from '../../stores/sidebarStore';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -20,69 +21,63 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
   header,
 }) => {
   const { lg, isClient } = useResponsive();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // useStateの代わりにZustandストアから状態とアクションを取得
+  const { isSidebarOpen, setIsSidebarOpen, toggleSidebar } = useSidebarStore();
 
   // lg以上の画面サイズでサイドバーを自動開閉
   useEffect(() => {
     setIsSidebarOpen(lg);
-  }, [lg]);
+  }, [lg, setIsSidebarOpen]);
 
   // カスタムイベントリスナーでサイドバーの切り替えをサポート
+  // ここで直接ZustandのtoggleSidebarアクションを呼び出す
   useEffect(() => {
     const handleToggleSidebar = () => {
-      setIsSidebarOpen(prev => !prev);
+      toggleSidebar();
     };
 
     document.addEventListener('toggleSidebar', handleToggleSidebar);
     return () => {
       document.removeEventListener('toggleSidebar', handleToggleSidebar);
     };
-  }, []);
-
-
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
-
-  // 初期読み込み時の処理を削除し、常に通常のレンダリングを行う
+  }, [toggleSidebar]);
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       {/* サイドバー */}
-      <div
+      <aside
         className={`
-          fixed inset-y-0 left-0 z-50 w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-lg
-          transform transition-transform duration-300 ease-in-out
-          lg:relative lg:translate-x-0 lg:shadow-none
-          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-lg
+          transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:static lg:inset-auto lg:w-64 lg:translate-x-0
+          transition-transform duration-300 ease-in-out
         `}
       >
         {sidebar}
-      </div>
+      </aside>
 
       {/* オーバーレイ（モバイル時） */}
       {isClient && isSidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
-          onClick={toggleSidebar}
+          onClick={toggleSidebar} // オーバーレイクリックでサイドバーを閉じる
           aria-hidden="true"
           data-testid="sidebar-overlay"
         />
       )}
 
       {/* メインコンテンツエリア */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col overflow-hidden lg:ml-64">
         {/* ヘッダー */}
         {header && (
           <div className="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-            {header({ onToggleSidebar: toggleSidebar, isSidebarOpen })}
+            {header({ onToggleSidebar: toggleSidebar, isSidebarOpen })} {/* ヘッダーにもZustandのtoggleSidebarを渡す */}
           </div>
         )}
 
         {/* メインチャットエリア */}
-        <div className="flex-1 overflow-hidden bg-white dark:bg-gray-800">
+        <main className="flex-1 overflow-hidden overflow-x-hidden overflow-y-auto bg-white dark:bg-gray-800">
           {children}
-        </div>
+        </main>
       </div>
     </div>
   );

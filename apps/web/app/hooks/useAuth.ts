@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '../stores/auth';
+import path from 'path';
 
 /**
  * 認証状態管理のカスタムフック
@@ -13,6 +14,11 @@ import { useAuthStore } from '../stores/auth';
 export function useAuth() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchParamsString = searchParams.toString();
+  const currentPathWithQuery = searchParamsString
+    ? `${pathname}?${searchParamsString}`
+    : pathname;
 
   const {
     user,
@@ -25,14 +31,14 @@ export function useAuth() {
   useEffect(() => {
     if (!isInitialized) {
       initializeAuth({
-        currentPath: pathname,
+        currentPath: currentPathWithQuery,
         onUnauthorized: (currentPath) => {
           // 認証が必要なページで未認証の場合はログインページにリダイレクト
           router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
         },
       });
     }
-  }, [isInitialized, pathname, initializeAuth, router]);
+  }, [isInitialized, currentPathWithQuery, initializeAuth, router]);
 
   return {
     user,

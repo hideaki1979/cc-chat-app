@@ -175,7 +175,7 @@ func (c *Client) handleChatMessage(data json.RawMessage) {
 
 	// データベースにメッセージを保存してからブロードキャスト
 	if c.Hub.MessageSaver != nil {
-		messageResponse, err := c.Hub.MessageSaver.SaveWebSocketMessage(roomID, c.ID, chatMsg.Content)
+		messageResponse, err := c.Hub.MessageSaver.SaveWebSocketMessage(c.ctx, roomID, c.ID, chatMsg.Content)
 		if err != nil {
 			log.Printf("WebSocketメッセージのDB保存エラー: %v", err)
 			// エラーメッセージを送信者に返す
@@ -187,10 +187,14 @@ func (c *Client) handleChatMessage(data json.RawMessage) {
 				"message_id": generateMessageID(),
 				"error":      true,
 			}
-			errorBytes, _ := json.Marshal(map[string]interface{}{
+			errorBytes, err := json.Marshal(map[string]interface{}{
 				"type": "new_message",
 				"data": errorData,
 			})
+			if err != nil {
+				log.Printf("エラーメッセージのマーシャルに失敗: %v", err)
+				return
+			}
 			select {
 			case c.Send <- errorBytes:
 			default:

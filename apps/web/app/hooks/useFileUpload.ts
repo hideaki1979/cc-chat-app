@@ -57,7 +57,9 @@ export const useFileUpload = (options: FileUploadOptions = {}) => {
     return null;
   }, [maxSize, allowedTypes]);
 
-  const uploadFile = useCallback(async (file: File): Promise<UploadedFile | null> => {
+  const uploadFile = useCallback(async (
+    file: File, options?: {skipProgressUpdate?: boolean}
+    ): Promise<UploadedFile | null> => {      
     setError(null);
     setUploadProgress(0);
 
@@ -97,8 +99,11 @@ export const useFileUpload = (options: FileUploadOptions = {}) => {
         type: file.type,
       };
 
-      setUploadProgress(100);
-      onProgress?.(100);
+      if (!options?.skipProgressUpdate) {
+        setUploadProgress(100);
+        onProgress?.(100);
+      }
+
       onSuccess?.(uploadedFile.url, uploadedFile.name);
 
       return uploadedFile;
@@ -119,7 +124,7 @@ export const useFileUpload = (options: FileUploadOptions = {}) => {
     for (let i = 0; i < fileArray.length; i++) {
       const file = fileArray[i];
       if (file) {
-        const result = await uploadFile(file);
+        const result = await uploadFile(file, {skipProgressUpdate: fileArray.length > 1});
         if (result) {
           results.push(result);
         }

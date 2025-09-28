@@ -222,7 +222,8 @@ describe('MessageInput', () => {
       await user.click(attachButton);
 
       // ファイル入力要素がクリックされることを確認
-      const fileInput = screen.getByDisplayValue('') as HTMLInputElement;
+      const fileInput = document.querySelector('input[type="file]') as HTMLInputElement | null;
+      expect(fileInput).not.toBeNull();
       expect(fileInput).toHaveAttribute('type', 'file');
     });
 

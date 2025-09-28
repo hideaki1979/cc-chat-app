@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"sync"
@@ -21,7 +22,7 @@ type MessageSaverResponse struct {
 
 // MessageSaver WebSocketメッセージをデータベースに保存するためのインターフェース
 type MessageSaver interface {
-	SaveWebSocketMessage(roomID, userID, content string) (*MessageSaverResponse, error)
+	SaveWebSocketMessage(ctx context.Context, roomID, userID, content string) (*MessageSaverResponse, error)
 }
 
 // Client 接続されたクライアントを表す
@@ -31,6 +32,7 @@ type Client struct {
 	Send   chan []byte     // メッセージ送信チャネル
 	RoomID string          // 現在のチャットルームID
 	Hub    *Hub            // Hubへの参照
+	ctx	   context.Context // リクエストのコンテキスト
 }
 
 // Hub アクティブなクライアントのセットを維持し、メッセージをブロードキャストする

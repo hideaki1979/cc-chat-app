@@ -42,17 +42,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   // ファイルアップロード機能
   const { uploadFile, isUploading, error: uploadError } = useFileUpload({
-    onSuccess: (fileUrl, fileName) => {
-      // アップロード成功時に添付ファイルリストに追加
-      const newAttachment: UploadedFile = {
-        id: Date.now().toString(),
-        url: fileUrl,
-        name: fileName,
-        size: 0, // サイズは後で取得可能
-        type: '',
-      };
-      setAttachments(prev => [...prev, newAttachment]);
-    },
     onError: (error) => {
       console.error('ファイルアップロードエラー:', error);
     },
@@ -173,7 +162,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
     const file = files[0];
     if (file) {
-      await uploadFile(file);
+      const uploaded = await uploadFile(file);
+      if (uploaded) {
+        setAttachments(prev => [...prev, uploaded]);
+      }
     }
 
     // ファイル入力をリセット

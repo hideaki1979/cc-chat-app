@@ -8,6 +8,7 @@ import { getUserFriendlyMessage, normalizeError } from '../../lib/services/error
 import type { Message } from '../../types/chat';
 import { useWebSocketStore } from '../../stores/websocket';
 import { useAuthStore } from '../../stores/auth';
+import { validateMessageContent } from '../../lib/services/chatService';
 // import { useChatStore } from '../../stores/chat';
 
 // MessageListを動的インポート化（メッセージ表示は重いため、必要時のみロード）
@@ -88,6 +89,17 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   // メッセージ送信関数
   const handleSendMessage = useCallback(async (content: string) => {
     if (!roomId || isSending || disabled) return;
+
+    // ⭐ バリデーションを追加（useChat.tsと同じロジック）
+    const validation = validateMessageContent(content);
+    if (!validation.isValid) {
+      const error = new Error(validation.error || 'バリデーションエラー');
+      const appError = normalizeError(error, 'メッセージ送信');
+      const userMessage = getUserFriendlyMessage(appError);
+      console.error('メッセージバリデーションエラー：', userMessage);
+      // TODO: エラートーストを表示
+      return; // バリデーション失敗時は送信を中止
+    }
 
     setIsSending(true);
     try {

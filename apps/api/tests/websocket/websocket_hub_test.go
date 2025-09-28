@@ -55,9 +55,10 @@ type MockMessageSaver struct {
 	mock.Mock
 }
 
-func (m *MockMessageSaver) SaveWebSocketMessage(roomID, userID, content string) (*websocket.MessageSaverResponse, error) {
-	args := m.Called(roomID, userID, content)
-	return args.Get(0).(*websocket.MessageSaverResponse), args.Error(1)
+func (m *MockMessageSaver) SaveWebSocketMessage(ctx, roomID, userID, content string) (*websocket.MessageSaverResponse, error) {
+	args := m.Called(ctx, roomID, userID, content)
+	resp, _ := args.Get(0).(*websocket.MessageSaverResponse)
+	return resp, args.Error(1)
 }
 
 func TestHub_SetMessageSaver(t *testing.T) {

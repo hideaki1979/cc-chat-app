@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../../stores/auth';
 import { ChatLayout, Sidebar, ChatHeader } from '../layout';
 import type { ChatRoom } from '../../types/chat';
+import { useSidebarStore } from '../../stores/sidebarStore';
 
 /**
  * チャットページのClient Component部分（useEffect最適化版）
@@ -16,6 +17,7 @@ import type { ChatRoom } from '../../types/chat';
 export function ChatPageClient() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  const { toggleSidebar } = useSidebarStore();
 
   // ルーム関連のローカル状態（将来のAPI接続を想定しつつプレースホルダー）
   // 実際の実装では、APIからルーム一覧を取得して初期ルームを設定
@@ -59,12 +61,7 @@ export function ChatPageClient() {
           onRoomSelect={handleRoomSelect}
           user={user ? { id: user.id, name: user.name, email: user.email } : undefined}
           onLogout={handleLogout}
-          onCloseSidebar={() => {
-            // ChatLayoutのtoggleSidebarを呼び出すため、refやコンテキストを使用
-            // 簡単な解決策として、カスタムイベントを使用
-            const event = new CustomEvent('toggleSidebar');
-            document.dispatchEvent(event);
-          }}
+          onCloseSidebar={toggleSidebar}
         />
       }
       header={({ onToggleSidebar, isSidebarOpen }) => (

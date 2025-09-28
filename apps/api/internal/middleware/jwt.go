@@ -26,7 +26,8 @@ func JWTAuth() echo.MiddlewareFunc {
 					if strings.HasPrefix(authHeader, bearerPrefix) {
 						tokenString = strings.TrimSpace(authHeader[len(bearerPrefix):])
 					}
-				} else {
+				} else if strings.EqualFold(c.Request().Header.Get("Upgrade"), "websocket") &&
+					strings.Contains(strings.ToLower(c.Request().Header.Get("Connection")), "upgrade") {
 					// 3. WebSocket用: クエリパラメータからtokenを取得
 					tokenParam := c.QueryParam("token")
 					if tokenParam != "" {

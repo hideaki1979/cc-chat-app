@@ -64,21 +64,26 @@ export const useWebSocketStore = create<WebSocketStore>()(
       connect: (token?: string) => {
         const { client: existingClient, isConnecting } = get();
 
-        console.log('🔌 WebSocket接続開始:', { hasToken: !!token, hasExistingClient: !!existingClient, isConnecting });
 
         // 既に接続中の場合はスキップ
         if (isConnecting) {
-          console.log('🔌 既に接続中のためスキップします');
           return;
         }
 
         // 既存の接続があれば先に切断
         if (existingClient) {
-          console.log('🔌 既存接続を切断中...');
           existingClient.disconnect();
+          set({
+            client: null,
+            isConnecting: false,
+            isConnected: false,
+          });
           // 少し待ってから新しい接続を開始
           setTimeout(() => {
-            get().connect(token);
+            const {client: currentClient} = get();
+            if (!currentClient) {
+              get().connect(token);
+            }
           }, 100);
           return;
         }
@@ -90,7 +95,6 @@ export const useWebSocketStore = create<WebSocketStore>()(
         // コールバック設定
         client.setCallbacks({
           onOpen: () => {
-            console.log('WebSocket接続成功');
             set({
               isConnected: true,
               isConnecting: false,
@@ -99,8 +103,7 @@ export const useWebSocketStore = create<WebSocketStore>()(
             });
           },
 
-          onClose: (event) => {
-            console.log('WebSocket接続終了:', event.code);
+          onClose: () => {
             set({
               isConnected: false,
               isConnecting: false,
@@ -132,7 +135,6 @@ export const useWebSocketStore = create<WebSocketStore>()(
           },
 
           onReconnect: (attempt: number) => {
-            console.log(`再接続試行中: ${attempt}`);
             set({
               isConnecting: true,
               reconnectAttempts: attempt
@@ -212,14 +214,6 @@ export const useWebSocketStore = create<WebSocketStore>()(
       // メッセージ送信
       sendMessage: (content: string, roomId: string, userId?: string) => {
         const { client, currentRoomId, addMessage, isConnected } = get();
-        console.log('🚀 sendMessage called:', {
-          content: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
-          roomId,
-          userId,
-          isConnected,
-          currentRoomId,
-          connectionState: client?.getConnectionState()
-        });
 
         if (!client || !isConnected) {
           const errorMsg = 'メッセージ送信失敗: WebSocket未接続';
@@ -248,7 +242,6 @@ export const useWebSocketStore = create<WebSocketStore>()(
         const sendSuccess = client.sendChatMessage(content, roomId);
 
         if (!sendSuccess) {
-          console.warn('メッセージ送信に失敗しました');
           if (userId) {
             const errorMessage: ChatMessage = {
               id: `error_${Date.now()}`,
@@ -274,7 +267,6 @@ export const useWebSocketStore = create<WebSocketStore>()(
             type: 'text'
           };
 
-          console.log('📝 Adding optimistic message:', optimisticMessage);
           addMessage(optimisticMessage);
 
           // メッセージ追加後のstateを確認
@@ -368,7 +360,6 @@ export const useWebSocketStore = create<WebSocketStore>()(
               type: 'text'
             };
 
-            console.log('📥 Adding received message:', chatMessage);
             state.upsertMessage(chatMessage);
 
             // ChatStoreにも統合（設定されている場合）
@@ -387,13 +378,9 @@ export const useWebSocketStore = create<WebSocketStore>()(
                 }
               };
 
-              console.log('🔄 Syncing to ChatStore:', chatStoreMessage);
               state._chatStoreUpsertMessage(chatStoreMessage);
             }
 
-            // メッセージ追加後のstateを確認
-            const afterState = get();
-            console.log('📊 Messages after receive:', afterState.messages.length);
             break;
           }
 
@@ -445,7 +432,6 @@ export const useWebSocketStore = create<WebSocketStore>()(
 
           case 'connected': {
             // 接続確認
-            console.log('WebSocket接続確認:', message.data);
             break;
           }
 
