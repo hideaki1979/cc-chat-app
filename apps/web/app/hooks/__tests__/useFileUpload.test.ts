@@ -63,7 +63,7 @@ describe('useFileUpload', () => {
 
       const file = createMockFile('test.jpg', 1024, 'image/jpeg');
 
-      let uploadResult: import('../useFileUpload').UploadedFile | null;
+      let uploadResult: import('../useFileUpload').UploadedFile | null = null;
       await act(async () => {
         uploadResult = await result.current.uploadFile(file);
       });
@@ -124,7 +124,7 @@ describe('useFileUpload', () => {
 
       const file = createMockFile('test.jpg', 1024, 'image/jpeg');
 
-      let uploadResult: import('../useFileUpload').UploadedFile | null;
+      let uploadResult: import('../useFileUpload').UploadedFile | null = null;
       await act(async () => {
         uploadResult = await result.current.uploadFile(file);
       });
@@ -138,7 +138,7 @@ describe('useFileUpload', () => {
       const { result } = renderHook(() => useFileUpload({ maxSize: 1024 }));
       const largeFile = createMockFile('large.jpg', 2048, 'image/jpeg');
 
-      let uploadResult: import('../useFileUpload').UploadedFile | null;
+      let uploadResult: import('../useFileUpload').UploadedFile | null = null;
       await act(async () => {
         uploadResult = await result.current.uploadFile(largeFile);
       });
@@ -169,14 +169,14 @@ describe('useFileUpload', () => {
         createMockFile('test2.jpg', 1024, 'image/jpeg')
       ];
 
-      let uploadResults: import('../useFileUpload').UploadedFile[];
+      let uploadResults: import('../useFileUpload').UploadedFile[] = [];
       await act(async () => {
         uploadResults = await result.current.uploadMultipleFiles(files);
       });
 
       expect(uploadResults).toHaveLength(2);
-      expect(uploadResults[0].id).toBe('id1');
-      expect(uploadResults[1].id).toBe('id2');
+      expect(uploadResults[0]?.id).toBe('id1');
+      expect(uploadResults[1]?.id).toBe('id2');
 
       // 進捗が更新されることを確認
       expect(onProgress).toHaveBeenCalledWith(100);
@@ -200,14 +200,14 @@ describe('useFileUpload', () => {
         createMockFile('test2.jpg', 1024, 'image/jpeg')
       ];
 
-      let uploadResults: import('../useFileUpload').UploadedFile[];
+      let uploadResults: import('../useFileUpload').UploadedFile[] = [];
       await act(async () => {
         uploadResults = await result.current.uploadMultipleFiles(files);
       });
 
       // 成功したファイルのみ結果に含まれる
       expect(uploadResults).toHaveLength(1);
-      expect(uploadResults[0].id).toBe('id1');
+      expect(uploadResults[0]?.id).toBe('id1');
     });
   });
 
